@@ -1,6 +1,6 @@
 databases:
   - name: colombia-crime-db
-    plan: free
+    plan: starter
     databaseName: colombia_crimes
     user: crime_admin
 
@@ -8,7 +8,7 @@ services:
   - type: web
     name: colombia-crime-api
     env: node
-    plan: free
+    plan: starter
     buildCommand: npm install -g pnpm@9 && pnpm install && pnpm --filter @workspace/api-server run build
     startCommand: pnpm --filter @workspace/api-server run start
     envVars:
@@ -24,7 +24,6 @@ services:
   - type: web
     name: colombia-crime-dashboard
     env: static
-    plan: free
     buildCommand: npm install -g pnpm@9 && pnpm install && BASE_PATH=/ pnpm --filter @workspace/crime-dashboard run build
     staticPublishPath: ./artifacts/crime-dashboard/dist/public
     routes:
