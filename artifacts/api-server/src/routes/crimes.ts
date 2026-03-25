@@ -668,9 +668,14 @@ function generateDemoData(): ParsedRow[] {
     "lesiones_personales": { "Bogotá D.C.": 3200, "Antioquia": 2800, "Valle del Cauca": 2100 },
   };
 
-  for (const year of [2022, 2023, 2024, 2025]) {
+  const currentYear = new Date().getFullYear();
+  const years = [2022, 2023, 2024, 2025];
+  if (!years.includes(currentYear)) years.push(currentYear);
+
+  for (const year of years) {
+    const maxMonth = year === currentYear ? new Date().getMonth() + 1 : 12;
     for (const ct of CRIME_TYPES) {
-      for (let month = 1; month <= 12; month++) {
+      for (let month = 1; month <= maxMonth; month++) {
         let nationalCount = 0;
         departments.forEach((dept) => {
           const base = baseCounts[ct.id]?.[dept] ??
@@ -694,10 +699,17 @@ let refreshInProgress = false;
 
 async function loadDemoIfEmpty() {
   try {
-    const result = await db
+    const currentYear = new Date().getFullYear();
+    const countResult = await db
       .select({ count: sql<number>`count(*)` })
       .from(crimeStatsTable);
-    if (Number(result[0]?.count) === 0) {
+    const yearResult = await db
+      .selectDistinct({ year: crimeStatsTable.year })
+      .from(crimeStatsTable)
+      .where(eq(crimeStatsTable.year, currentYear));
+    const isEmpty = Number(countResult[0]?.count) === 0;
+    const missingCurrentYear = yearResult.length === 0;
+    if (isEmpty || missingCurrentYear) {
       const demo = generateDemoData();
       await saveRows(demo);
       await db.delete(refreshLogTable);
@@ -715,11 +727,18 @@ async function loadDemoIfEmpty() {
 }
 
 async function ensureDataLoaded() {
+  if (refreshInProgress) return;
   try {
-    const count = await db
+    const currentYear = new Date().getFullYear();
+    const countResult = await db
       .select({ count: sql<number>`count(*)` })
       .from(crimeStatsTable);
-    if (Number(count[0]?.count) === 0 && !refreshInProgress) {
+    const yearResult = await db
+      .selectDistinct({ year: crimeStatsTable.year })
+      .from(crimeStatsTable)
+      .where(eq(crimeStatsTable.year, currentYear));
+    const needsLoad = Number(countResult[0]?.count) === 0 || yearResult.length === 0;
+    if (needsLoad) {
       refreshInProgress = true;
       loadDemoIfEmpty().finally(() => { refreshInProgress = false; });
     }
@@ -741,7 +760,10 @@ router.get("/crimes/years", async (_req, res) => {
       .orderBy(asc(crimeStatsTable.year));
     res.json(result.map((r) => r.year));
   } catch {
-    res.json([2022, 2023, 2024, 2025]);
+    const currentYear = new Date().getFullYear();
+    const fallbackYears = [2022, 2023, 2024, 2025];
+    if (!fallbackYears.includes(currentYear)) fallbackYears.push(currentYear);
+    res.json(fallbackYears);
   }
 });
 
