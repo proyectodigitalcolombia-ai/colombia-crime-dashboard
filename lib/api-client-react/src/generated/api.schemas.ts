@@ -8,3 +8,81 @@
 export interface HealthStatus {
   status: string;
 }
+
+export interface MonthlyStats {
+  year: number;
+  month: number;
+  monthName: string;
+  crimeTypeId: string;
+  crimeTypeName: string;
+  count: number;
+}
+
+export interface DepartmentStats {
+  department: string;
+  /** @nullable */
+  departmentCode: string | null;
+  year: number;
+  crimeTypeId: string;
+  crimeTypeName: string;
+  totalCount: number;
+}
+
+export interface CrimeType {
+  id: string;
+  name: string;
+  /** @nullable */
+  description: string | null;
+}
+
+export type RefreshStatusStatus =
+  (typeof RefreshStatusStatus)[keyof typeof RefreshStatusStatus];
+
+export const RefreshStatusStatus = {
+  idle: "idle",
+  refreshing: "refreshing",
+  error: "error",
+} as const;
+
+export interface RefreshStatus {
+  /**
+   * ISO timestamp of last successful refresh
+   * @nullable
+   */
+  lastRefreshed: string | null;
+  /**
+   * ISO timestamp of next scheduled refresh
+   * @nullable
+   */
+  nextRefresh: string | null;
+  status: RefreshStatusStatus;
+  /** @nullable */
+  message: string | null;
+  recordCount: number;
+}
+
+export type GetNationalMonthlyParams = {
+  /**
+   * Filter by year (e.g. 2024). Returns all years if omitted.
+   * @nullable
+   */
+  year?: number | null;
+  /**
+   * Filter by crime type ID. Returns all types if omitted.
+   * @nullable
+   */
+  crimeType?: string | null;
+};
+
+export type GetCrimesByDepartmentParams = {
+  /**
+   * Filter by year. Returns latest year if omitted.
+   * @nullable
+   */
+  year?: number | null;
+  /**
+   * Filter by crime type ID. Returns all types if omitted.
+   * @nullable
+   */
+  crimeType?: string | null;
+};

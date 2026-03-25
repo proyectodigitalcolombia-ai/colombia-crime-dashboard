@@ -6,4 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./crimeType";
+export * from "./departmentStats";
+export * from "./getCrimesByDepartmentParams";
+export * from "./getNationalMonthlyParams";
 export * from "./healthStatus";
+export * from "./monthlyStats";
+export * from "./refreshStatus";
+export * from "./refreshStatusStatus";

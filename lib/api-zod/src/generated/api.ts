@@ -14,3 +14,111 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * Returns monthly crime counts by type for the entire country
+ * @summary Get national monthly crime statistics
+ */
+export const GetNationalMonthlyQueryParams = zod.object({
+  year: zod.coerce
+    .number()
+    .nullish()
+    .describe("Filter by year (e.g. 2024). Returns all years if omitted."),
+  crimeType: zod.coerce
+    .string()
+    .nullish()
+    .describe("Filter by crime type ID. Returns all types if omitted."),
+});
+
+export const GetNationalMonthlyResponseItem = zod.object({
+  year: zod.number(),
+  month: zod.number(),
+  monthName: zod.string(),
+  crimeTypeId: zod.string(),
+  crimeTypeName: zod.string(),
+  count: zod.number(),
+});
+export const GetNationalMonthlyResponse = zod.array(
+  GetNationalMonthlyResponseItem,
+);
+
+/**
+ * Returns total crimes by department for heat map visualization
+ * @summary Get crime statistics by department
+ */
+export const GetCrimesByDepartmentQueryParams = zod.object({
+  year: zod.coerce
+    .number()
+    .nullish()
+    .describe("Filter by year. Returns latest year if omitted."),
+  crimeType: zod.coerce
+    .string()
+    .nullish()
+    .describe("Filter by crime type ID. Returns all types if omitted."),
+});
+
+export const GetCrimesByDepartmentResponseItem = zod.object({
+  department: zod.string(),
+  departmentCode: zod.string().nullable(),
+  year: zod.number(),
+  crimeTypeId: zod.string(),
+  crimeTypeName: zod.string(),
+  totalCount: zod.number(),
+});
+export const GetCrimesByDepartmentResponse = zod.array(
+  GetCrimesByDepartmentResponseItem,
+);
+
+/**
+ * @summary Get list of available crime types
+ */
+export const GetCrimeTypesResponseItem = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  description: zod.string().nullable(),
+});
+export const GetCrimeTypesResponse = zod.array(GetCrimeTypesResponseItem);
+
+/**
+ * Returns when data was last updated and next scheduled update
+ * @summary Get data refresh status
+ */
+export const GetRefreshStatusResponse = zod.object({
+  lastRefreshed: zod
+    .string()
+    .nullable()
+    .describe("ISO timestamp of last successful refresh"),
+  nextRefresh: zod
+    .string()
+    .nullable()
+    .describe("ISO timestamp of next scheduled refresh"),
+  status: zod.enum(["idle", "refreshing", "error"]),
+  message: zod.string().nullable(),
+  recordCount: zod.number(),
+});
+
+/**
+ * Manually trigger a refresh of crime data from the police source
+ * @summary Trigger manual data refresh
+ */
+export const TriggerRefreshResponse = zod.object({
+  lastRefreshed: zod
+    .string()
+    .nullable()
+    .describe("ISO timestamp of last successful refresh"),
+  nextRefresh: zod
+    .string()
+    .nullable()
+    .describe("ISO timestamp of next scheduled refresh"),
+  status: zod.enum(["idle", "refreshing", "error"]),
+  message: zod.string().nullable(),
+  recordCount: zod.number(),
+});
+
+/**
+ * @summary Get available years in dataset
+ */
+export const GetAvailableYearsResponseItem = zod.number();
+export const GetAvailableYearsResponse = zod.array(
+  GetAvailableYearsResponseItem,
+);

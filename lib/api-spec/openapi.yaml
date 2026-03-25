@@ -1,6 +1,5 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
   description: API specification
@@ -10,6 +9,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: crimes
+    description: Crime statistics from Colombian National Police
 paths:
   /healthz:
     get:
@@ -24,6 +25,119 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /crimes/national-monthly:
+    get:
+      operationId: getNationalMonthly
+      tags: [crimes]
+      summary: Get national monthly crime statistics
+      description: Returns monthly crime counts by type for the entire country
+      parameters:
+        - in: query
+          name: year
+          schema:
+            type: ["integer", "null"]
+          description: Filter by year (e.g. 2024). Returns all years if omitted.
+        - in: query
+          name: crimeType
+          schema:
+            type: ["string", "null"]
+          description: Filter by crime type ID. Returns all types if omitted.
+      responses:
+        "200":
+          description: Monthly crime statistics
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MonthlyStats"
+
+  /crimes/by-department:
+    get:
+      operationId: getCrimesByDepartment
+      tags: [crimes]
+      summary: Get crime statistics by department
+      description: Returns total crimes by department for heat map visualization
+      parameters:
+        - in: query
+          name: year
+          schema:
+            type: ["integer", "null"]
+          description: Filter by year. Returns latest year if omitted.
+        - in: query
+          name: crimeType
+          schema:
+            type: ["string", "null"]
+          description: Filter by crime type ID. Returns all types if omitted.
+      responses:
+        "200":
+          description: Department crime statistics
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DepartmentStats"
+
+  /crimes/types:
+    get:
+      operationId: getCrimeTypes
+      tags: [crimes]
+      summary: Get list of available crime types
+      responses:
+        "200":
+          description: List of crime types
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CrimeType"
+
+  /crimes/refresh-status:
+    get:
+      operationId: getRefreshStatus
+      tags: [crimes]
+      summary: Get data refresh status
+      description: Returns when data was last updated and next scheduled update
+      responses:
+        "200":
+          description: Refresh status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefreshStatus"
+
+  /crimes/refresh:
+    post:
+      operationId: triggerRefresh
+      tags: [crimes]
+      summary: Trigger manual data refresh
+      description: Manually trigger a refresh of crime data from the police source
+      responses:
+        "200":
+          description: Refresh started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefreshStatus"
+
+  /crimes/years:
+    get:
+      operationId: getAvailableYears
+      tags: [crimes]
+      summary: Get available years in dataset
+      responses:
+        "200":
+          description: List of available years
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: integer
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +148,85 @@ components:
       required:
         - status
 
+    MonthlyStats:
+      type: object
+      properties:
+        year:
+          type: integer
+        month:
+          type: integer
+        monthName:
+          type: string
+        crimeTypeId:
+          type: string
+        crimeTypeName:
+          type: string
+        count:
+          type: integer
+      required:
+        - year
+        - month
+        - monthName
+        - crimeTypeId
+        - crimeTypeName
+        - count
+
+    DepartmentStats:
+      type: object
+      properties:
+        department:
+          type: string
+        departmentCode:
+          type: ["string", "null"]
+        year:
+          type: integer
+        crimeTypeId:
+          type: string
+        crimeTypeName:
+          type: string
+        totalCount:
+          type: integer
+      required:
+        - department
+        - departmentCode
+        - year
+        - crimeTypeId
+        - crimeTypeName
+        - totalCount
+
+    CrimeType:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+      required:
+        - id
+        - name
+        - description
+
+    RefreshStatus:
+      type: object
+      properties:
+        lastRefreshed:
+          type: ["string", "null"]
+          description: ISO timestamp of last successful refresh
+        nextRefresh:
+          type: ["string", "null"]
+          description: ISO timestamp of next scheduled refresh
+        status:
+          type: string
+          enum: [idle, refreshing, error]
+        message:
+          type: ["string", "null"]
+        recordCount:
+          type: integer
+      required:
+        - lastRefreshed
+        - nextRefresh
+        - status
+        - message
+        - recordCount

@@ -5,15 +5,26 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
+  MutationFunction,
   QueryFunction,
   QueryKey,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from "@tanstack/react-query";
 
-import type { HealthStatus } from "./api.schemas";
+import type {
+  CrimeType,
+  DepartmentStats,
+  GetCrimesByDepartmentParams,
+  GetNationalMonthlyParams,
+  HealthStatus,
+  MonthlyStats,
+  RefreshStatus,
+} from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
 import type { ErrorType } from "../custom-fetch";
@@ -92,6 +103,513 @@ export function useHealthCheck<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getHealthCheckQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Returns monthly crime counts by type for the entire country
+ * @summary Get national monthly crime statistics
+ */
+export const getGetNationalMonthlyUrl = (params?: GetNationalMonthlyParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/crimes/national-monthly?${stringifiedParams}`
+    : `/api/crimes/national-monthly`;
+};
+
+export const getNationalMonthly = async (
+  params?: GetNationalMonthlyParams,
+  options?: RequestInit,
+): Promise<MonthlyStats[]> => {
+  return customFetch<MonthlyStats[]>(getGetNationalMonthlyUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetNationalMonthlyQueryKey = (
+  params?: GetNationalMonthlyParams,
+) => {
+  return [`/api/crimes/national-monthly`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetNationalMonthlyQueryOptions = <
+  TData = Awaited<ReturnType<typeof getNationalMonthly>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetNationalMonthlyParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getNationalMonthly>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetNationalMonthlyQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getNationalMonthly>>
+  > = ({ signal }) => getNationalMonthly(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getNationalMonthly>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetNationalMonthlyQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getNationalMonthly>>
+>;
+export type GetNationalMonthlyQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get national monthly crime statistics
+ */
+
+export function useGetNationalMonthly<
+  TData = Awaited<ReturnType<typeof getNationalMonthly>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetNationalMonthlyParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getNationalMonthly>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetNationalMonthlyQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Returns total crimes by department for heat map visualization
+ * @summary Get crime statistics by department
+ */
+export const getGetCrimesByDepartmentUrl = (
+  params?: GetCrimesByDepartmentParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/crimes/by-department?${stringifiedParams}`
+    : `/api/crimes/by-department`;
+};
+
+export const getCrimesByDepartment = async (
+  params?: GetCrimesByDepartmentParams,
+  options?: RequestInit,
+): Promise<DepartmentStats[]> => {
+  return customFetch<DepartmentStats[]>(getGetCrimesByDepartmentUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetCrimesByDepartmentQueryKey = (
+  params?: GetCrimesByDepartmentParams,
+) => {
+  return [`/api/crimes/by-department`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetCrimesByDepartmentQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCrimesByDepartment>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetCrimesByDepartmentParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCrimesByDepartment>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetCrimesByDepartmentQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getCrimesByDepartment>>
+  > = ({ signal }) =>
+    getCrimesByDepartment(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCrimesByDepartment>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetCrimesByDepartmentQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCrimesByDepartment>>
+>;
+export type GetCrimesByDepartmentQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get crime statistics by department
+ */
+
+export function useGetCrimesByDepartment<
+  TData = Awaited<ReturnType<typeof getCrimesByDepartment>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetCrimesByDepartmentParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCrimesByDepartment>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetCrimesByDepartmentQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get list of available crime types
+ */
+export const getGetCrimeTypesUrl = () => {
+  return `/api/crimes/types`;
+};
+
+export const getCrimeTypes = async (
+  options?: RequestInit,
+): Promise<CrimeType[]> => {
+  return customFetch<CrimeType[]>(getGetCrimeTypesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetCrimeTypesQueryKey = () => {
+  return [`/api/crimes/types`] as const;
+};
+
+export const getGetCrimeTypesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCrimeTypes>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getCrimeTypes>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetCrimeTypesQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getCrimeTypes>>> = ({
+    signal,
+  }) => getCrimeTypes({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCrimeTypes>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetCrimeTypesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCrimeTypes>>
+>;
+export type GetCrimeTypesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get list of available crime types
+ */
+
+export function useGetCrimeTypes<
+  TData = Awaited<ReturnType<typeof getCrimeTypes>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getCrimeTypes>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetCrimeTypesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Returns when data was last updated and next scheduled update
+ * @summary Get data refresh status
+ */
+export const getGetRefreshStatusUrl = () => {
+  return `/api/crimes/refresh-status`;
+};
+
+export const getRefreshStatus = async (
+  options?: RequestInit,
+): Promise<RefreshStatus> => {
+  return customFetch<RefreshStatus>(getGetRefreshStatusUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRefreshStatusQueryKey = () => {
+  return [`/api/crimes/refresh-status`] as const;
+};
+
+export const getGetRefreshStatusQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRefreshStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRefreshStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRefreshStatusQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getRefreshStatus>>
+  > = ({ signal }) => getRefreshStatus({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRefreshStatus>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRefreshStatusQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRefreshStatus>>
+>;
+export type GetRefreshStatusQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get data refresh status
+ */
+
+export function useGetRefreshStatus<
+  TData = Awaited<ReturnType<typeof getRefreshStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRefreshStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRefreshStatusQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Manually trigger a refresh of crime data from the police source
+ * @summary Trigger manual data refresh
+ */
+export const getTriggerRefreshUrl = () => {
+  return `/api/crimes/refresh`;
+};
+
+export const triggerRefresh = async (
+  options?: RequestInit,
+): Promise<RefreshStatus> => {
+  return customFetch<RefreshStatus>(getTriggerRefreshUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getTriggerRefreshMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof triggerRefresh>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof triggerRefresh>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["triggerRefresh"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof triggerRefresh>>,
+    void
+  > = () => {
+    return triggerRefresh(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TriggerRefreshMutationResult = NonNullable<
+  Awaited<ReturnType<typeof triggerRefresh>>
+>;
+
+export type TriggerRefreshMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Trigger manual data refresh
+ */
+export const useTriggerRefresh = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof triggerRefresh>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof triggerRefresh>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getTriggerRefreshMutationOptions(options));
+};
+
+/**
+ * @summary Get available years in dataset
+ */
+export const getGetAvailableYearsUrl = () => {
+  return `/api/crimes/years`;
+};
+
+export const getAvailableYears = async (
+  options?: RequestInit,
+): Promise<number[]> => {
+  return customFetch<number[]>(getGetAvailableYearsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAvailableYearsQueryKey = () => {
+  return [`/api/crimes/years`] as const;
+};
+
+export const getGetAvailableYearsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAvailableYears>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAvailableYears>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAvailableYearsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getAvailableYears>>
+  > = ({ signal }) => getAvailableYears({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAvailableYears>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAvailableYearsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAvailableYears>>
+>;
+export type GetAvailableYearsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get available years in dataset
+ */
+
+export function useGetAvailableYears<
+  TData = Awaited<ReturnType<typeof getAvailableYears>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAvailableYears>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAvailableYearsQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
