@@ -68,10 +68,14 @@ const DEPARTMENT_NAMES: Record<string, string> = {
   "SAN ANDRÉS": "San Andrés y Providencia", "SAN ANDRES": "San Andrés y Providencia",
 };
 
+function removeAccents(str: string): string {
+  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
 function normalizeDepartment(name: string): string {
-  const upper = name.toUpperCase().trim();
+  const upper = removeAccents(name.toUpperCase().trim());
   for (const [key, value] of Object.entries(DEPARTMENT_NAMES)) {
-    if (upper.includes(key)) return value;
+    if (upper.includes(removeAccents(key))) return value;
   }
   return name.trim();
 }
@@ -274,6 +278,197 @@ function parseDepartmentSheet(sheet: XLSX.WorkSheet, crimeTypeId: string, crimeT
   return rows;
 }
 
+const CUADRO_CRIME_MAP: Record<string, { id: string; name: string }> = {
+  "Cuadro 2":  { id: "homicidios",             name: "Homicidios" },
+  "Cuadro 3":  { id: "homicidios_transito",    name: "Homicidios en Tránsito" },
+  "Cuadro 4":  { id: "lesiones_personales",    name: "Lesiones Personales" },
+  "Cuadro 5":  { id: "lesiones_transito",      name: "Lesiones en Tránsito" },
+  "Cuadro 6":  { id: "violencia_intrafamiliar",name: "Violencia Intrafamiliar" },
+  "Cuadro 7":  { id: "delitos_sexuales",       name: "Delitos Sexuales" },
+  "Cuadro 8":  { id: "extorsion",              name: "Extorsión" },
+  "Cuadro 9":  { id: "amenazas",               name: "Amenazas" },
+  "Cuadro 10": { id: "hurtos",                 name: "Hurtos" },
+  "Cuadro 11": { id: "secuestros",             name: "Secuestros" },
+  "Cuadro 12": { id: "terrorismo",             name: "Terrorismo" },
+};
+
+const CUADRO1_CRIME_MAP = [
+  { keyword: "homicidios intencional", id: "homicidios",              name: "Homicidios" },
+  { keyword: "homicidios en accidente",id: "homicidios_transito",     name: "Homicidios en Tránsito" },
+  { keyword: "lesiones personales",    id: "lesiones_personales",     name: "Lesiones Personales" },
+  { keyword: "lesiones en accidente",  id: "lesiones_transito",       name: "Lesiones en Tránsito" },
+  { keyword: "violencia intrafamiliar",id: "violencia_intrafamiliar", name: "Violencia Intrafamiliar" },
+  { keyword: "delitos sexuales",       id: "delitos_sexuales",        name: "Delitos Sexuales" },
+  { keyword: "extorsion",              id: "extorsion",               name: "Extorsión" },
+  { keyword: "amenazas",               id: "amenazas",                name: "Amenazas" },
+  { keyword: "hurtos",                 id: "hurtos",                  name: "Hurtos" },
+  { keyword: "secuestro",              id: "secuestros",              name: "Secuestros" },
+  { keyword: "terrorismo",             id: "terrorismo",              name: "Terrorismo" },
+];
+
+function isHistoricalFormat(wb: XLSX.WorkBook): boolean {
+  const sheet = wb.Sheets["Cuadro 2"];
+  if (!sheet) return false;
+  const data = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "", blankrows: false });
+  for (let r = 0; r < Math.min(data.length, 6); r++) {
+    const row = data[r] as unknown[];
+    if (row.some((c) => /^20\d{2}$/.test(String(c || "").trim()))) return true;
+  }
+  return false;
+}
+
+function parseHistoricalCuadros(wb: XLSX.WorkBook): ParsedRow[] {
+  const rows: ParsedRow[] = [];
+
+  for (const [cuadroName, crimeType] of Object.entries(CUADRO_CRIME_MAP)) {
+    const sheet = wb.Sheets[cuadroName];
+    if (!sheet) continue;
+
+    const data = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "", blankrows: false });
+    if (data.length < 5) continue;
+
+    let yearRowIdx = -1, monthRowIdx = -1, headerRowIdx = -1;
+    for (let r = 0; r < Math.min(data.length, 10); r++) {
+      const row = data[r] as unknown[];
+      const hasCellYear = row.some((c) => /^20\d{2}$/.test(String(c || "").trim()));
+      const hasCellMonth = row.some((c) => MONTH_MAP[String(c || "").toLowerCase().trim()]);
+      const hasDept = row.some((c) => removeAccents(String(c || "").toLowerCase()).includes("departamento"));
+      if (hasCellYear && yearRowIdx === -1) yearRowIdx = r;
+      if (hasCellMonth && monthRowIdx === -1) monthRowIdx = r;
+      if (hasDept && headerRowIdx === -1) headerRowIdx = r;
+    }
+
+    if (yearRowIdx === -1 || monthRowIdx === -1 || headerRowIdx === -1) continue;
+
+    const yearArr = data[yearRowIdx] as unknown[];
+    const monthArr = data[monthRowIdx] as unknown[];
+
+    const yearAtCol: Record<number, number> = {};
+    for (let c = 0; c < yearArr.length; c++) {
+      const val = String(yearArr[c] || "").trim();
+      if (/^20\d{2}$/.test(val)) yearAtCol[c] = parseInt(val);
+    }
+
+    const colMap: Record<number, { year: number; month: number }> = {};
+    for (let c = 2; c < monthArr.length; c++) {
+      const mNum = MONTH_MAP[String(monthArr[c] || "").toLowerCase().trim()];
+      if (!mNum) continue;
+      let yr = 0;
+      for (let bc = c; bc >= 0; bc--) {
+        if (yearAtCol[bc]) { yr = yearAtCol[bc]; break; }
+      }
+      if (yr > 0) colMap[c] = { year: yr, month: mNum };
+    }
+
+    const deptData: Record<string, Record<string, number>> = {};
+    for (let r = headerRowIdx + 2; r < data.length; r++) {
+      const row = data[r] as unknown[];
+      const deptRaw = String(row[0] || "").trim();
+      if (!deptRaw) continue;
+      const deptMatch = deptRaw.match(/^\d+\s*-\s*(.+)$/);
+      if (!deptMatch) continue;
+      const deptName = normalizeDepartment(deptMatch[1]);
+
+      for (const [colStr, { year, month }] of Object.entries(colMap)) {
+        const count = parseNumber(row[Number(colStr)]);
+        if (count <= 0) continue;
+        const key = `${year}-${month}`;
+        if (!deptData[key]) deptData[key] = {};
+        deptData[key][deptName] = (deptData[key][deptName] || 0) + count;
+      }
+    }
+
+    for (const [key, depts] of Object.entries(deptData)) {
+      const [yr, mo] = key.split("-").map(Number);
+      let nationalTotal = 0;
+      for (const [dept, count] of Object.entries(depts)) {
+        rows.push({ year: yr, month: mo, crimeTypeId: crimeType.id, crimeTypeName: crimeType.name, department: dept, count });
+        nationalTotal += count;
+      }
+      rows.push({ year: yr, month: mo, crimeTypeId: crimeType.id, crimeTypeName: crimeType.name, department: "NACIONAL", count: nationalTotal });
+    }
+  }
+
+  return rows;
+}
+
+function parse2026Excel(wb: XLSX.WorkBook): ParsedRow[] {
+  const rows: ParsedRow[] = [];
+  const year = 2026;
+
+  const cuadro1 = wb.Sheets["Cuadro 1"];
+  if (!cuadro1) return rows;
+
+  const data1 = XLSX.utils.sheet_to_json<unknown[]>(cuadro1, { header: 1, defval: "", blankrows: false });
+
+  const monthHeaderRow = data1[2] as unknown[];
+  const monthCols: Record<number, number> = {};
+  for (let c = 2; c < monthHeaderRow.length; c++) {
+    const mNum = MONTH_MAP[String(monthHeaderRow[c] || "").toLowerCase().trim()];
+    if (mNum) monthCols[c] = mNum;
+  }
+
+  let lastMonth = 1;
+  const totalRow = data1[3] as unknown[];
+  for (const [colIdx, monthNum] of Object.entries(monthCols)) {
+    if (parseNumber(totalRow[Number(colIdx)]) > 0) lastMonth = monthNum;
+  }
+
+  const skipPrefixes = ["*", "fuente", "nota", "p:", "fecha", "total general"];
+  for (let r = 3; r < data1.length; r++) {
+    const row = data1[r] as unknown[];
+    const label = removeAccents(String(row[0] || "").toLowerCase().trim());
+    if (!label || skipPrefixes.some((p) => label.startsWith(p))) continue;
+
+    const matched = CUADRO1_CRIME_MAP.find((cm) => label.includes(removeAccents(cm.keyword)));
+    if (!matched) continue;
+
+    for (const [colIdx, monthNum] of Object.entries(monthCols)) {
+      const count = parseNumber(row[Number(colIdx)]);
+      if (count > 0) {
+        rows.push({ year, month: monthNum, crimeTypeId: matched.id, crimeTypeName: matched.name, department: "NACIONAL", count });
+      }
+    }
+  }
+
+  for (const [cuadroName, crimeType] of Object.entries(CUADRO_CRIME_MAP)) {
+    const sheet = wb.Sheets[cuadroName];
+    if (!sheet) continue;
+
+    const data = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "", blankrows: false });
+
+    let headerRowIdx = -1;
+    for (let i = 0; i < Math.min(data.length, 10); i++) {
+      const row = data[i] as unknown[];
+      if (row.some((c) => removeAccents(String(c || "").toLowerCase()).includes("departamento"))) {
+        headerRowIdx = i;
+        break;
+      }
+    }
+    if (headerRowIdx === -1) continue;
+
+    const deptTotals: Record<string, number> = {};
+    for (let r = headerRowIdx + 2; r < data.length; r++) {
+      const row = data[r] as unknown[];
+      const deptRaw = String(row[0] || "").trim();
+      if (!deptRaw) continue;
+
+      const deptMatch = deptRaw.match(/^\d+\s*-\s*(.+)$/);
+      if (!deptMatch) continue;
+
+      const deptName = normalizeDepartment(deptMatch[1]);
+      const count = parseNumber(row[2]);
+      if (count > 0) deptTotals[deptName] = (deptTotals[deptName] || 0) + count;
+    }
+
+    for (const [dept, count] of Object.entries(deptTotals)) {
+      rows.push({ year, month: lastMonth, crimeTypeId: crimeType.id, crimeTypeName: crimeType.name, department: dept, count });
+    }
+  }
+
+  return rows;
+}
+
 async function refreshData(): Promise<{ success: boolean; message: string; count: number }> {
   refreshState.status = "refreshing";
   refreshState.message = "Descargando datos de la Policía Nacional...";
@@ -286,11 +481,16 @@ async function refreshData(): Promise<{ success: boolean; message: string; count
     if (!wb) continue;
 
     successCount++;
-    for (const sheetName of wb.SheetNames) {
-      const sheet = wb.Sheets[sheetName];
-      if (!sheet) continue;
-      const parsed = parseMonthlySheet(sheet);
-      allRows = allRows.concat(parsed);
+    if (wb.SheetNames.includes("Cuadro 1") && isHistoricalFormat(wb)) {
+      allRows = allRows.concat(parseHistoricalCuadros(wb));
+    } else if (wb.SheetNames.includes("Cuadro 1")) {
+      allRows = allRows.concat(parse2026Excel(wb));
+    } else {
+      for (const sheetName of wb.SheetNames) {
+        const sheet = wb.Sheets[sheetName];
+        if (!sheet) continue;
+        allRows = allRows.concat(parseMonthlySheet(sheet));
+      }
     }
   }
 
