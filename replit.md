@@ -94,3 +94,24 @@ Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHea
 ### `scripts` (`@workspace/scripts`)
 
 Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
+
+### `artifacts/crime-dashboard` (`@workspace/crime-dashboard`)
+
+React + Vite dashboard for Colombian crime statistics. Displays interactive charts and a department heat map.
+
+- Entry: `src/main.tsx` → `src/pages/Dashboard.tsx`
+- Components: `ColombiaMap.tsx` (SVG heat map), charts via Recharts
+- Data: fetches from `@workspace/api-server` using generated React Query hooks
+- Theme: dark/light mode, Spanish language
+- Auto-refresh every 24h; manual refresh button
+
+**Data Sources** (loaded in `artifacts/api-server/src/routes/crimes.ts`):
+
+| Year | Source | Format |
+|------|--------|--------|
+| 2026 | `INFORMACI%C3%93N_DE_DELITOS_A_NIVEL_DE_REGISTRO_A%C3%91O_2026_1.xlsx` | Individual crime records (~7.2MB, ~124k rows) |
+| 2020–2025 | `CUADRO_DE_SALIDA_DELICTIVO_HISTORICO_MENSUALIZADO_20_25_1.xlsx` | Monthly aggregate tables |
+
+The 2026 file has individual registration records (one row per crime). Parser: `parseRegistroFile()` — maps DELITOS column (e.g. "ARTÍCULO 103. HOMICIDIO") to crime type IDs, aggregates by dept+month+type. Department "CUNDINAMARCA" in the police data includes Bogotá D.C.
+
+Refresh strategy: loads 2026 registro file first (fast), then historical cuadro file for 2020-2025 (filters out years already loaded). Falls back to demo data if both fail.

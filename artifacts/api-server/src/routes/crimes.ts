@@ -8,15 +8,14 @@ const router: IRouter = Router();
 
 const POLICE_BASE = "https://www.policia.gov.co/sites/default/files";
 
+const REGISTRO_SOURCES = [
+  { url: `${POLICE_BASE}/INFORMACI%C3%93N_DE_DELITOS_A_NIVEL_DE_REGISTRO_A%C3%91O_2026_1.xlsx`, year: 2026 },
+];
+
 const EXCEL_SOURCES = [
   {
-    url: `${POLICE_BASE}/CUADRO_DE_SALIDA_DELICTIVO_ULTIMO_MES_2026_1.xlsx`,
-    label: "2026",
-    type: "monthly",
-  },
-  {
     url: `${POLICE_BASE}/CUADRO_DE_SALIDA_DELICTIVO_HISTORICO_MENSUALIZADO_20_25_1.xlsx`,
-    label: "2020-2025",
+    label: "2020-2025 (cuadros)",
     type: "monthly",
   },
 ];
@@ -469,22 +468,118 @@ function parse2026Excel(wb: XLSX.WorkBook): ParsedRow[] {
   return rows;
 }
 
+function mapDelitoCrimeType(delito: string): { id: string; name: string } | null {
+  const d = removeAccents(delito.toUpperCase());
+  if (d.includes("103") || (d.includes("HOMICIDIO") && !d.includes("CULPOSO") && !d.includes("ACCIDENTE")))
+    return { id: "homicidios", name: "Homicidios" };
+  if (d.includes("109") || (d.includes("HOMICIDIO") && (d.includes("CULPOSO") || d.includes("ACCIDENTE"))))
+    return { id: "homicidios_transito", name: "Homicidios en Tránsito" };
+  if (d.includes("120") || (d.includes("LESIONES") && d.includes("CULPOSAS")))
+    return { id: "lesiones_transito", name: "Lesiones en Tránsito" };
+  if (d.includes("111") || (d.includes("LESIONES") && d.includes("PERSONALES")))
+    return { id: "lesiones_personales", name: "Lesiones Personales" };
+  if (d.includes("205") || d.includes("DELITOS SEXUALES") || d.includes("SEXUAL"))
+    return { id: "delitos_sexuales", name: "Delitos Sexuales" };
+  if (d.includes("229") || d.includes("VIOLENCIA INTRAFAMILIAR"))
+    return { id: "violencia_intrafamiliar", name: "Violencia Intrafamiliar" };
+  if (d.includes("239") || d.includes("243") || d.includes("HURTO") || d.includes("ABIGEATO"))
+    return { id: "hurtos", name: "Hurtos" };
+  if (d.includes("244") || d.includes("EXTORSION"))
+    return { id: "extorsion", name: "Extorsión" };
+  if (d.includes("347") || d.includes("AMENAZA"))
+    return { id: "amenazas", name: "Amenazas" };
+  if (d.includes("168") || d.includes("SECUESTRO"))
+    return { id: "secuestros", name: "Secuestros" };
+  if (d.includes("343") || d.includes("TERRORISMO"))
+    return { id: "terrorismo", name: "Terrorismo" };
+  return null;
+}
+
+function parseRegistroFile(wb: XLSX.WorkBook, year: number): ParsedRow[] {
+  const rows: ParsedRow[] = [];
+
+  for (const sheetName of wb.SheetNames) {
+    const sheet = wb.Sheets[sheetName];
+    if (!sheet) continue;
+
+    const data = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "", blankrows: false });
+    if (data.length < 3) continue;
+
+    const agg: Record<string, { id: string; name: string; count: number }> = {};
+    const nationalAgg: Record<string, { id: string; name: string; count: number }> = {};
+
+    for (let i = 2; i < data.length; i++) {
+      const row = data[i] as unknown[];
+      const deptRaw = String(row[1] || "").trim();
+      const monthRaw = String(row[7] || "").trim();
+      const delito = String(row[6] || "").trim();
+      const cantidad = parseNumber(row[8]) || 1;
+
+      if (!deptRaw || !monthRaw || !delito) continue;
+
+      const dept = normalizeDepartment(deptRaw);
+      const month = parseInt(monthRaw);
+      if (!month || month < 1 || month > 12) continue;
+
+      const ct = mapDelitoCrimeType(delito);
+      if (!ct) continue;
+
+      const dKey = `${month}|${dept}|${ct.id}`;
+      if (!agg[dKey]) agg[dKey] = { id: ct.id, name: ct.name, count: 0 };
+      agg[dKey].count += cantidad;
+
+      const nKey = `${month}|${ct.id}`;
+      if (!nationalAgg[nKey]) nationalAgg[nKey] = { id: ct.id, name: ct.name, count: 0 };
+      nationalAgg[nKey].count += cantidad;
+    }
+
+    for (const [key, { id, name, count }] of Object.entries(agg)) {
+      const [mo, dept] = key.split("|");
+      rows.push({ year, month: parseInt(mo), crimeTypeId: id, crimeTypeName: name, department: dept, count });
+    }
+    for (const [key, { id, name, count }] of Object.entries(nationalAgg)) {
+      const [mo] = key.split("|");
+      rows.push({ year, month: parseInt(mo), crimeTypeId: id, crimeTypeName: name, department: "NACIONAL", count });
+    }
+  }
+
+  return rows;
+}
+
 async function refreshData(): Promise<{ success: boolean; message: string; count: number }> {
   refreshState.status = "refreshing";
   refreshState.message = "Descargando datos de la Policía Nacional...";
 
   let allRows: ParsedRow[] = [];
-  let successCount = 0;
+  let registroSuccessCount = 0;
+  const yearsLoaded = new Set<number>();
 
+  refreshState.message = "Descargando datos de registro individual 2026...";
+
+  for (const source of REGISTRO_SOURCES) {
+    refreshState.message = `Procesando registros individuales ${source.year}...`;
+    const wb = await downloadExcel(source.url);
+    if (!wb) continue;
+    const parsed = parseRegistroFile(wb, source.year);
+    if (parsed.length > 0) {
+      allRows = allRows.concat(parsed);
+      yearsLoaded.add(source.year);
+      registroSuccessCount++;
+    }
+  }
+
+  refreshState.message = "Descargando datos históricos 2020-2025...";
   for (const source of EXCEL_SOURCES) {
     const wb = await downloadExcel(source.url);
     if (!wb) continue;
-
-    successCount++;
     if (wb.SheetNames.includes("Cuadro 1") && isHistoricalFormat(wb)) {
-      allRows = allRows.concat(parseHistoricalCuadros(wb));
+      const historicalRows = parseHistoricalCuadros(wb);
+      const filteredHistorical = historicalRows.filter(r => !yearsLoaded.has(r.year));
+      allRows = allRows.concat(filteredHistorical);
     } else if (wb.SheetNames.includes("Cuadro 1")) {
-      allRows = allRows.concat(parse2026Excel(wb));
+      const rows2026 = parse2026Excel(wb);
+      const filtered2026 = rows2026.filter(r => !yearsLoaded.has(r.year));
+      allRows = allRows.concat(filtered2026);
     } else {
       for (const sheetName of wb.SheetNames) {
         const sheet = wb.Sheets[sheetName];
@@ -514,9 +609,9 @@ async function refreshData(): Promise<{ success: boolean; message: string; count
     await db.insert(refreshLogTable).values({
       lastRefreshed: new Date(),
       nextRefresh: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      status: successCount > 0 ? "idle" : "error",
-      message: successCount > 0
-        ? `${allRows.length} registros cargados correctamente`
+      status: registroSuccessCount > 0 ? "idle" : "error",
+      message: registroSuccessCount > 0
+        ? `${allRows.length} registros cargados de ${registroSuccessCount} archivos de registro`
         : "Datos de demostración cargados (fuente no disponible)",
       recordCount: allRows.length,
     });
