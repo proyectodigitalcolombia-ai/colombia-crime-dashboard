@@ -51,7 +51,7 @@ const MONTH_MAP: Record<string, number> = {
 const DEPARTMENT_NAMES: Record<string, string> = {
   "BOGOTA": "Bogotá D.C.", "BOGOTÁ": "Bogotá D.C.", "D.C": "Bogotá D.C.",
   "ANTIOQUIA": "Antioquia", "CUNDINAMARCA": "Cundinamarca", "VALLE": "Valle del Cauca",
-  "SANTANDER": "Santander", "ATLANTICO": "Atlántico", "ATLANTICO": "Atlántico",
+  "SANTANDER": "Santander", "ATLANTICO": "Atlántico", "ATLÁNTICO": "Atlántico",
   "BOLÍVAR": "Bolívar", "BOLIVAR": "Bolívar", "NARIÑO": "Nariño", "NARINO": "Nariño",
   "CÓRDOBA": "Córdoba", "CORDOBA": "Córdoba", "TOLIMA": "Tolima",
   "CAUCA": "Cauca", "HUILA": "Huila", "MAGDALENA": "Magdalena",
