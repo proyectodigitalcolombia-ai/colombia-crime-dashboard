@@ -30,6 +30,7 @@ const CRIME_TYPES = [
   { id: "extorsion", name: "Extorsión" },
   { id: "amenazas", name: "Amenazas" },
   { id: "hurtos", name: "Hurtos" },
+  { id: "pirateria_terrestre", name: "Piratería Terrestre" },
   { id: "secuestros", name: "Secuestros" },
   { id: "terrorismo", name: "Terrorismo" },
 ];
@@ -666,6 +667,7 @@ function generateDemoData(): ParsedRow[] {
     "hurtos": { "Bogotá D.C.": 8500, "Antioquia": 6200, "Valle del Cauca": 5100 },
     "violencia_intrafamiliar": { "Bogotá D.C.": 2200, "Antioquia": 1800, "Valle del Cauca": 1400 },
     "lesiones_personales": { "Bogotá D.C.": 3200, "Antioquia": 2800, "Valle del Cauca": 2100 },
+    "pirateria_terrestre": { "Bogotá D.C.": 180, "Antioquia": 210, "Valle del Cauca": 160, "Cundinamarca": 190, "Meta": 230, "Casanare": 150 },
   };
 
   const currentYear = new Date().getFullYear();
@@ -772,20 +774,19 @@ router.get("/crimes/national-monthly", async (req, res) => {
     await ensureDataLoaded();
     const yearParam = req.query["year"] as string | undefined;
     const crimeTypeParam = req.query["crimeType"] as string | undefined;
+    const departmentParam = req.query["department"] as string | undefined;
 
-    const conditions = [eq(crimeStatsTable.department, "NACIONAL")];
-    if (yearParam) {
-      const yr = parseInt(yearParam);
-      if (!isNaN(yr)) conditions.push(eq(crimeStatsTable.year, yr));
-    }
-    if (crimeTypeParam) {
-      conditions.push(eq(crimeStatsTable.crimeTypeId, crimeTypeParam));
-    }
+    // When a specific department is selected, query that dept; otherwise query NACIONAL aggregate
+    const deptFilter = departmentParam && departmentParam !== "all"
+      ? departmentParam
+      : "NACIONAL";
 
     const rows = await db
       .select()
       .from(crimeStatsTable)
-      .where(sql`${crimeStatsTable.department} = 'NACIONAL'${yearParam ? sql` AND ${crimeStatsTable.year} = ${parseInt(yearParam)}` : sql``}${crimeTypeParam ? sql` AND ${crimeStatsTable.crimeTypeId} = ${crimeTypeParam}` : sql``}`)
+      .where(
+        sql`${crimeStatsTable.department} = ${deptFilter}${yearParam ? sql` AND ${crimeStatsTable.year} = ${parseInt(yearParam)}` : sql``}${crimeTypeParam ? sql` AND ${crimeStatsTable.crimeTypeId} = ${crimeTypeParam}` : sql``}`
+      )
       .orderBy(asc(crimeStatsTable.year), asc(crimeStatsTable.month));
 
     const result = rows.map((r) => ({

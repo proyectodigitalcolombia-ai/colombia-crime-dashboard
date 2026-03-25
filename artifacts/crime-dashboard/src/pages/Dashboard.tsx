@@ -133,6 +133,7 @@ export default function Dashboard() {
   
   const [selectedYear, setSelectedYear] = useState<number | "all">("all");
   const [selectedCrimeType, setSelectedCrimeType] = useState<string>("all");
+  const [selectedDepartment, setSelectedDepartment] = useState<string>("all");
 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -173,6 +174,7 @@ export default function Dashboard() {
   const queryParams = {
     year: selectedYear === "all" ? undefined : selectedYear,
     crimeType: selectedCrimeType === "all" ? undefined : selectedCrimeType,
+    department: selectedDepartment === "all" ? undefined : selectedDepartment,
   };
 
   // We need previous year data for YoY comparison
@@ -183,7 +185,18 @@ export default function Dashboard() {
 
   const { data: monthlyData = [], isLoading: isLoadingMonthly, isFetching: isFetchingMonthly } = useGetNationalMonthly(queryParams);
   const { data: prevMonthlyData = [], isLoading: isLoadingPrevMonthly, isFetching: isFetchingPrevMonthly } = useGetNationalMonthly(prevYearParams);
-  const { data: deptData = [], isLoading: isLoadingDept, isFetching: isFetchingDept } = useGetCrimesByDepartment(queryParams);
+  const { data: deptData = [], isLoading: isLoadingDept, isFetching: isFetchingDept } = useGetCrimesByDepartment({ year: queryParams.year, crimeType: queryParams.crimeType });
+
+  // Sorted department list for the filter dropdown (derived from dept data)
+  const availableDepartments = useMemo(() => {
+    return [...new Set(deptData.map((d: any) => d.department as string))].sort((a: string, b: string) => a.localeCompare(b, "es"));
+  }, [deptData]);
+
+  // Filter dept table/map data by selected department
+  const filteredDeptData = useMemo(() => {
+    if (selectedDepartment === "all") return deptData;
+    return deptData.filter((d: any) => d.department === selectedDepartment);
+  }, [deptData, selectedDepartment]);
 
   const loading = isLoadingYears || isLoadingTypes || isLoadingStatus || isLoadingMonthly || isLoadingDept || isFetchingMonthly || isFetchingDept;
 
@@ -223,9 +236,10 @@ export default function Dashboard() {
   const yoyChange = totalPrevCrimes === 0 ? 0 : ((totalCrimes - totalPrevCrimes) / totalPrevCrimes) * 100;
   
   const deptWithMostCrimes = useMemo(() => {
-    if (deptData.length === 0) return { department: "--", totalCount: 0 };
-    return deptData.reduce((max, d) => (d.totalCount > max.totalCount ? d : max), deptData[0]);
-  }, [deptData]);
+    const data = filteredDeptData.length > 0 ? filteredDeptData : deptData;
+    if (data.length === 0) return { department: "--", totalCount: 0 };
+    return data.reduce((max, d) => (d.totalCount > max.totalCount ? d : max), data[0]);
+  }, [filteredDeptData, deptData]);
 
   const mostFrequentCrime = useMemo(() => {
     if (monthlyData.length === 0) return { name: "--", count: 0 };
@@ -304,7 +318,7 @@ export default function Dashboard() {
   ], [selectedCrimeType, crimeTypes]);
 
   const table = useReactTable({
-    data: deptData,
+    data: filteredDeptData,
     columns,
     state: { sorting },
     onSortingChange: setSorting,
@@ -444,6 +458,23 @@ export default function Dashboard() {
                 <SelectItem value="all">Todos</SelectItem>
                 {crimeTypes.map(c => (
                   <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="w-[240px]">
+            <Label className="text-[13px] mb-1 block">Departamento</Label>
+            <Select
+              value={selectedDepartment}
+              onValueChange={setSelectedDepartment}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Todos los departamentos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los departamentos</SelectItem>
+                {availableDepartments.map(dept => (
+                  <SelectItem key={dept} value={dept}>{dept}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

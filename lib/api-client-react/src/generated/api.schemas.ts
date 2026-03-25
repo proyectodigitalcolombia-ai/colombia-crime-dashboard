@@ -72,6 +72,11 @@ export type GetNationalMonthlyParams = {
    * @nullable
    */
   crimeType?: string | null;
+  /**
+   * Filter by department name. Returns national aggregate if omitted.
+   * @nullable
+   */
+  department?: string | null;
 };
 
 export type GetCrimesByDepartmentParams = {
