@@ -29,6 +29,25 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.get("/", (_req, res) => {
+  res.json({
+    name: "Colombia Crime Statistics API",
+    version: "1.0.0",
+    description: "API de estadísticas de delitos en Colombia - Policía Nacional",
+    endpoints: {
+      health: "/api/healthz",
+      crimeTypes: "/api/crimes/types",
+      years: "/api/crimes/years",
+      nationalMonthly: "/api/crimes/national-monthly",
+      byDepartment: "/api/crimes/by-department",
+      refreshStatus: "/api/crimes/refresh-status",
+      refresh: "POST /api/crimes/refresh",
+    },
+    dashboard: "https://colombia-crime-dashboard.onrender.com",
+    status: "operational",
+  });
+});
+
 app.use("/api", router);
 
 export default app;
