@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "HYlDwBeKCRg0cRszeOuSf"
+uri = "file://.agents/outputs/estadisticas-delictivas-colombia-2025.md"
+type = "text"
+title = "Reporte de Análisis — Estadísticas Delictivas Colombia 2025"
