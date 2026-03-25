@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { pool } from "@workspace/db";
+import { loadDemoIfEmpty } from "./routes/crimes";
 
 async function ensureSchema() {
   const client = await pool.connect();
@@ -49,18 +50,16 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-ensureSchema()
-  .then(() => {
-    app.listen(port, (err) => {
-      if (err) {
-        logger.error({ err }, "Error listening on port");
-        process.exit(1);
-      }
-
-      logger.info({ port }, "Server listening");
-    });
-  })
-  .catch((err) => {
-    logger.error({ err }, "Failed to ensure database schema");
+app.listen(port, (err) => {
+  if (err) {
+    logger.error({ err }, "Error listening on port");
     process.exit(1);
-  });
+  }
+  logger.info({ port }, "Server listening");
+
+  ensureSchema()
+    .then(() => loadDemoIfEmpty())
+    .catch((err) => {
+      logger.error({ err }, "Failed to ensure database schema or load initial data");
+    });
+});

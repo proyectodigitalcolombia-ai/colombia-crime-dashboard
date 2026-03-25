@@ -132,11 +132,11 @@ interface ParsedRow {
 
 function parseMonthlySheet(sheet: XLSX.WorkSheet): ParsedRow[] {
   const rows: ParsedRow[] = [];
-  const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+  const data = (XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
     header: 1,
     defval: "",
     blankrows: false,
-  }) as unknown[][];
+  }) as unknown) as unknown[][];
 
   if (!data || data.length === 0) return rows;
 
@@ -546,63 +546,70 @@ function parseRegistroFile(wb: XLSX.WorkBook, year: number): ParsedRow[] {
   return rows;
 }
 
+async function saveRows(rows: ParsedRow[]): Promise<number> {
+  const BATCH = 200;
+  let saved = 0;
+  for (let i = 0; i < rows.length; i += BATCH) {
+    await db.insert(crimeStatsTable).values(rows.slice(i, i + BATCH));
+    saved += Math.min(BATCH, rows.length - i);
+  }
+  return saved;
+}
+
 async function refreshData(): Promise<{ success: boolean; message: string; count: number }> {
   refreshState.status = "refreshing";
   refreshState.message = "Descargando datos de la Policía Nacional...";
 
-  let allRows: ParsedRow[] = [];
+  let totalInserted = 0;
   let registroSuccessCount = 0;
   const yearsLoaded = new Set<number>();
 
-  refreshState.message = "Descargando datos de registro individual 2026...";
-
-  for (const source of REGISTRO_SOURCES) {
-    refreshState.message = `Procesando registros individuales ${source.year}...`;
-    const wb = await downloadExcel(source.url);
-    if (!wb) continue;
-    const parsed = parseRegistroFile(wb, source.year);
-    if (parsed.length > 0) {
-      allRows = allRows.concat(parsed);
-      yearsLoaded.add(source.year);
-      registroSuccessCount++;
-    }
-  }
-
-  refreshState.message = "Descargando datos históricos 2020-2025...";
-  for (const source of EXCEL_SOURCES) {
-    const wb = await downloadExcel(source.url);
-    if (!wb) continue;
-    if (wb.SheetNames.includes("Cuadro 1") && isHistoricalFormat(wb)) {
-      const historicalRows = parseHistoricalCuadros(wb);
-      const filteredHistorical = historicalRows.filter(r => !yearsLoaded.has(r.year));
-      allRows = allRows.concat(filteredHistorical);
-    } else if (wb.SheetNames.includes("Cuadro 1")) {
-      const rows2026 = parse2026Excel(wb);
-      const filtered2026 = rows2026.filter(r => !yearsLoaded.has(r.year));
-      allRows = allRows.concat(filtered2026);
-    } else {
-      for (const sheetName of wb.SheetNames) {
-        const sheet = wb.Sheets[sheetName];
-        if (!sheet) continue;
-        allRows = allRows.concat(parseMonthlySheet(sheet));
-      }
-    }
-  }
-
-  if (allRows.length === 0) {
-    refreshState.status = "error";
-    refreshState.message = "No se pudieron obtener datos. Generando datos de demostración.";
-
-    allRows = generateDemoData();
-  }
-
-  if (allRows.length > 0) {
+  try {
     await db.delete(crimeStatsTable);
 
-    const BATCH = 500;
-    for (let i = 0; i < allRows.length; i += BATCH) {
-      const batch = allRows.slice(i, i + BATCH);
-      await db.insert(crimeStatsTable).values(batch);
+    refreshState.message = "Descargando datos de registro individual 2026...";
+    for (const source of REGISTRO_SOURCES) {
+      refreshState.message = `Procesando registros individuales ${source.year}...`;
+      try {
+        const wb = await downloadExcel(source.url);
+        if (!wb) continue;
+        const parsed = parseRegistroFile(wb, source.year);
+        if (parsed.length > 0) {
+          totalInserted += await saveRows(parsed);
+          yearsLoaded.add(source.year);
+          registroSuccessCount++;
+        }
+      } catch (srcErr) {
+        // continue with next source on error
+      }
+    }
+
+    refreshState.message = "Descargando datos históricos 2020-2025...";
+    for (const source of EXCEL_SOURCES) {
+      try {
+        const wb = await downloadExcel(source.url);
+        if (!wb) continue;
+        let rows: ParsedRow[] = [];
+        if (wb.SheetNames.includes("Cuadro 1") && isHistoricalFormat(wb)) {
+          rows = parseHistoricalCuadros(wb).filter(r => !yearsLoaded.has(r.year));
+        } else if (wb.SheetNames.includes("Cuadro 1")) {
+          rows = parse2026Excel(wb).filter(r => !yearsLoaded.has(r.year));
+        } else {
+          for (const sheetName of wb.SheetNames) {
+            const sheet = wb.Sheets[sheetName];
+            if (sheet) rows = rows.concat(parseMonthlySheet(sheet));
+          }
+        }
+        if (rows.length > 0) totalInserted += await saveRows(rows);
+      } catch (srcErr) {
+        // continue with next source on error
+      }
+    }
+
+    if (totalInserted === 0) {
+      refreshState.message = "Sin datos reales, cargando datos de demostración...";
+      const demo = generateDemoData();
+      totalInserted = await saveRows(demo);
     }
 
     await db.delete(refreshLogTable);
@@ -611,19 +618,37 @@ async function refreshData(): Promise<{ success: boolean; message: string; count
       nextRefresh: new Date(Date.now() + 24 * 60 * 60 * 1000),
       status: registroSuccessCount > 0 ? "idle" : "error",
       message: registroSuccessCount > 0
-        ? `${allRows.length} registros cargados de ${registroSuccessCount} archivos de registro`
-        : "Datos de demostración cargados (fuente no disponible)",
-      recordCount: allRows.length,
+        ? `${totalInserted} registros cargados de ${registroSuccessCount} archivos`
+        : `Datos de demostración cargados (${totalInserted} registros)`,
+      recordCount: totalInserted,
     });
 
     refreshState.status = "idle";
     refreshState.message = null;
-    return { success: true, message: `${allRows.length} registros actualizados`, count: allRows.length };
-  }
+    return { success: true, message: `${totalInserted} registros actualizados`, count: totalInserted };
+  } catch (err) {
+    refreshState.status = "error";
+    refreshState.message = `Error: ${err instanceof Error ? err.message : String(err)}`;
 
-  refreshState.status = "error";
-  refreshState.message = "No se pudo obtener ningún dato";
-  return { success: false, message: "Sin datos disponibles", count: 0 };
+    try {
+      const demo = generateDemoData();
+      await db.delete(crimeStatsTable);
+      const demoInserted = await saveRows(demo);
+      await db.delete(refreshLogTable);
+      await db.insert(refreshLogTable).values({
+        lastRefreshed: new Date(),
+        nextRefresh: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        status: "error",
+        message: `Datos de demostración cargados tras error (${demoInserted} registros)`,
+        recordCount: demoInserted,
+      });
+      refreshState.status = "idle";
+      refreshState.message = null;
+      return { success: false, message: "Datos de demostración cargados", count: demoInserted };
+    } catch (fallbackErr) {
+      return { success: false, message: "Sin datos disponibles", count: 0 };
+    }
+  }
 }
 
 function generateDemoData(): ParsedRow[] {
@@ -667,13 +692,39 @@ function generateDemoData(): ParsedRow[] {
 
 let refreshInProgress = false;
 
+async function loadDemoIfEmpty() {
+  try {
+    const result = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(crimeStatsTable);
+    if (Number(result[0]?.count) === 0) {
+      const demo = generateDemoData();
+      await saveRows(demo);
+      await db.delete(refreshLogTable);
+      await db.insert(refreshLogTable).values({
+        lastRefreshed: new Date(),
+        nextRefresh: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        status: "error",
+        message: `Datos de demostración precargados (${demo.length} registros)`,
+        recordCount: demo.length,
+      });
+    }
+  } catch {
+    // If DB isn't ready yet, skip — will retry on next request
+  }
+}
+
 async function ensureDataLoaded() {
-  const count = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(crimeStatsTable);
-  if (Number(count[0]?.count) === 0 && !refreshInProgress) {
-    refreshInProgress = true;
-    refreshData().finally(() => { refreshInProgress = false; });
+  try {
+    const count = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(crimeStatsTable);
+    if (Number(count[0]?.count) === 0 && !refreshInProgress) {
+      refreshInProgress = true;
+      loadDemoIfEmpty().finally(() => { refreshInProgress = false; });
+    }
+  } catch {
+    // Ignore DB errors in ensure
   }
 }
 
@@ -815,7 +866,7 @@ router.post("/crimes/refresh", async (req, res) => {
 
   refreshData().catch((err) => req.log.error({ err }, "Refresh failed"));
 
-  res.json({
+  return res.json({
     lastRefreshed: null,
     nextRefresh: null,
     status: "refreshing",
@@ -824,5 +875,5 @@ router.post("/crimes/refresh", async (req, res) => {
   });
 });
 
-export { ensureDataLoaded };
+export { ensureDataLoaded, loadDemoIfEmpty };
 export default router;
