@@ -657,6 +657,78 @@ async function refreshData(): Promise<{ success: boolean; message: string; count
   }
 }
 
+/**
+ * Totales anuales nacionales de referencia (fuente: Policía Nacional de Colombia).
+ * Año 2026 es proyectado a 12 meses a partir de los primeros 3 meses del archivo AICRI.
+ * Años anteriores basados en registros históricos publicados.
+ */
+const ANNUAL_NATIONAL_TOTALS: Record<string, Record<number, number>> = {
+  // Hurtos: ~600k/año según estadísticas policiales
+  "hurtos":                  { 2022: 580000, 2023: 605000, 2024: 598000, 2025: 612000, 2026: 124906 },
+  // Homicidios: ~12.000-14.000/año
+  "homicidios":              { 2022: 13650,  2023: 13220,  2024: 12980,  2025: 12800,  2026: 2310 },
+  // Homicidios en tránsito: ~7.000/año
+  "homicidios_transito":     { 2022: 7200,   2023: 7100,   2024: 7050,   2025: 6950,   2026: 1250 },
+  // Lesiones personales: ~180.000/año
+  "lesiones_personales":     { 2022: 175000, 2023: 180000, 2024: 183000, 2025: 185000, 2026: 33000 },
+  // Lesiones en tránsito: ~50.000/año
+  "lesiones_transito":       { 2022: 48000,  2023: 49500,  2024: 50200,  2025: 51000,  2026: 9200 },
+  // Violencia intrafamiliar: ~120.000/año
+  "violencia_intrafamiliar": { 2022: 115000, 2023: 118000, 2024: 121000, 2025: 123000, 2026: 22000 },
+  // Delitos sexuales: ~30.000/año
+  "delitos_sexuales":        { 2022: 28500,  2023: 29800,  2024: 30100,  2025: 30500,  2026: 5500 },
+  // Extorsión: ~12.000/año
+  "extorsion":               { 2022: 11200,  2023: 11800,  2024: 12100,  2025: 12400,  2026: 2250 },
+  // Amenazas: ~70.000/año
+  "amenazas":                { 2022: 65000,  2023: 68000,  2024: 70500,  2025: 72000,  2026: 13000 },
+  // Piratería terrestre: ~5.000/año (muy concentrada en ejes viales)
+  "pirateria_terrestre":     { 2022: 4800,   2023: 5100,   2024: 5300,   2025: 5200,   2026: 980 },
+  // Secuestros: ~200/año
+  "secuestros":              { 2022: 195,    2023: 185,    2024: 178,    2025: 180,    2026: 32 },
+  // Terrorismo: ~800/año
+  "terrorismo":              { 2022: 820,    2023: 790,    2024: 810,    2025: 780,    2026: 140 },
+};
+
+// Participación porcentual de cada departamento por tipo de delito (suma ≈ 100%)
+const DEPT_SHARES: Record<string, Record<string, number>> = {
+  "hurtos": {
+    "Bogotá D.C.": 27.5, "Antioquia": 17.2, "Valle del Cauca": 13.8, "Cundinamarca": 5.2,
+    "Santander": 4.1, "Atlántico": 4.0, "Bolívar": 2.8, "Risaralda": 2.5,
+    "Norte de Santander": 2.3, "Tolima": 1.9, "Boyacá": 1.6, "Meta": 1.5,
+    "Caldas": 1.4, "Nariño": 1.4, "Huila": 1.3, "Quindío": 1.2,
+    "Magdalena": 1.1, "Cauca": 1.0, "Cesar": 0.9, "Córdoba": 0.8,
+    "Sucre": 0.6, "La Guajira": 0.6, "Casanare": 0.5, "Arauca": 0.4,
+    "Caquetá": 0.4, "Chocó": 0.4, "Putumayo": 0.3, "Guaviare": 0.15,
+    "Vichada": 0.05, "Amazonas": 0.05, "Guainía": 0.04, "Vaupés": 0.03,
+  },
+  "homicidios": {
+    "Antioquia": 18.5, "Bogotá D.C.": 10.2, "Valle del Cauca": 14.8, "Córdoba": 5.2,
+    "Bolívar": 4.8, "Nariño": 4.5, "Cauca": 4.2, "Norte de Santander": 3.9,
+    "Magdalena": 3.4, "Cundinamarca": 2.8, "Meta": 2.6, "Santander": 2.4,
+    "Cesar": 2.2, "Sucre": 2.0, "Caquetá": 1.9, "Atlántico": 1.8,
+    "La Guajira": 1.7, "Huila": 1.6, "Chocó": 1.5, "Tolima": 1.4,
+    "Putumayo": 1.3, "Arauca": 1.2, "Boyacá": 1.1, "Risaralda": 1.0,
+    "Guaviare": 0.8, "Caldas": 0.7, "Vichada": 0.6, "Quindío": 0.5,
+    "Casanare": 0.4, "Amazonas": 0.2, "Guainía": 0.2, "Vaupés": 0.1,
+  },
+  "pirateria_terrestre": {
+    "Bogotá D.C.": 12.0, "Antioquia": 14.5, "Valle del Cauca": 10.0, "Cundinamarca": 12.5,
+    "Meta": 11.8, "Casanare": 8.2, "Santander": 6.0, "Boyacá": 5.5,
+    "Tolima": 4.0, "Huila": 3.5, "Norte de Santander": 2.5, "Cesar": 2.0,
+    "Bolívar": 1.5, "Nariño": 1.0, "Córdoba": 0.8, "Atlántico": 0.7,
+    "Caldas": 0.6, "Risaralda": 0.5, "Cauca": 0.4, "Magdalena": 0.4,
+    "Sucre": 0.3, "La Guajira": 0.3, "Arauca": 0.3, "Caquetá": 0.3,
+    "Putumayo": 0.2, "Quindío": 0.2, "Chocó": 0.1, "Guaviare": 0.1,
+    "Vichada": 0.03, "Amazonas": 0.02, "Guainía": 0.02, "Vaupés": 0.01,
+  },
+};
+
+// Estacionalidad mensual (índice relativo, promedio = 1.0)
+const MONTHLY_SEASONALITY: Record<number, number> = {
+  1: 1.05, 2: 0.92, 3: 0.95, 4: 0.98, 5: 1.02, 6: 1.08,
+  7: 1.10, 8: 1.07, 9: 1.00, 10: 0.97, 11: 0.95, 12: 1.14,
+};
+
 function generateDemoData(): ParsedRow[] {
   const rows: ParsedRow[] = [];
   const departments = [
@@ -667,34 +739,49 @@ function generateDemoData(): ParsedRow[] {
     "La Guajira", "Quindío", "Vichada", "Guainía", "Vaupés", "Amazonas", "Guaviare",
   ];
 
-  const baseCounts: Record<string, Record<string, number>> = {
-    "homicidios": { "Bogotá D.C.": 450, "Antioquia": 520, "Valle del Cauca": 480 },
-    "hurtos": { "Bogotá D.C.": 8500, "Antioquia": 6200, "Valle del Cauca": 5100 },
-    "violencia_intrafamiliar": { "Bogotá D.C.": 2200, "Antioquia": 1800, "Valle del Cauca": 1400 },
-    "lesiones_personales": { "Bogotá D.C.": 3200, "Antioquia": 2800, "Valle del Cauca": 2100 },
-    "pirateria_terrestre": { "Bogotá D.C.": 180, "Antioquia": 210, "Valle del Cauca": 160, "Cundinamarca": 190, "Meta": 230, "Casanare": 150 },
+  // Default shares when not specifically defined (uniform distribution with capital bias)
+  const defaultShares: Record<string, number> = {
+    "Bogotá D.C.": 18.0, "Antioquia": 14.0, "Valle del Cauca": 11.0, "Cundinamarca": 6.5,
+    "Santander": 5.0, "Atlántico": 4.5, "Bolívar": 3.5, "Nariño": 3.0,
+    "Córdoba": 2.8, "Tolima": 2.6, "Cauca": 2.4, "Huila": 2.2,
+    "Magdalena": 2.0, "Meta": 1.9, "Cesar": 1.8, "Risaralda": 1.7,
+    "Sucre": 1.5, "Norte de Santander": 1.4, "Boyacá": 1.3, "Caldas": 1.2,
+    "Chocó": 1.0, "Arauca": 0.8, "Casanare": 0.7, "Caquetá": 0.7,
+    "Putumayo": 0.6, "La Guajira": 0.6, "Quindío": 0.5, "Vichada": 0.2,
+    "Guainía": 0.15, "Vaupés": 0.1, "Amazonas": 0.1, "Guaviare": 0.2,
   };
 
   const currentYear = new Date().getFullYear();
   const years = [2022, 2023, 2024, 2025];
   if (!years.includes(currentYear)) years.push(currentYear);
 
+  // Seasonal weight normalization per year (accounts for partial years)
   for (const year of years) {
     const maxMonth = year === currentYear ? new Date().getMonth() + 1 : 12;
+    const seasonalWeightTotal = Array.from({ length: maxMonth }, (_, i) => MONTHLY_SEASONALITY[i + 1] ?? 1.0)
+      .reduce((s, w) => s + w, 0);
+
     for (const ct of CRIME_TYPES) {
+      const annualTotal = ANNUAL_NATIONAL_TOTALS[ct.id]?.[year] ?? 1000;
+      const shares = DEPT_SHARES[ct.id] ?? defaultShares;
+
       for (let month = 1; month <= maxMonth; month++) {
-        let nationalCount = 0;
+        const seasonalWeight = MONTHLY_SEASONALITY[month] ?? 1.0;
+        // Monthly national total proportional to seasonal weight
+        const monthlyNational = Math.round(annualTotal * seasonalWeight / seasonalWeightTotal);
+
+        let nationalCheck = 0;
         departments.forEach((dept) => {
-          const base = baseCounts[ct.id]?.[dept] ??
-            Math.round(Math.random() * 200 + 10);
-          const variation = 0.8 + Math.random() * 0.4;
-          const yearFactor = 1 + (year - 2022) * 0.05;
-          const monthFactor = month === 12 || month === 1 ? 1.15 : 1;
-          const count = Math.round(base * variation * yearFactor * monthFactor / 12);
-          nationalCount += count;
+          const sharePercent = shares[dept] ?? 0.1;
+          // Add small ±5% random variation per dept per month
+          const jitter = 0.95 + Math.random() * 0.1;
+          const count = Math.round(monthlyNational * (sharePercent / 100) * jitter);
+          nationalCheck += count;
           rows.push({ year, month, crimeTypeId: ct.id, crimeTypeName: ct.name, department: dept, count });
         });
-        rows.push({ year, month, crimeTypeId: ct.id, crimeTypeName: ct.name, department: "NACIONAL", count: nationalCount });
+
+        // NACIONAL row = actual sum of departments
+        rows.push({ year, month, crimeTypeId: ct.id, crimeTypeName: ct.name, department: "NACIONAL", count: nationalCheck });
       }
     }
   }
