@@ -26,6 +26,16 @@ services:
     env: static
     buildCommand: echo "Static files pre-built in dist/public"
     staticPublishPath: ./artifacts/crime-dashboard/dist/public
+    headers:
+      - path: /assets/*
+        name: Access-Control-Allow-Origin
+        value: "*"
+      - path: /assets/*
+        name: Cross-Origin-Resource-Policy
+        value: cross-origin
+      - path: /*
+        name: Access-Control-Allow-Origin
+        value: "*"
     routes:
       - type: rewrite
         source: /*
