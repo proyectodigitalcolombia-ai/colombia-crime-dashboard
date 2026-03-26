@@ -1,7 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { ComposableMap, Geographies, Geography } from "react-simple-maps";
 import { useGetCrimesByDepartment, useGetCrimeTypes } from "@workspace/api-client-react";
-import { AlertTriangle, Shield, Truck, MapPin, ChevronRight, Moon, Radio, CloudRain, Users } from "lucide-react";
+import {
+  AlertTriangle, Shield, Truck, MapPin, ChevronRight,
+  Moon, Radio, CloudRain, Users, Ban, Plus, X, Clock, BarChart2,
+} from "lucide-react";
 
 const GEO_URL =
   "https://gist.githubusercontent.com/john-guerra/43c7656821069d00dcbc/raw/be6a6e239cd5b5b803c6e7c2ec405b793a9064dd/colombia.geo.json";
@@ -9,15 +12,13 @@ const GEO_URL =
 const E = {
   bg: "#070c15", panel: "#0c1220", border: "rgba(255,255,255,0.07)",
   cyan: "#00d4ff", amber: "#f59e0b", red: "#ef4444", emerald: "#10b981",
-  orange: "#f97316", purple: "#a855f7", textDim: "rgba(255,255,255,0.45)",
+  orange: "#f97316", purple: "#a855f7", pink: "#ec4899", textDim: "rgba(255,255,255,0.45)",
 };
 
 /* ══════════════════════════════════════════════════════════════════
-   FACTORES DE RIESGO ADICIONALES POR DEPARTAMENTO
-   Fuentes: INVIAS, FIP, OCHA Colombia, operadores de telecomunicaciones
+   DATOS BASE POR DEPARTAMENTO
    ══════════════════════════════════════════════════════════════════ */
 
-/** Riesgo nocturno: porcentaje estimado de incidentes en horario 22h-5h */
 const NIGHT_RISK: Record<string, number> = {
   "Bogotá D.C.": 55,    "Cundinamarca": 70,   "Boyacá": 65,
   "Antioquia": 72,       "Caldas": 60,          "Risaralda": 58,
@@ -32,7 +33,6 @@ const NIGHT_RISK: Record<string, number> = {
   "Vaupés": 70,          "Amazonas": 60,
 };
 
-/** Grupos armados ilegales: 0=sin presencia, 1=baja, 2=media, 3=alta */
 const ARMED_GROUPS: Record<string, { level: number; groups: string[] }> = {
   "Bogotá D.C.":       { level: 0, groups: [] },
   "Cundinamarca":      { level: 1, groups: ["Disidencias FARC"] },
@@ -68,7 +68,6 @@ const ARMED_GROUPS: Record<string, { level: number; groups: string[] }> = {
   "Amazonas":          { level: 0, groups: [] },
 };
 
-/** Cobertura de señal celular en vías principales: good/partial/poor */
 const CELL_SIGNAL: Record<string, "good" | "partial" | "poor"> = {
   "Bogotá D.C.": "good",    "Cundinamarca": "good",   "Boyacá": "partial",
   "Antioquia": "good",       "Caldas": "partial",      "Risaralda": "good",
@@ -83,7 +82,6 @@ const CELL_SIGNAL: Record<string, "good" | "partial" | "poor"> = {
   "Vaupés": "poor",          "Amazonas": "poor",
 };
 
-/** Condición vial y riesgos geológicos (deslizamientos, tramos críticos) */
 const ROAD_CONDITION: Record<string, { score: "good" | "regular" | "difficult"; notes: string }> = {
   "Bogotá D.C.":       { score: "good",      notes: "Acceso urbano controlado" },
   "Cundinamarca":      { score: "regular",   notes: "Tramo La Vega: curvas y neblina" },
@@ -99,7 +97,7 @@ const ROAD_CONDITION: Record<string, { score: "good" | "regular" | "difficult"; 
   "Huila":             { score: "regular",   notes: "Vía Neiva-Mocoa: tramos sin pavimentar" },
   "Meta":              { score: "good",      notes: "Llano abierto, atención en neblina de madrugada" },
   "Casanare":          { score: "regular",   notes: "Tramos sin doble calzada, vigilancia reducida" },
-  "Arauca":            { score: "poor",      notes: "Vías en mal estado, sin doble calzada" } as any,
+  "Arauca":            { score: "difficult", notes: "Vías en mal estado, sin doble calzada" },
   "Santander":         { score: "good",      notes: "Ruta del Sol en buen estado general" },
   "Norte de Santander":{ score: "regular",   notes: "Tramo Cúcuta-Tibú: zona de conflicto" },
   "Bolívar":           { score: "regular",   notes: "Transición Mompox: barcazas en temporada seca" },
@@ -119,6 +117,59 @@ const ROAD_CONDITION: Record<string, { score: "good" | "regular" | "difficult"; 
   "Amazonas":          { score: "difficult", notes: "Acceso fluvial/aéreo únicamente" },
 };
 
+/* ══════════════════════════════════════════════════════════════════
+   BLOQUEOS VIALES COMUNITARIOS
+   Fuentes: INVIAS, Policía de Carreteras, medios regionales
+   Nivel: 0=ninguno, 1=esporádico, 2=frecuente, 3=muy frecuente/activo
+   ══════════════════════════════════════════════════════════════════ */
+export interface BlockadeRecord {
+  id: string;
+  corridorId: string;
+  department: string;
+  date: string;
+  cause: "comunidad" | "protesta_social" | "paro_camionero" | "grupos_ilegales" | "otro";
+  location: string;
+  durationHours: number | null;
+  status: "activo" | "levantado" | "intermitente";
+  notes: string;
+  reporter: string;
+}
+
+const BLOCKADE_HISTORY: Record<string, { level: number; avgDurationHours: number; hotspot: string; lastEvent: string; cause: string }> = {
+  "Bogotá D.C.":       { level: 0, avgDurationHours: 0,  hotspot: "N/A",                               lastEvent: "Sin registro", cause: "" },
+  "Cundinamarca":      { level: 1, avgDurationHours: 4,  hotspot: "Vía Bogotá-Girardot km 40",         lastEvent: "Nov 2025",     cause: "Protestas comunidades campesinas" },
+  "Boyacá":            { level: 1, avgDurationHours: 6,  hotspot: "Cruce de Chiquinquirá",             lastEvent: "Oct 2025",     cause: "Paro minero" },
+  "Antioquia":         { level: 2, avgDurationHours: 12, hotspot: "Vía Medellín-Quibdó (El Tigre)",    lastEvent: "Ene 2026",     cause: "Comunidades indígenas y campesinas" },
+  "Caldas":            { level: 1, avgDurationHours: 5,  hotspot: "Ruta Manizales-Chinchiná",          lastEvent: "Sep 2025",     cause: "Reclamos comunidad caficultora" },
+  "Risaralda":         { level: 1, avgDurationHours: 3,  hotspot: "Vía Pereira-Armenia",               lastEvent: "Ago 2025",     cause: "Manifestaciones transportistas" },
+  "Quindío":           { level: 0, avgDurationHours: 0,  hotspot: "N/A",                               lastEvent: "Sin registro", cause: "" },
+  "Valle del Cauca":   { level: 2, avgDurationHours: 18, hotspot: "Vía Cali-Buenaventura km 50-80",    lastEvent: "Feb 2026",     cause: "Comunidades afro y portuarios" },
+  "Cauca":             { level: 3, avgDurationHours: 72, hotspot: "Panamericana km 1-60 (Piendamó-Santander)", lastEvent: "Mar 2026", cause: "Comunidades indígenas NASA — histórico persistente" },
+  "Nariño":            { level: 2, avgDurationHours: 36, hotspot: "Vía Pasto-Rumichaca, acceso frontera", lastEvent: "Feb 2026",   cause: "Protestas cocaleras y paros regionales" },
+  "Tolima":            { level: 2, avgDurationHours: 10, hotspot: "Vía Ibagué-Espinal",                lastEvent: "Nov 2025",     cause: "Paro arrocero / cañero" },
+  "Huila":             { level: 1, avgDurationHours: 8,  hotspot: "Vía Neiva-La Plata",                lastEvent: "Oct 2025",     cause: "Comunidades campesinas" },
+  "Meta":              { level: 1, avgDurationHours: 5,  hotspot: "Vía al Llano km 55 (Pipiral)",      lastEvent: "Dic 2025",     cause: "Accidentes + paro transportadores" },
+  "Casanare":          { level: 1, avgDurationHours: 6,  hotspot: "Ruta Yopal-Aguazul",                lastEvent: "Sep 2025",     cause: "Protestas sector petrolero" },
+  "Arauca":            { level: 2, avgDurationHours: 48, hotspot: "Vía Arauca-Tame",                   lastEvent: "Ene 2026",     cause: "Paros armados ELN / cierres de orden público" },
+  "Santander":         { level: 1, avgDurationHours: 4,  hotspot: "Ruta del Sol tramo II",             lastEvent: "Oct 2025",     cause: "Manifestaciones sector agropecuario" },
+  "Norte de Santander":{ level: 2, avgDurationHours: 24, hotspot: "Vía Ocaña-Cúcuta, Tibú-Convención",lastEvent: "Feb 2026",     cause: "Paros cocaleros / cierres de orden público" },
+  "Bolívar":           { level: 1, avgDurationHours: 8,  hotspot: "Troncal de Occidente km 90-120",    lastEvent: "Nov 2025",     cause: "Comunidades mineras" },
+  "Atlántico":         { level: 1, avgDurationHours: 3,  hotspot: "Autopista Barranquilla-Cartagena",  lastEvent: "Ago 2025",     cause: "Manifestaciones transportistas" },
+  "Córdoba":           { level: 2, avgDurationHours: 16, hotspot: "Vía Montería-Planeta Rica",         lastEvent: "Ene 2026",     cause: "Paros campesinos y ganaderos" },
+  "Sucre":             { level: 1, avgDurationHours: 6,  hotspot: "Troncal Occidental sector Sincelejo",lastEvent: "Sep 2025",    cause: "Protestas agropecuarias" },
+  "Cesar":             { level: 1, avgDurationHours: 5,  hotspot: "Ruta Valledupar-Bosconia",          lastEvent: "Oct 2025",     cause: "Sector minero-carbonero" },
+  "Magdalena":         { level: 1, avgDurationHours: 4,  hotspot: "Troncal Caribe zona bananera",      lastEvent: "Nov 2025",     cause: "Paro bananero / comunidades" },
+  "La Guajira":        { level: 1, avgDurationHours: 8,  hotspot: "Vía Riohacha-Maicao",               lastEvent: "Dic 2025",     cause: "Comunidades Wayuu / contrabandistas" },
+  "Chocó":             { level: 2, avgDurationHours: 48, hotspot: "Vía Quibdó-Medellín (El Tigre)",    lastEvent: "Feb 2026",     cause: "Comunidades afro + paros armados" },
+  "Caquetá":           { level: 2, avgDurationHours: 36, hotspot: "Vía Florencia-Neiva",               lastEvent: "Ene 2026",     cause: "Paros cocaleros / orden público" },
+  "Putumayo":          { level: 2, avgDurationHours: 30, hotspot: "Vía Mocoa-Puerto Asís",             lastEvent: "Feb 2026",     cause: "Protestas cocaleras / paro petrolero" },
+  "Guaviare":          { level: 1, avgDurationHours: 12, hotspot: "Vía San José-Villavicencio",        lastEvent: "Sep 2025",     cause: "Paros colonos / orden público" },
+  "Vichada":           { level: 0, avgDurationHours: 0,  hotspot: "N/A",                               lastEvent: "Sin registro", cause: "" },
+  "Guainía":           { level: 0, avgDurationHours: 0,  hotspot: "N/A",                               lastEvent: "Sin registro", cause: "" },
+  "Vaupés":            { level: 0, avgDurationHours: 0,  hotspot: "N/A",                               lastEvent: "Sin registro", cause: "" },
+  "Amazonas":          { level: 0, avgDurationHours: 0,  hotspot: "N/A",                               lastEvent: "Sin registro", cause: "" },
+};
+
 /* ── Corredores ── */
 interface Corridor {
   id: string; name: string; shortName: string; via: string;
@@ -126,18 +177,18 @@ interface Corridor {
 }
 
 const CORRIDORS: Corridor[] = [
-  { id: "bog-med",  name: "Bogotá → Medellín",                shortName: "Bog · Med",    via: "Ruta 60 / Autopista Medellín",           departments: ["Bogotá D.C.", "Cundinamarca", "Boyacá", "Caldas", "Antioquia"],                        icon: "🔴" },
-  { id: "bog-cali", name: "Bogotá → Cali",                   shortName: "Bog · Cali",   via: "Ruta 40 / Autopista Panamericana",       departments: ["Bogotá D.C.", "Cundinamarca", "Tolima", "Quindío", "Valle del Cauca"],                    icon: "🟡" },
-  { id: "bog-baq",  name: "Bogotá → Barranquilla / Cartagena", shortName: "Bog · Costa",  via: "Ruta del Sol (Ruta 45A)",                departments: ["Bogotá D.C.", "Cundinamarca", "Boyacá", "Santander", "Bolívar", "Atlántico"],             icon: "🔵" },
-  { id: "bog-buc",  name: "Bogotá → Bucaramanga",             shortName: "Bog · Buc",    via: "Ruta del Sol Tramo I-II",                departments: ["Bogotá D.C.", "Cundinamarca", "Boyacá", "Santander"],                                    icon: "🟢" },
-  { id: "bog-cuc",  name: "Bogotá → Cúcuta",                  shortName: "Bog · Cúcuta", via: "Ruta 45A / Ruta 55",                     departments: ["Bogotá D.C.", "Cundinamarca", "Boyacá", "Santander", "Norte de Santander"],               icon: "🟤" },
-  { id: "bog-vil",  name: "Bogotá → Villavicencio / Llanos",  shortName: "Bog · Llanos", via: "Ruta 40 / Vía al Llano",                 departments: ["Bogotá D.C.", "Cundinamarca", "Meta"],                                                   icon: "🟠" },
-  { id: "bog-pas",  name: "Bogotá → Pasto / Ipiales",         shortName: "Bog · Sur",    via: "Ruta 25 / Panamericana Sur",             departments: ["Bogotá D.C.", "Cundinamarca", "Tolima", "Huila", "Cauca", "Nariño"],                      icon: "🟣" },
-  { id: "med-baq",  name: "Medellín → Barranquilla",          shortName: "Med · Costa",  via: "Ruta 62 / Troncal Occidental",           departments: ["Antioquia", "Córdoba", "Sucre", "Bolívar", "Atlántico"],                                  icon: "⚪" },
-  { id: "med-cali", name: "Medellín → Cali",                  shortName: "Med · Cali",   via: "Ruta 25 / Autopista del Café",           departments: ["Antioquia", "Risaralda", "Quindío", "Valle del Cauca"],                                   icon: "🔶" },
-  { id: "cali-bue", name: "Cali → Buenaventura (Puerto)",     shortName: "Cali · Puerto",via: "Ruta 40 / Vía Pacífico",                 departments: ["Valle del Cauca"],                                                                        icon: "🔷" },
-  { id: "bog-yop",  name: "Bogotá → Yopal / Casanare",        shortName: "Bog · Casanare",via: "Ruta 40 / Marginal del Llano",          departments: ["Bogotá D.C.", "Cundinamarca", "Boyacá", "Casanare"],                                      icon: "🟫" },
-  { id: "baq-bog",  name: "Barranquilla → Bogotá",            shortName: "Costa · Bog",  via: "Ruta del Sol completa",                  departments: ["Atlántico", "Bolívar", "Cesar", "Santander", "Boyacá", "Cundinamarca", "Bogotá D.C."],    icon: "⭐" },
+  { id: "bog-med",  name: "Bogotá → Medellín",                  shortName: "Bog · Med",      via: "Ruta 60 / Autopista Medellín",         departments: ["Bogotá D.C.", "Cundinamarca", "Boyacá", "Caldas", "Antioquia"],                        icon: "🔴" },
+  { id: "bog-cali", name: "Bogotá → Cali",                     shortName: "Bog · Cali",     via: "Ruta 40 / Autopista Panamericana",     departments: ["Bogotá D.C.", "Cundinamarca", "Tolima", "Quindío", "Valle del Cauca"],                    icon: "🟡" },
+  { id: "bog-baq",  name: "Bogotá → Barranquilla / Cartagena", shortName: "Bog · Costa",    via: "Ruta del Sol (Ruta 45A)",              departments: ["Bogotá D.C.", "Cundinamarca", "Boyacá", "Santander", "Bolívar", "Atlántico"],             icon: "🔵" },
+  { id: "bog-buc",  name: "Bogotá → Bucaramanga",               shortName: "Bog · Buc",      via: "Ruta del Sol Tramo I-II",              departments: ["Bogotá D.C.", "Cundinamarca", "Boyacá", "Santander"],                                    icon: "🟢" },
+  { id: "bog-cuc",  name: "Bogotá → Cúcuta",                    shortName: "Bog · Cúcuta",   via: "Ruta 45A / Ruta 55",                   departments: ["Bogotá D.C.", "Cundinamarca", "Boyacá", "Santander", "Norte de Santander"],               icon: "🟤" },
+  { id: "bog-vil",  name: "Bogotá → Villavicencio / Llanos",    shortName: "Bog · Llanos",   via: "Ruta 40 / Vía al Llano",               departments: ["Bogotá D.C.", "Cundinamarca", "Meta"],                                                   icon: "🟠" },
+  { id: "bog-pas",  name: "Bogotá → Pasto / Ipiales",           shortName: "Bog · Sur",      via: "Ruta 25 / Panamericana Sur",           departments: ["Bogotá D.C.", "Cundinamarca", "Tolima", "Huila", "Cauca", "Nariño"],                      icon: "🟣" },
+  { id: "med-baq",  name: "Medellín → Barranquilla",            shortName: "Med · Costa",    via: "Ruta 62 / Troncal Occidental",         departments: ["Antioquia", "Córdoba", "Sucre", "Bolívar", "Atlántico"],                                  icon: "⚪" },
+  { id: "med-cali", name: "Medellín → Cali",                    shortName: "Med · Cali",     via: "Ruta 25 / Autopista del Café",         departments: ["Antioquia", "Risaralda", "Quindío", "Valle del Cauca"],                                   icon: "🔶" },
+  { id: "cali-bue", name: "Cali → Buenaventura (Puerto)",       shortName: "Cali · Puerto",  via: "Ruta 40 / Vía Pacífico",               departments: ["Valle del Cauca"],                                                                        icon: "🔷" },
+  { id: "bog-yop",  name: "Bogotá → Yopal / Casanare",          shortName: "Bog · Casanare", via: "Ruta 40 / Marginal del Llano",         departments: ["Bogotá D.C.", "Cundinamarca", "Boyacá", "Casanare"],                                      icon: "🟫" },
+  { id: "baq-bog",  name: "Barranquilla → Bogotá",              shortName: "Costa · Bog",    via: "Ruta del Sol completa",                departments: ["Atlántico", "Bolívar", "Cesar", "Santander", "Boyacá", "Cundinamarca", "Bogotá D.C."],    icon: "⭐" },
 ];
 
 /* ── Helpers ── */
@@ -156,43 +207,58 @@ function pirataRisk(count: number): { label: string; color: string; bg: string }
   return             { label: "CRÍTICO",     color: E.red,      bg: "rgba(239,68,68,0.12)" };
 }
 function pirataFill(count: number): string {
-  if (count === 0)  return "#192438";
-  if (count < 5)    return "#1a6a50";
-  if (count < 20)   return "#c07a00";
-  if (count < 60)   return "#c04000";
+  if (count === 0) return "#192438"; if (count < 5) return "#1a6a50";
+  if (count < 20) return "#c07a00"; if (count < 60) return "#c04000";
   return "#cc1000";
 }
-
 function nightLabel(pct: number): { label: string; color: string } {
-  if (pct < 55) return { label: `${pct}% — Bajo`,      color: E.emerald };
-  if (pct < 68) return { label: `${pct}% — Moderado`,  color: E.amber };
-  if (pct < 78) return { label: `${pct}% — Alto`,      color: E.orange };
-  return          { label: `${pct}% — Muy alto`,  color: E.red };
+  if (pct < 55) return { label: `${pct}% — Bajo`,       color: E.emerald };
+  if (pct < 68) return { label: `${pct}% — Moderado`,   color: E.amber };
+  if (pct < 78) return { label: `${pct}% — Alto`,       color: E.orange };
+  return          { label: `${pct}% — Muy alto`,   color: E.red };
 }
 function armedLabel(level: number): { label: string; color: string } {
-  if (level === 0) return { label: "Sin presencia",   color: E.emerald };
-  if (level === 1) return { label: "Baja",            color: "#8bc34a" };
-  if (level === 2) return { label: "Moderada",        color: E.amber };
-  return            { label: "Alta",             color: E.red };
+  if (level === 0) return { label: "Sin presencia",  color: E.emerald };
+  if (level === 1) return { label: "Baja",           color: "#8bc34a" };
+  if (level === 2) return { label: "Moderada",       color: E.amber };
+  return            { label: "Alta",            color: E.red };
 }
 function signalLabel(s: "good"|"partial"|"poor"): { label: string; color: string } {
-  if (s === "good")    return { label: "Buena cobertura",    color: E.emerald };
-  if (s === "partial") return { label: "Cobertura parcial",  color: E.amber };
-  return                { label: "Sin cobertura",       color: E.red };
+  if (s === "good")    return { label: "Buena cobertura",   color: E.emerald };
+  if (s === "partial") return { label: "Cobertura parcial", color: E.amber };
+  return                { label: "Sin cobertura",      color: E.red };
 }
 function roadLabel(s: "good"|"regular"|"difficult"): { label: string; color: string } {
-  if (s === "good")      return { label: "Buen estado",     color: E.emerald };
-  if (s === "regular")   return { label: "Estado regular",  color: E.amber };
-  return                  { label: "Difícil / cierre",  color: E.red };
+  if (s === "good")    return { label: "Buen estado",    color: E.emerald };
+  if (s === "regular") return { label: "Estado regular", color: E.amber };
+  return                { label: "Difícil / cierre",color: E.red };
 }
+function blockadeLabel(level: number): { label: string; color: string; bg: string } {
+  if (level === 0) return { label: "Sin registro",   color: E.emerald, bg: "rgba(16,185,129,0.1)" };
+  if (level === 1) return { label: "Esporádico",     color: E.amber,   bg: "rgba(245,158,11,0.1)" };
+  if (level === 2) return { label: "Frecuente",      color: E.orange,  bg: "rgba(249,115,22,0.1)" };
+  return            { label: "Muy frecuente",   color: E.red,     bg: "rgba(239,68,68,0.1)" };
+}
+const CAUSE_LABELS: Record<BlockadeRecord["cause"], string> = {
+  comunidad:       "🏘 Comunidad / Exigencias locales",
+  protesta_social: "✊ Protesta Social",
+  paro_camionero:  "🚛 Paro Camionero",
+  grupos_ilegales: "⚔ Grupos ilegales / paro armado",
+  otro:            "📌 Otro motivo",
+};
+const STATUS_LABELS: Record<BlockadeRecord["status"], { label: string; color: string }> = {
+  activo:       { label: "ACTIVO",       color: E.red },
+  levantado:    { label: "LEVANTADO",    color: E.emerald },
+  intermitente: { label: "INTERMITENTE", color: E.amber },
+};
 
-/** Compute composite risk score (0-100) for a department — piratería, armed groups, night, road */
 function compositeScore(dept: string, pirataCount: number): number {
-  const pScore = Math.min(pirataCount / 80, 1) * 40;                      // 0-40
-  const aScore = (ARMED_GROUPS[dept]?.level ?? 0) / 3 * 30;               // 0-30
-  const nScore = ((NIGHT_RISK[dept] ?? 60) - 50) / 35 * 20;               // 0-20
-  const rScore = ROAD_CONDITION[dept]?.score === "difficult" ? 10 : ROAD_CONDITION[dept]?.score === "regular" ? 5 : 0; // 0-10
-  return Math.min(100, Math.round(pScore + aScore + nScore + rScore));
+  const pScore = Math.min(pirataCount / 80, 1) * 35;
+  const aScore = (ARMED_GROUPS[dept]?.level ?? 0) / 3 * 25;
+  const nScore = ((NIGHT_RISK[dept] ?? 60) - 50) / 35 * 15;
+  const rScore = ROAD_CONDITION[dept]?.score === "difficult" ? 10 : ROAD_CONDITION[dept]?.score === "regular" ? 5 : 0;
+  const bScore = (BLOCKADE_HISTORY[dept]?.level ?? 0) / 3 * 15;
+  return Math.min(100, Math.round(pScore + aScore + nScore + rScore + bScore));
 }
 function compositeLabel(score: number): { label: string; color: string; bg: string } {
   if (score < 20) return { label: "BAJO",     color: E.emerald, bg: "rgba(16,185,129,0.12)" };
@@ -201,19 +267,23 @@ function compositeLabel(score: number): { label: string; color: string; bg: stri
   return           { label: "CRÍTICO",  color: E.red,     bg: "rgba(239,68,68,0.12)"  };
 }
 
-/* ── Operational recommendations ── */
-function buildRecommendations(corridor: Corridor, pirataMap: Record<string, number>): string[] {
+function buildRecommendations(corridor: Corridor, pirataMap: Record<string, number>, userBlockades: BlockadeRecord[]): string[] {
   const recs: string[] = [];
-  const nightMax  = Math.max(...corridor.departments.map(d => NIGHT_RISK[d] ?? 60));
-  const armedMax  = Math.max(...corridor.departments.map(d => ARMED_GROUPS[d]?.level ?? 0));
-  const roadDiff  = corridor.departments.some(d => ROAD_CONDITION[d]?.score === "difficult");
-  const poorSig   = corridor.departments.some(d => CELL_SIGNAL[d] === "poor");
-  const totalPirata = corridor.departments.reduce((s, d) => s + (pirataMap[normKey(d)] ?? 0), 0);
+  const nightMax     = Math.max(...corridor.departments.map(d => NIGHT_RISK[d] ?? 60));
+  const armedMax     = Math.max(...corridor.departments.map(d => ARMED_GROUPS[d]?.level ?? 0));
+  const roadDiff     = corridor.departments.some(d => ROAD_CONDITION[d]?.score === "difficult");
+  const poorSig      = corridor.departments.some(d => CELL_SIGNAL[d] === "poor");
+  const blockadeMax  = Math.max(...corridor.departments.map(d => BLOCKADE_HISTORY[d]?.level ?? 0));
+  const totalPirata  = corridor.departments.reduce((s, d) => s + (pirataMap[normKey(d)] ?? 0), 0);
+  const activeBlocks = userBlockades.filter(b => b.corridorId === corridor.id && b.status === "activo");
 
+  if (activeBlocks.length > 0) recs.push(`🚨 HAY ${activeBlocks.length} BLOQUEO(S) ACTIVO(S) REGISTRADO(S) EN ESTE CORREDOR — verificar antes de salir`);
   if (nightMax >= 75) recs.push("⛔ Evitar tránsito entre 10 PM y 5 AM — alta incidencia nocturna en este corredor");
   if (nightMax >= 60 && nightMax < 75) recs.push("⚠ Reducir velocidad y mantener comunicación constante en horario nocturno");
   if (armedMax >= 3) recs.push("🚨 Coordinar con la Policía Nacional antes de transitar — presencia alta de grupos armados");
   if (armedMax === 2) recs.push("📋 Registrar el despacho en la Policía de Carreteras (DIJIN) antes de salir");
+  if (blockadeMax >= 3) recs.push("🛑 Consultar estado de vía en INVIAS y redes de transportadores — corredor con bloqueos muy frecuentes");
+  if (blockadeMax === 2) recs.push("📞 Contactar asociaciones de transportadores locales para alertas de bloqueos en ruta");
   if (totalPirata >= 30) recs.push("🛡 Considerar escolta de seguridad privada para cargas de valor alto");
   if (totalPirata >= 10) recs.push("📡 Activar GPS con reporte en tiempo real y monitoreo desde centro de control");
   if (roadDiff) recs.push("🔧 Verificar condición vial con INVIAS antes del viaje — riesgo de cierres por derrumbes");
@@ -222,13 +292,25 @@ function buildRecommendations(corridor: Corridor, pirataMap: Record<string, numb
   return recs;
 }
 
-/* ── Props ── */
+/* ══════════════════════════════════════════════════════════════════
+   COMPONENTE PRINCIPAL
+   ══════════════════════════════════════════════════════════════════ */
 interface Props { dark?: boolean }
+
+const EMPTY_BLOCKADE = (): Omit<BlockadeRecord, "id"> => ({
+  corridorId: "", department: "", date: new Date().toISOString().split("T")[0],
+  cause: "comunidad", location: "", durationHours: null, status: "activo", notes: "", reporter: "",
+});
 
 export function RouteAnalyzer({ dark = true }: Props) {
   const [selectedCorridor, setSelectedCorridor] = useState<Corridor | null>(null);
-  const [activeView, setActiveView]             = useState<"pirateria" | "compuesto">("compuesto");
-  const [hovered, setHovered]                   = useState<{ name: string; pirataCount: number; score: number; ex: number; ey: number } | null>(null);
+  const [activeView,       setActiveView]        = useState<"pirateria" | "compuesto">("compuesto");
+  const [activeTab,        setActiveTab]         = useState<"risk" | "blockades">("risk");
+  const [hovered,          setHovered]           = useState<{ name: string; pirataCount: number; score: number; ex: number; ey: number } | null>(null);
+  const [showForm,         setShowForm]          = useState(false);
+  const [userBlockades,    setUserBlockades]      = useState<BlockadeRecord[]>([]);
+  const [formData,         setFormData]          = useState<Omit<BlockadeRecord, "id">>(EMPTY_BLOCKADE());
+  const [formError,        setFormError]         = useState("");
 
   const panelBg   = dark ? E.panel   : "#ffffff";
   const textMain  = dark ? "#e2eaf4" : "#1a2a3a";
@@ -258,81 +340,201 @@ export function RouteAnalyzer({ dark = true }: Props) {
   }, [selectedCorridor, pirataMap]);
 
   const recommendations = useMemo(() =>
-    selectedCorridor ? buildRecommendations(selectedCorridor, pirataMap) : [],
-    [selectedCorridor, pirataMap],
+    selectedCorridor ? buildRecommendations(selectedCorridor, pirataMap, userBlockades) : [],
+    [selectedCorridor, pirataMap, userBlockades],
   );
 
-  /* Corridor card risk for the grid */
+  const corridorBlockades = useMemo(() =>
+    selectedCorridor ? userBlockades.filter(b => b.corridorId === selectedCorridor.id) : [],
+    [selectedCorridor, userBlockades],
+  );
+  const historicBlockades = useMemo(() =>
+    selectedCorridor ? selectedCorridor.departments
+      .filter(d => (BLOCKADE_HISTORY[d]?.level ?? 0) > 0)
+      .sort((a, b) => (BLOCKADE_HISTORY[b]?.level ?? 0) - (BLOCKADE_HISTORY[a]?.level ?? 0))
+      : [],
+    [selectedCorridor],
+  );
+
   function corridorCardRisk(c: Corridor) {
     const total = c.departments.reduce((s, d) => s + (pirataMap[normKey(d)] ?? 0), 0);
-    const avg   = total / c.departments.length;
-    return pirataRisk(avg);
+    return pirataRisk(total / c.departments.length);
   }
 
-  /* Map fill based on active view */
   function getMapFill(dept: string, onRoute: boolean): string {
     if (!onRoute) return dark ? "#131e2e" : "#c8d8e8";
     const count = pirataMap[normKey(dept)] ?? 0;
     if (activeView === "pirateria") return pirataFill(count);
     const score = compositeScore(dept, count);
-    if (score < 20) return "#1a6a50";
-    if (score < 45) return "#c07a00";
-    if (score < 70) return "#c04000";
-    return "#cc1000";
+    if (score < 20) return "#1a6a50"; if (score < 45) return "#c07a00";
+    if (score < 70) return "#c04000"; return "#cc1000";
   }
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+  const submitBlockade = useCallback(() => {
+    if (!formData.corridorId) return setFormError("Seleccione un corredor.");
+    if (!formData.department) return setFormError("Indique el departamento afectado.");
+    if (!formData.location.trim()) return setFormError("Describa el punto / sector de cierre.");
+    setFormError("");
+    const newRecord: BlockadeRecord = { ...formData, id: `B-${Date.now()}` };
+    setUserBlockades(prev => [newRecord, ...prev]);
+    setShowForm(false);
+    setFormData(EMPTY_BLOCKADE());
+    if (selectedCorridor?.id !== formData.corridorId) {
+      const c = CORRIDORS.find(c => c.id === formData.corridorId);
+      if (c) setSelectedCorridor(c);
+    }
+    setActiveTab("blockades");
+  }, [formData, selectedCorridor]);
 
-      {/* Header */}
-      <div style={{
-        background: dark ? "linear-gradient(135deg, #0c1628,#0e1f38)" : "linear-gradient(135deg,#e8f4ff,#dbeafe)",
-        border: `1px solid ${dark ? "rgba(239,68,68,0.2)" : "rgba(239,68,68,0.15)"}`,
-        borderRadius: "12px", padding: "14px 18px",
-        display: "flex", alignItems: "center", gap: "12px",
-      }}>
-        <div style={{ width: 36, height: 36, borderRadius: "9px", background: "rgba(239,68,68,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <Truck style={{ width: 17, height: 17, color: E.red }} />
+  const inputStyle: React.CSSProperties = {
+    width: "100%", background: dark ? "rgba(255,255,255,0.04)" : "#f1f5f9",
+    border: `1px solid ${borderC}`, borderRadius: "6px", padding: "7px 10px",
+    fontSize: "12px", color: textMain, outline: "none", boxSizing: "border-box",
+  };
+  const selectStyle: React.CSSProperties = { ...inputStyle, cursor: "pointer" };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+
+      {/* ── Header ── */}
+      <div style={{ background: dark ? "linear-gradient(135deg,#0c1628,#0e1f38)" : "linear-gradient(135deg,#e8f4ff,#dbeafe)", border: `1px solid ${dark?"rgba(239,68,68,0.2)":"rgba(239,68,68,0.15)"}`, borderRadius: "12px", padding: "12px 16px", display: "flex", alignItems: "center", gap: "12px" }}>
+        <div style={{ width: 34, height: 34, borderRadius: "9px", background: "rgba(239,68,68,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <Truck style={{ width: 16, height: 16, color: E.red }} />
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: "13px", fontWeight: 700, color: textMain }}>Gestión de Riesgo en Corredores de Carga — Colombia 2026</div>
           <div style={{ fontSize: "11px", color: textMuted, marginTop: "2px" }}>
-            Piratería terrestre · Grupos armados · Riesgo nocturno · Condición vial · Señal celular
+            Piratería terrestre · Grupos armados · Riesgo nocturno · Condición vial · Señal celular · Bloqueos comunitarios
           </div>
         </div>
-        {selectedCorridor && (
-          <button onClick={() => setSelectedCorridor(null)} style={{ fontSize: "11px", color: textMuted, background: "transparent", border: `1px solid ${borderC}`, borderRadius: "6px", padding: "5px 10px", cursor: "pointer" }}>
-            ← Cambiar ruta
+        <div style={{ display: "flex", gap: "6px" }}>
+          {selectedCorridor && (
+            <button onClick={() => { setSelectedCorridor(null); setActiveTab("risk"); }} style={{ fontSize: "11px", color: textMuted, background: "transparent", border: `1px solid ${borderC}`, borderRadius: "6px", padding: "5px 10px", cursor: "pointer" }}>
+              ← Cambiar ruta
+            </button>
+          )}
+          <button onClick={() => { setShowForm(true); setFormData({ ...EMPTY_BLOCKADE(), corridorId: selectedCorridor?.id ?? "" }); }} style={{ fontSize: "11px", fontWeight: 700, color: E.pink, background: "rgba(236,72,153,0.1)", border: "1px solid rgba(236,72,153,0.25)", borderRadius: "6px", padding: "5px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}>
+            <Plus style={{ width: 11, height: 11 }} /> Registrar Bloqueo
           </button>
-        )}
+        </div>
       </div>
+
+      {/* ── REGISTER BLOCKADE MODAL ── */}
+      {showForm && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.72)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+          <div style={{ background: dark ? "#0c1220" : "#fff", border: `1px solid ${dark?"rgba(236,72,153,0.3)":borderC}`, borderRadius: "14px", padding: "20px 22px", width: "100%", maxWidth: "480px", boxShadow: "0 20px 60px rgba(0,0,0,0.6)" }}>
+            {/* Modal header */}
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
+              <Ban style={{ width: 16, height: 16, color: E.pink }} />
+              <span style={{ fontSize: "13px", fontWeight: 700, color: textMain, flex: 1 }}>Registrar Bloqueo Vial</span>
+              <button onClick={() => setShowForm(false)} style={{ background: "transparent", border: "none", cursor: "pointer", color: textMuted, display: "flex" }}><X style={{ width: 16, height: 16 }} /></button>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {/* Corridor */}
+              <div>
+                <label style={{ fontSize: "10px", fontWeight: 700, color: textMuted, letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: "4px" }}>Corredor Vial *</label>
+                <select value={formData.corridorId} onChange={e => { const c = CORRIDORS.find(x => x.id === e.target.value); setFormData(p => ({ ...p, corridorId: e.target.value, department: c?.departments[0] ?? "" })); }} style={selectStyle}>
+                  <option value="">— Seleccione corredor —</option>
+                  {CORRIDORS.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+                </select>
+              </div>
+
+              {/* Department */}
+              <div>
+                <label style={{ fontSize: "10px", fontWeight: 700, color: textMuted, letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: "4px" }}>Departamento afectado *</label>
+                <select value={formData.department} onChange={e => setFormData(p => ({ ...p, department: e.target.value }))} style={selectStyle}>
+                  <option value="">— Seleccione —</option>
+                  {(formData.corridorId ? (CORRIDORS.find(c => c.id === formData.corridorId)?.departments ?? []) : []).map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
+
+              {/* Location */}
+              <div>
+                <label style={{ fontSize: "10px", fontWeight: 700, color: textMuted, letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: "4px" }}>Punto / Sector de cierre *</label>
+                <input type="text" placeholder="Ej: Panamericana km 38 sector Piendamó" value={formData.location} onChange={e => setFormData(p => ({ ...p, location: e.target.value }))} style={inputStyle} />
+              </div>
+
+              {/* Date + Cause row */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                <div>
+                  <label style={{ fontSize: "10px", fontWeight: 700, color: textMuted, letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: "4px" }}>Fecha</label>
+                  <input type="date" value={formData.date} onChange={e => setFormData(p => ({ ...p, date: e.target.value }))} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={{ fontSize: "10px", fontWeight: 700, color: textMuted, letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: "4px" }}>Estado</label>
+                  <select value={formData.status} onChange={e => setFormData(p => ({ ...p, status: e.target.value as any }))} style={selectStyle}>
+                    <option value="activo">🔴 Activo</option>
+                    <option value="intermitente">🟡 Intermitente</option>
+                    <option value="levantado">🟢 Levantado</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Cause + Duration */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                <div>
+                  <label style={{ fontSize: "10px", fontWeight: 700, color: textMuted, letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: "4px" }}>Causa</label>
+                  <select value={formData.cause} onChange={e => setFormData(p => ({ ...p, cause: e.target.value as any }))} style={selectStyle}>
+                    {Object.entries(CAUSE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: "10px", fontWeight: 700, color: textMuted, letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: "4px" }}>Duración (horas)</label>
+                  <input type="number" min={1} placeholder="Aprox." value={formData.durationHours ?? ""} onChange={e => setFormData(p => ({ ...p, durationHours: e.target.value ? Number(e.target.value) : null }))} style={inputStyle} />
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label style={{ fontSize: "10px", fontWeight: 700, color: textMuted, letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: "4px" }}>Observaciones</label>
+                <textarea placeholder="Información adicional: desvío alternativo, tipo de vehículos afectados, fuente..." value={formData.notes} onChange={e => setFormData(p => ({ ...p, notes: e.target.value }))} style={{ ...inputStyle, resize: "vertical", minHeight: "60px", fontFamily: "inherit" }} />
+              </div>
+
+              {/* Reporter */}
+              <div>
+                <label style={{ fontSize: "10px", fontWeight: 700, color: textMuted, letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: "4px" }}>Reportado por</label>
+                <input type="text" placeholder="Empresa / operador / nombre" value={formData.reporter} onChange={e => setFormData(p => ({ ...p, reporter: e.target.value }))} style={inputStyle} />
+              </div>
+
+              {formError && <div style={{ fontSize: "11px", color: E.red, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: "6px", padding: "7px 10px" }}>{formError}</div>}
+
+              <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end", paddingTop: "4px" }}>
+                <button onClick={() => setShowForm(false)} style={{ fontSize: "12px", color: textMuted, background: "transparent", border: `1px solid ${borderC}`, borderRadius: "7px", padding: "7px 16px", cursor: "pointer" }}>Cancelar</button>
+                <button onClick={submitBlockade} style={{ fontSize: "12px", fontWeight: 700, color: "#fff", background: E.pink, border: "none", borderRadius: "7px", padding: "7px 18px", cursor: "pointer" }}>Registrar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── CORRIDOR GRID ── */}
       {!selectedCorridor && (
         <div style={{ background: panelBg, border: `1px solid ${borderC}`, borderRadius: "12px", padding: "14px 16px" }}>
-          <div style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: textMuted, marginBottom: "10px" }}>
-            Seleccione un Corredor Vial
-          </div>
+          <div style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: textMuted, marginBottom: "10px" }}>Seleccione un Corredor Vial</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(255px, 1fr))", gap: "7px" }}>
             {CORRIDORS.map(corridor => {
-              const risk = corridorCardRisk(corridor);
-              const armedMax = Math.max(...corridor.departments.map(d => ARMED_GROUPS[d]?.level ?? 0));
-              const nightMax = Math.max(...corridor.departments.map(d => NIGHT_RISK[d] ?? 60));
+              const risk       = corridorCardRisk(corridor);
+              const armedMax   = Math.max(...corridor.departments.map(d => ARMED_GROUPS[d]?.level ?? 0));
+              const nightMax   = Math.max(...corridor.departments.map(d => NIGHT_RISK[d] ?? 60));
+              const blockadeMax= Math.max(...corridor.departments.map(d => BLOCKADE_HISTORY[d]?.level ?? 0));
+              const activeBlks = userBlockades.filter(b => b.corridorId === corridor.id && b.status === "activo").length;
               return (
                 <button key={corridor.id} onClick={() => setSelectedCorridor(corridor)}
-                  style={{ background: dark ? "rgba(255,255,255,0.02)" : "#f8fafc", border: `1px solid ${dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`, borderRadius: "8px", padding: "10px 12px", cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: "9px", transition: "all 0.15s" }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = dark ? "rgba(0,212,255,0.06)" : "rgba(59,130,246,0.05)"; (e.currentTarget as HTMLElement).style.borderColor = dark ? "rgba(0,212,255,0.22)" : "rgba(59,130,246,0.22)"; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = dark ? "rgba(255,255,255,0.02)" : "#f8fafc"; (e.currentTarget as HTMLElement).style.borderColor = dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"; }}
+                  style={{ background: dark ? "rgba(255,255,255,0.02)" : "#f8fafc", border: `1px solid ${dark?"rgba(255,255,255,0.08)":"rgba(0,0,0,0.08)"}`, borderRadius: "8px", padding: "10px 12px", cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: "9px" }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = dark?"rgba(0,212,255,0.06)":"rgba(59,130,246,0.05)"; (e.currentTarget as HTMLElement).style.borderColor = dark?"rgba(0,212,255,0.22)":"rgba(59,130,246,0.22)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = dark?"rgba(255,255,255,0.02)":"#f8fafc"; (e.currentTarget as HTMLElement).style.borderColor = dark?"rgba(255,255,255,0.08)":"rgba(0,0,0,0.08)"; }}
                 >
-                  <span style={{ fontSize: "16px", flexShrink: 0 }}>{corridor.icon}</span>
+                  <span style={{ fontSize: "15px", flexShrink: 0 }}>{corridor.icon}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: "12px", fontWeight: 700, color: textMain, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{corridor.name}</div>
                     <div style={{ fontSize: "10px", color: textMuted, marginTop: "1px" }}>{corridor.via}</div>
-                    {/* Mini factor badges */}
-                    <div style={{ display: "flex", gap: "4px", marginTop: "4px" }}>
-                      {armedMax >= 2 && <span style={{ fontSize: "8px", color: E.red,    background: "rgba(239,68,68,0.12)",    borderRadius: "3px", padding: "1px 5px", fontWeight: 700 }}>⚔ ARMADOS</span>}
-                      {nightMax >= 75 && <span style={{ fontSize: "8px", color: E.amber,  background: "rgba(245,158,11,0.12)",  borderRadius: "3px", padding: "1px 5px", fontWeight: 700 }}>🌙 NOCTURNO</span>}
+                    <div style={{ display: "flex", gap: "3px", marginTop: "4px", flexWrap: "wrap" }}>
+                      {armedMax >= 2   && <span style={{ fontSize: "8px", color: E.red,    background: "rgba(239,68,68,0.12)",    borderRadius: "3px", padding: "1px 5px", fontWeight: 700 }}>⚔ ARMADOS</span>}
+                      {nightMax >= 75  && <span style={{ fontSize: "8px", color: E.amber,  background: "rgba(245,158,11,0.12)",  borderRadius: "3px", padding: "1px 5px", fontWeight: 700 }}>🌙 NOCTURNO</span>}
                       {corridor.departments.some(d => ROAD_CONDITION[d]?.score === "difficult") && <span style={{ fontSize: "8px", color: E.orange, background: "rgba(249,115,22,0.12)", borderRadius: "3px", padding: "1px 5px", fontWeight: 700 }}>🔧 VÍA</span>}
+                      {blockadeMax >= 2 && <span style={{ fontSize: "8px", color: E.pink,  background: "rgba(236,72,153,0.12)",  borderRadius: "3px", padding: "1px 5px", fontWeight: 700 }}>🛑 BLOQUEOS</span>}
+                      {activeBlks > 0  && <span style={{ fontSize: "8px", color: "#fff",   background: E.red,                    borderRadius: "3px", padding: "1px 5px", fontWeight: 700 }}>🔴 {activeBlks} ACTIVO{activeBlks>1?"S":""}</span>}
                     </div>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "3px", flexShrink: 0 }}>
@@ -349,9 +551,10 @@ export function RouteAnalyzer({ dark = true }: Props) {
       {/* ── ROUTE DETAIL ── */}
       {selectedCorridor && (() => {
         const overallScore = compositeLabel(routeStats.avgScore);
+        const activeBlks   = corridorBlockades.filter(b => b.status === "activo").length;
         return (
           <>
-            {/* Route header + overall risk */}
+            {/* Route header */}
             <div style={{ background: panelBg, border: `1px solid ${borderC}`, borderRadius: "12px", padding: "12px 16px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px", flexWrap: "wrap" }}>
                 <span style={{ fontSize: "16px" }}>{selectedCorridor.icon}</span>
@@ -359,7 +562,6 @@ export function RouteAnalyzer({ dark = true }: Props) {
                   <div style={{ fontSize: "13px", fontWeight: 700, color: textMain }}>{selectedCorridor.name}</div>
                   <div style={{ fontSize: "10px", color: textMuted }}>{selectedCorridor.via}</div>
                 </div>
-                {/* Composite risk badge */}
                 <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                   <div style={{ background: overallScore.bg, border: `1px solid ${overallScore.color}40`, borderRadius: "7px", padding: "6px 12px", textAlign: "center" }}>
                     <div style={{ fontSize: "9px", color: textMuted, fontWeight: 600, letterSpacing: "0.07em" }}>RIESGO COMPUESTO</div>
@@ -369,166 +571,246 @@ export function RouteAnalyzer({ dark = true }: Props) {
                     <div style={{ fontSize: "9px", color: textMuted, fontWeight: 600, letterSpacing: "0.07em" }}>PIRATERÍA 2026</div>
                     <div style={{ fontSize: "13px", fontWeight: 800, color: E.red }}>{routeStats.total} casos</div>
                   </div>
+                  {activeBlks > 0 && (
+                    <div style={{ background: "rgba(236,72,153,0.1)", border: "1px solid rgba(236,72,153,0.3)", borderRadius: "7px", padding: "6px 12px", textAlign: "center", cursor: "pointer" }} onClick={() => setActiveTab("blockades")}>
+                      <div style={{ fontSize: "9px", color: textMuted, fontWeight: 600, letterSpacing: "0.07em" }}>BLOQUEOS ACTIVOS</div>
+                      <div style={{ fontSize: "13px", fontWeight: 800, color: E.pink }}>{activeBlks} registrado{activeBlks>1?"s":""}</div>
+                    </div>
+                  )}
                 </div>
               </div>
-              {/* Dept chain */}
               <div style={{ display: "flex", alignItems: "center", gap: "4px", flexWrap: "wrap" }}>
                 <MapPin style={{ width: 10, height: 10, color: textMuted, flexShrink: 0 }} />
                 {selectedCorridor.departments.map((dept, i) => (
                   <div key={dept} style={{ display: "flex", alignItems: "center", gap: "3px" }}>
-                    <span style={{ fontSize: "10px", fontWeight: 600, padding: "1px 7px", borderRadius: "3px", color: (i === 0 || i === selectedCorridor.departments.length - 1) ? E.cyan : textMain, background: (i === 0 || i === selectedCorridor.departments.length - 1) ? "rgba(0,212,255,0.1)" : "transparent" }}>{dept}</span>
+                    <span style={{ fontSize: "10px", fontWeight: 600, padding: "1px 7px", borderRadius: "3px", color: (i===0||i===selectedCorridor.departments.length-1)?E.cyan:textMain, background: (i===0||i===selectedCorridor.departments.length-1)?"rgba(0,212,255,0.1)":"transparent" }}>{dept}</span>
                     {i < selectedCorridor.departments.length - 1 && <ChevronRight style={{ width: 9, height: 9, color: textMuted }} />}
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* View toggle */}
-            <div style={{ display: "flex", gap: "6px" }}>
-              {([["compuesto", "🎯 Riesgo Compuesto"], ["pirateria", "🚛 Solo Piratería"]] as const).map(([id, label]) => (
-                <button key={id} onClick={() => setActiveView(id)} style={{ padding: "6px 14px", fontSize: "11px", fontWeight: 600, border: `1px solid ${activeView === id ? E.cyan : borderC}`, borderRadius: "7px", background: activeView === id ? "rgba(0,212,255,0.1)" : "transparent", color: activeView === id ? E.cyan : textMuted, cursor: "pointer" }}>
+            {/* Tab + view toggles */}
+            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+              {([["risk","📊 Análisis de Riesgo"],["blockades","🛑 Bloqueos Comunitarios"]] as const).map(([id, label]) => (
+                <button key={id} onClick={() => setActiveTab(id)} style={{ padding: "6px 14px", fontSize: "11px", fontWeight: 600, border: `1px solid ${activeTab===id?E.pink:borderC}`, borderRadius: "7px", background: activeTab===id?"rgba(236,72,153,0.1)":"transparent", color: activeTab===id?E.pink:textMuted, cursor: "pointer" }}>
                   {label}
+                  {id === "blockades" && corridorBlockades.length > 0 && <span style={{ marginLeft: "5px", background: E.pink, color: "#fff", borderRadius: "10px", padding: "1px 6px", fontSize: "9px" }}>{corridorBlockades.length}</span>}
                 </button>
               ))}
-            </div>
-
-            {/* Map + Table */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-
-              {/* Map */}
-              <div style={{ background: panelBg, border: `1px solid ${borderC}`, borderRadius: "12px", overflow: "hidden", position: "relative" }}>
-                <div style={{ padding: "10px 14px 0", fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: textMuted }}>Mapa del Corredor</div>
-                <ComposableMap projection="geoMercator" projectionConfig={{ scale: 1800, center: [-73.5, 4.0] }} style={{ width: "100%", height: "340px", background: dark ? "#0a1220" : "#c0d8ee" }}>
-                  <Geographies geography={GEO_URL}>
-                    {({ geographies }: { geographies: any[] }) => geographies.map((geo: any) => {
-                      const rawName: string = geo.properties.NOMBRE_DPT || geo.properties.DPTO_CNMBR || geo.properties.name || "";
-                      const geoNorm = normGeo(rawName);
-                      const onRoute = routeSet.has(geoNorm);
-                      const count   = pirataMap[geoNorm] ?? 0;
-                      const score   = compositeScore(rawName, count);
-                      return (
-                        <Geography key={geo.rsmKey} geography={geo}
-                          fill={getMapFill(rawName, onRoute)}
-                          stroke={onRoute ? "rgba(0,212,255,0.65)" : (dark ? "rgba(40,80,140,0.25)" : "rgba(80,120,180,0.2)")}
-                          strokeWidth={onRoute ? 1.6 : 0.45}
-                          style={{
-                            default: { outline: "none", filter: onRoute && score >= 70 && dark ? "drop-shadow(0 0 5px rgba(255,40,0,0.5))" : "none" },
-                            hover:   { outline: "none", stroke: "rgba(200,220,255,0.85)", strokeWidth: 1.8, cursor: "crosshair" },
-                            pressed: { outline: "none" },
-                          }}
-                          onMouseEnter={(e: React.MouseEvent) => setHovered({ name: rawName, pirataCount: count, score, ex: e.clientX, ey: e.clientY })}
-                          onMouseMove={(e: React.MouseEvent) => setHovered(prev => prev ? { ...prev, ex: e.clientX, ey: e.clientY } : prev)}
-                          onMouseLeave={() => setHovered(null)}
-                        />
-                      );
-                    })}
-                  </Geographies>
-                </ComposableMap>
-                {/* Legend */}
-                <div style={{ position: "absolute", bottom: 8, left: 8, background: dark ? "rgba(8,14,26,0.92)" : "rgba(240,247,255,0.92)", border: `1px solid ${borderC}`, borderRadius: "5px", padding: "5px 8px", backdropFilter: "blur(8px)" }}>
-                  {[["#cc1000","Crítico"],["#c04000","Alto"],["#c07a00","Moderado"],["#1a6a50","Bajo"]].map(([color,label]) => (
-                    <div key={label} style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "2px" }}>
-                      <div style={{ width: 8, height: 8, borderRadius: "2px", background: color, flexShrink: 0 }} />
-                      <span style={{ fontSize: "8px", color: textMuted }}>{label}</span>
-                    </div>
+              {activeTab === "risk" && (
+                <div style={{ marginLeft: "auto", display: "flex", gap: "5px" }}>
+                  {([["compuesto","🎯 Compuesto"],["pirateria","🚛 Piratería"]] as const).map(([id, label]) => (
+                    <button key={id} onClick={() => setActiveView(id)} style={{ padding: "6px 12px", fontSize: "10px", fontWeight: 600, border: `1px solid ${activeView===id?E.cyan:borderC}`, borderRadius: "7px", background: activeView===id?"rgba(0,212,255,0.1)":"transparent", color: activeView===id?E.cyan:textMuted, cursor: "pointer" }}>
+                      {label}
+                    </button>
                   ))}
-                  <div style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "3px", borderTop: `1px solid ${borderC}`, paddingTop: "3px" }}>
-                    <div style={{ width: 8, height: 8, borderRadius: "2px", background: "#131e2e", border: "1.5px solid rgba(0,212,255,0.65)", flexShrink: 0 }} />
-                    <span style={{ fontSize: "8px", color: E.cyan }}>En corredor</span>
-                  </div>
                 </div>
-              </div>
+              )}
+            </div>
 
-              {/* Per-dept risk matrix */}
-              <div style={{ background: panelBg, border: `1px solid ${borderC}`, borderRadius: "12px", padding: "12px 14px", display: "flex", flexDirection: "column", gap: "0" }}>
-                <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: textMuted, marginBottom: "10px" }}>
-                  Factores de Riesgo por Departamento
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px", overflowY: "auto", maxHeight: "320px" }}>
-                  {selectedCorridor.departments.map((dept, i) => {
-                    const count   = pirataMap[normKey(dept)] ?? 0;
-                    const score   = compositeScore(dept, count);
-                    const clabel  = compositeLabel(score);
-                    const night   = nightLabel(NIGHT_RISK[dept] ?? 60);
-                    const armed   = armedLabel(ARMED_GROUPS[dept]?.level ?? 0);
-                    const signal  = signalLabel(CELL_SIGNAL[dept] ?? "partial");
-                    const road    = roadLabel(ROAD_CONDITION[dept]?.score ?? "regular");
-                    const isEnd   = i === 0 || i === selectedCorridor.departments.length - 1;
-                    return (
-                      <div key={dept} style={{ background: dark ? (isEnd ? "rgba(0,212,255,0.04)" : "rgba(255,255,255,0.02)") : (isEnd ? "rgba(59,130,246,0.04)" : "#f8fafc"), border: `1px solid ${isEnd ? "rgba(0,212,255,0.15)" : borderC}`, borderRadius: "7px", padding: "8px 10px" }}>
-                        {/* Dept header */}
-                        <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "6px" }}>
-                          <span style={{ fontSize: "10px", fontWeight: 700, color: "rgba(255,255,255,0.18)", fontFamily: "monospace" }}>{String(i+1).padStart(2,"0")}</span>
-                          <span style={{ fontSize: "11px", fontWeight: 700, color: isEnd ? E.cyan : textMain, flex: 1 }}>
-                            {dept}
-                            {i === 0 && <span style={{ fontSize: "8px", marginLeft: "5px", color: E.cyan }}>ORIGEN</span>}
-                            {i === selectedCorridor.departments.length - 1 && <span style={{ fontSize: "8px", marginLeft: "5px", color: E.cyan }}>DESTINO</span>}
-                          </span>
-                          <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                            <span style={{ fontSize: "10px", fontWeight: 800, color: clabel.color, fontFamily: "monospace" }}>{score}</span>
-                            <span style={{ fontSize: "9px", fontWeight: 700, color: clabel.color, background: clabel.bg, padding: "1px 6px", borderRadius: "4px" }}>{clabel.label}</span>
-                          </div>
+            {/* ── RISK TAB ── */}
+            {activeTab === "risk" && (
+              <>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+                  {/* Map */}
+                  <div style={{ background: panelBg, border: `1px solid ${borderC}`, borderRadius: "12px", overflow: "hidden", position: "relative" }}>
+                    <div style={{ padding: "10px 14px 0", fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: textMuted }}>Mapa del Corredor</div>
+                    <ComposableMap projection="geoMercator" projectionConfig={{ scale: 1800, center: [-73.5, 4.0] }} style={{ width: "100%", height: "320px", background: dark?"#0a1220":"#c0d8ee" }}>
+                      <Geographies geography={GEO_URL}>
+                        {({ geographies }: { geographies: any[] }) => geographies.map((geo: any) => {
+                          const rawName: string = geo.properties.NOMBRE_DPT || geo.properties.DPTO_CNMBR || geo.properties.name || "";
+                          const geoNorm = normGeo(rawName);
+                          const onRoute = routeSet.has(geoNorm);
+                          const count   = pirataMap[geoNorm] ?? 0;
+                          const score   = compositeScore(rawName, count);
+                          return (
+                            <Geography key={geo.rsmKey} geography={geo}
+                              fill={getMapFill(rawName, onRoute)}
+                              stroke={onRoute?"rgba(0,212,255,0.65)":(dark?"rgba(40,80,140,0.25)":"rgba(80,120,180,0.2)")}
+                              strokeWidth={onRoute ? 1.6 : 0.45}
+                              style={{
+                                default: { outline: "none", filter: onRoute && score >= 70 && dark ? "drop-shadow(0 0 5px rgba(255,40,0,0.5))" : "none" },
+                                hover:   { outline: "none", stroke: "rgba(200,220,255,0.85)", strokeWidth: 1.8, cursor: "crosshair" },
+                                pressed: { outline: "none" },
+                              }}
+                              onMouseEnter={(e: React.MouseEvent) => setHovered({ name: rawName, pirataCount: count, score, ex: e.clientX, ey: e.clientY })}
+                              onMouseMove={(e: React.MouseEvent) => setHovered(prev => prev ? { ...prev, ex: e.clientX, ey: e.clientY } : prev)}
+                              onMouseLeave={() => setHovered(null)}
+                            />
+                          );
+                        })}
+                      </Geographies>
+                    </ComposableMap>
+                    <div style={{ position: "absolute", bottom: 8, left: 8, background: dark?"rgba(8,14,26,0.92)":"rgba(240,247,255,0.92)", border: `1px solid ${borderC}`, borderRadius: "5px", padding: "5px 8px", backdropFilter: "blur(8px)" }}>
+                      {[["#cc1000","Crítico"],["#c04000","Alto"],["#c07a00","Moderado"],["#1a6a50","Bajo"]].map(([color,label]) => (
+                        <div key={label} style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "2px" }}>
+                          <div style={{ width: 8, height: 8, borderRadius: "2px", background: color, flexShrink: 0 }} />
+                          <span style={{ fontSize: "8px", color: textMuted }}>{label}</span>
                         </div>
-                        {/* Factor grid */}
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3px" }}>
-                          {[
-                            { Icon: Truck,     label: "Piratería",   value: count > 0 ? `${count} casos` : "Sin datos", color: pirataRisk(count).color },
-                            { Icon: Moon,      label: "Riesgo noche", value: night.label, color: night.color },
-                            { Icon: Users,     label: "G. Armados",  value: armed.label, color: armed.color },
-                            { Icon: Radio,     label: "Señal",       value: signal.label, color: signal.color },
-                            { Icon: CloudRain, label: "Vía",         value: road.label,  color: road.color, span: true },
-                          ].map(({ Icon, label, value, color, span }) => (
-                            <div key={label} style={{ gridColumn: span ? "1 / -1" : undefined, background: dark ? "rgba(255,255,255,0.025)" : "rgba(0,0,0,0.03)", borderRadius: "4px", padding: "4px 7px", display: "flex", alignItems: "center", gap: "5px" }}>
-                              <Icon style={{ width: 10, height: 10, color, flexShrink: 0 }} />
-                              <span style={{ fontSize: "9px", color: textMuted, flexShrink: 0 }}>{label}:</span>
-                              <span style={{ fontSize: "9px", fontWeight: 600, color, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{value}</span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Per-dept matrix */}
+                  <div style={{ background: panelBg, border: `1px solid ${borderC}`, borderRadius: "12px", padding: "12px 14px", display: "flex", flexDirection: "column" }}>
+                    <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: textMuted, marginBottom: "10px" }}>Factores de Riesgo por Departamento</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px", overflowY: "auto", maxHeight: "300px" }}>
+                      {selectedCorridor.departments.map((dept, i) => {
+                        const count   = pirataMap[normKey(dept)] ?? 0;
+                        const score   = compositeScore(dept, count);
+                        const clabel  = compositeLabel(score);
+                        const night   = nightLabel(NIGHT_RISK[dept] ?? 60);
+                        const armed   = armedLabel(ARMED_GROUPS[dept]?.level ?? 0);
+                        const signal  = signalLabel(CELL_SIGNAL[dept] ?? "partial");
+                        const road    = roadLabel(ROAD_CONDITION[dept]?.score ?? "regular");
+                        const blkData = BLOCKADE_HISTORY[dept];
+                        const blkLbl  = blockadeLabel(blkData?.level ?? 0);
+                        const isEnd   = i === 0 || i === selectedCorridor.departments.length - 1;
+                        return (
+                          <div key={dept} style={{ background: dark?(isEnd?"rgba(0,212,255,0.04)":"rgba(255,255,255,0.02)"):(isEnd?"rgba(59,130,246,0.04)":"#f8fafc"), border: `1px solid ${isEnd?"rgba(0,212,255,0.15)":borderC}`, borderRadius: "7px", padding: "8px 10px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "6px" }}>
+                              <span style={{ fontSize: "10px", fontWeight: 700, color: "rgba(255,255,255,0.18)", fontFamily: "monospace" }}>{String(i+1).padStart(2,"0")}</span>
+                              <span style={{ fontSize: "11px", fontWeight: 700, color: isEnd?E.cyan:textMain, flex: 1 }}>
+                                {dept}
+                                {i === 0 && <span style={{ fontSize: "8px", marginLeft: "5px", color: E.cyan }}>ORIGEN</span>}
+                                {i === selectedCorridor.departments.length - 1 && <span style={{ fontSize: "8px", marginLeft: "5px", color: E.cyan }}>DESTINO</span>}
+                              </span>
+                              <span style={{ fontSize: "10px", fontWeight: 800, color: clabel.color, fontFamily: "monospace" }}>{score}</span>
+                              <span style={{ fontSize: "9px", fontWeight: 700, color: clabel.color, background: clabel.bg, padding: "1px 6px", borderRadius: "4px" }}>{clabel.label}</span>
                             </div>
-                          ))}
-                        </div>
-                        {/* Armed group names */}
-                        {(ARMED_GROUPS[dept]?.groups?.length ?? 0) > 0 && (
-                          <div style={{ marginTop: "4px", fontSize: "9px", color: E.red, opacity: 0.8 }}>
-                            ⚔ {ARMED_GROUPS[dept].groups.join(", ")}
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3px" }}>
+                              {[
+                                { Icon: Truck,      label: "Piratería",    value: count > 0 ? `${count} casos` : "Sin datos", color: pirataRisk(count).color },
+                                { Icon: Moon,       label: "Riesgo noche", value: night.label,  color: night.color },
+                                { Icon: Users,      label: "G. Armados",   value: armed.label,  color: armed.color },
+                                { Icon: Radio,      label: "Señal",        value: signal.label, color: signal.color },
+                                { Icon: CloudRain,  label: "Vía",          value: road.label,   color: road.color },
+                                { Icon: Ban,        label: "Bloqueos",     value: blkLbl.label, color: blkLbl.color },
+                              ].map(({ Icon, label, value, color }) => (
+                                <div key={label} style={{ background: dark?"rgba(255,255,255,0.025)":"rgba(0,0,0,0.03)", borderRadius: "4px", padding: "4px 7px", display: "flex", alignItems: "center", gap: "5px" }}>
+                                  <Icon style={{ width: 10, height: 10, color, flexShrink: 0 }} />
+                                  <span style={{ fontSize: "9px", color: textMuted, flexShrink: 0 }}>{label}:</span>
+                                  <span style={{ fontSize: "9px", fontWeight: 600, color, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{value}</span>
+                                </div>
+                              ))}
+                            </div>
+                            {(ARMED_GROUPS[dept]?.groups?.length ?? 0) > 0 && <div style={{ marginTop: "4px", fontSize: "9px", color: E.red, opacity: 0.8 }}>⚔ {ARMED_GROUPS[dept].groups.join(", ")}</div>}
+                            {blkData?.level > 0 && <div style={{ marginTop: "2px", fontSize: "9px", color: E.pink, opacity: 0.85 }}>🛑 {blkData.hotspot} — {blkData.cause}</div>}
+                            <div style={{ marginTop: "2px", fontSize: "9px", color: textMuted, opacity: 0.75 }}>🛣 {ROAD_CONDITION[dept]?.notes}</div>
                           </div>
-                        )}
-                        {/* Road notes */}
-                        <div style={{ marginTop: "3px", fontSize: "9px", color: textMuted, opacity: 0.75 }}>
-                          🛣 {ROAD_CONDITION[dept]?.notes}
-                        </div>
-                      </div>
-                    );
-                  })}
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Recommendations */}
+                <div style={{ background: dark?"rgba(168,85,247,0.06)":"rgba(168,85,247,0.04)", border: `1px solid ${dark?"rgba(168,85,247,0.2)":"rgba(168,85,247,0.15)"}`, borderRadius: "12px", padding: "14px 16px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
+                    <Shield style={{ width: 14, height: 14, color: E.purple }} />
+                    <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: E.purple }}>Recomendaciones Operacionales</span>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    {recommendations.map((rec, i) => (
+                      <div key={i} style={{ fontSize: "12px", color: textMain, padding: "7px 10px", background: dark?"rgba(255,255,255,0.02)":"#f8fafc", border: `1px solid ${borderC}`, borderRadius: "6px" }}>{rec}</div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* ── BLOCKADES TAB ── */}
+            {activeTab === "blockades" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+
+                {/* Historical baseline */}
+                <div style={{ background: panelBg, border: `1px solid ${borderC}`, borderRadius: "12px", padding: "14px 16px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                    <BarChart2 style={{ width: 13, height: 13, color: E.pink }} />
+                    <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: E.pink }}>Historial de Bloqueos por Departamento</span>
+                    <span style={{ fontSize: "10px", color: textMuted, marginLeft: "auto" }}>Fuente: INVIAS / Policía de Carreteras / Medios regionales</span>
+                  </div>
+                  {historicBlockades.length === 0 ? (
+                    <div style={{ textAlign: "center", color: textMuted, fontSize: "12px", padding: "20px 0" }}>Sin historial de bloqueos en este corredor</div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                      {historicBlockades.map(dept => {
+                        const b = BLOCKADE_HISTORY[dept];
+                        const lbl = blockadeLabel(b.level);
+                        return (
+                          <div key={dept} style={{ background: dark?"rgba(255,255,255,0.025)":"#f8fafc", border: `1px solid ${borderC}`, borderRadius: "8px", padding: "10px 12px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "5px" }}>
+                              <span style={{ fontSize: "11px", fontWeight: 700, color: textMain, flex: 1 }}>{dept}</span>
+                              <span style={{ fontSize: "9px", fontWeight: 700, color: lbl.color, background: lbl.bg, padding: "2px 8px", borderRadius: "4px" }}>{lbl.label}</span>
+                              {b.avgDurationHours > 0 && <span style={{ fontSize: "9px", color: textMuted }}>~{b.avgDurationHours}h duración media</span>}
+                            </div>
+                            <div style={{ fontSize: "11px", color: E.pink, marginBottom: "3px" }}>🛑 Punto crítico: {b.hotspot}</div>
+                            <div style={{ fontSize: "11px", color: textMuted }}><span style={{ color: dark?"rgba(255,255,255,0.6)":textMain }}>Causa habitual:</span> {b.cause || "Sin datos"}</div>
+                            <div style={{ fontSize: "10px", color: textMuted, marginTop: "3px" }}><Clock style={{ width: 9, height: 9, display: "inline", marginRight: "3px" }} />Último evento registrado: {b.lastEvent}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* User-registered blockades */}
+                <div style={{ background: panelBg, border: `1px solid ${dark?"rgba(236,72,153,0.2)":borderC}`, borderRadius: "12px", padding: "14px 16px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                    <Ban style={{ width: 13, height: 13, color: E.pink }} />
+                    <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: E.pink }}>Bloqueos Registrados por Operadores</span>
+                    <button onClick={() => { setShowForm(true); setFormData({ ...EMPTY_BLOCKADE(), corridorId: selectedCorridor.id, department: selectedCorridor.departments[0] }); }} style={{ marginLeft: "auto", fontSize: "10px", fontWeight: 700, color: E.pink, background: "rgba(236,72,153,0.1)", border: "1px solid rgba(236,72,153,0.25)", borderRadius: "5px", padding: "4px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}>
+                      <Plus style={{ width: 10, height: 10 }} /> Nuevo registro
+                    </button>
+                  </div>
+                  {corridorBlockades.length === 0 ? (
+                    <div style={{ textAlign: "center", color: textMuted, fontSize: "12px", padding: "24px 0", border: `1px dashed ${borderC}`, borderRadius: "8px" }}>
+                      <Ban style={{ width: 20, height: 20, color: E.pink, opacity: 0.3, margin: "0 auto 8px" }} />
+                      <div>No hay bloqueos registrados para este corredor.</div>
+                      <div style={{ fontSize: "11px", marginTop: "4px", opacity: 0.7 }}>Use el botón "Registrar Bloqueo" para reportar un cierre activo.</div>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                      {corridorBlockades.map(blk => {
+                        const statusInfo = STATUS_LABELS[blk.status];
+                        return (
+                          <div key={blk.id} style={{ background: dark?"rgba(236,72,153,0.04)":"#fff5f9", border: `1px solid ${dark?"rgba(236,72,153,0.15)":"rgba(236,72,153,0.15)"}`, borderRadius: "8px", padding: "10px 12px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "5px" }}>
+                              <span style={{ fontSize: "11px", fontWeight: 700, color: textMain, flex: 1 }}>{blk.department} — {blk.location}</span>
+                              <span style={{ fontSize: "8px", fontWeight: 700, color: statusInfo.color, background: `${statusInfo.color}18`, padding: "2px 7px", borderRadius: "4px" }}>{statusInfo.label}</span>
+                              <button onClick={() => setUserBlockades(p => p.filter(b => b.id !== blk.id))} title="Eliminar" style={{ background: "transparent", border: "none", cursor: "pointer", color: textMuted, display: "flex", padding: "2px" }}>
+                                <X style={{ width: 11, height: 11 }} />
+                              </button>
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "4px 10px", fontSize: "10px" }}>
+                              <div style={{ color: textMuted }}>📅 <span style={{ color: textMain }}>{blk.date}</span></div>
+                              <div style={{ color: textMuted }}>⏱ <span style={{ color: textMain }}>{blk.durationHours ? `~${blk.durationHours}h` : "Indefinido"}</span></div>
+                              <div style={{ color: textMuted }}>👤 <span style={{ color: textMain }}>{blk.reporter || "Anónimo"}</span></div>
+                            </div>
+                            <div style={{ marginTop: "5px", fontSize: "10px", color: textMuted }}>Causa: <span style={{ color: E.pink }}>{CAUSE_LABELS[blk.cause]}</span></div>
+                            {blk.notes && <div style={{ marginTop: "4px", fontSize: "10px", color: textMuted, fontStyle: "italic" }}>{blk.notes}</div>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
-
-            {/* Operational recommendations */}
-            <div style={{ background: dark ? "rgba(168,85,247,0.06)" : "rgba(168,85,247,0.04)", border: `1px solid ${dark ? "rgba(168,85,247,0.2)" : "rgba(168,85,247,0.15)"}`, borderRadius: "12px", padding: "14px 16px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
-                <Shield style={{ width: 14, height: 14, color: E.purple }} />
-                <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: E.purple }}>Recomendaciones Operacionales para Este Corredor</span>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                {recommendations.map((rec, i) => (
-                  <div key={i} style={{ fontSize: "12px", color: textMain, padding: "7px 10px", background: dark ? "rgba(255,255,255,0.02)" : "#f8fafc", border: `1px solid ${borderC}`, borderRadius: "6px" }}>
-                    {rec}
-                  </div>
-                ))}
-              </div>
-            </div>
+            )}
           </>
         );
       })()}
 
       {/* Tooltip */}
       {hovered && (
-        <div style={{ position: "fixed", left: hovered.ex + 14, top: hovered.ey - 10, zIndex: 9999, pointerEvents: "none", background: dark ? "rgba(8,14,26,0.97)" : "rgba(255,255,255,0.97)", border: `1px solid ${borderC}`, borderRadius: "8px", padding: "10px 13px", backdropFilter: "blur(12px)", boxShadow: "0 4px 24px rgba(0,0,0,0.5)", minWidth: 160 }}>
-          <div style={{ fontSize: "12px", fontWeight: 700, color: dark ? "#e2eaf4" : "#1a2a3a", marginBottom: "6px", textTransform: "capitalize" }}>
+        <div style={{ position: "fixed", left: hovered.ex + 14, top: hovered.ey - 10, zIndex: 9999, pointerEvents: "none", background: dark?"rgba(8,14,26,0.97)":"rgba(255,255,255,0.97)", border: `1px solid ${borderC}`, borderRadius: "8px", padding: "10px 13px", backdropFilter: "blur(12px)", boxShadow: "0 4px 24px rgba(0,0,0,0.5)", minWidth: 160 }}>
+          <div style={{ fontSize: "12px", fontWeight: 700, color: dark?"#e2eaf4":"#1a2a3a", marginBottom: "6px", textTransform: "capitalize" }}>
             {hovered.name.toLowerCase().replace(/\b\w/g, (c: string) => c.toUpperCase())}
           </div>
           {[
-            { label: "Piratería 2026", value: `${hovered.pirataCount} casos`, color: pirataRisk(hovered.pirataCount).color },
-            { label: "Riesgo compuesto", value: `${hovered.score}/100`, color: compositeLabel(hovered.score).color },
+            { label: "Piratería 2026",    value: `${hovered.pirataCount} casos`, color: pirataRisk(hovered.pirataCount).color },
+            { label: "Riesgo compuesto",  value: `${hovered.score}/100`,         color: compositeLabel(hovered.score).color },
           ].map(({ label, value, color }) => (
             <div key={label} style={{ display: "flex", justifyContent: "space-between", gap: "10px", marginBottom: "3px" }}>
               <span style={{ fontSize: "10px", color: textMuted }}>{label}</span>
