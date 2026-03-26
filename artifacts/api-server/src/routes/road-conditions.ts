@@ -41,12 +41,13 @@ function cleanText(s: string): string {
   return s.replace(/\s+/g, " ").replace(/["""]/g, '"').trim();
 }
 
-async function fetchConditions(): Promise<void> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
+async function fetchPage(pageIndex: number): Promise<RoadCondition[] | null> {
+  const url = pageIndex === 0 ? SOURCE_URL : `${SOURCE_URL}?page=${pageIndex}`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
 
-    const res = await fetch(SOURCE_URL, {
+  try {
+    const res = await fetch(url, {
       signal: controller.signal,
       headers: {
         "User-Agent": "Mozilla/5.0 (compatible; SafeNodeBot/1.0)",
@@ -55,24 +56,20 @@ async function fetchConditions(): Promise<void> {
       },
     });
     clearTimeout(timeout);
-
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const html = await res.text();
     const root = parse(html);
 
-    /* Find the main table with road conditions */
+    /* Find the data table */
     const tables = root.querySelectorAll("table");
-    let dataTable = tables.find(t =>
+    const dataTable = tables.find(t =>
       t.text.toLowerCase().includes("condición") ||
       t.text.toLowerCase().includes("condicion") ||
       t.text.toLowerCase().includes("cierre")
     ) ?? tables[0];
 
-    if (!dataTable) {
-      cache = { data: [], fetchedAt: Date.now(), error: "Tabla no encontrada en la página" };
-      return;
-    }
+    if (!dataTable) return [];
 
     const rows = dataTable.querySelectorAll("tbody tr");
     const conditions: RoadCondition[] = [];
@@ -83,33 +80,61 @@ async function fetchConditions(): Promise<void> {
 
       const getText = (i: number) => cleanText(cells[i]?.text ?? "");
 
+      /* Skip empty rows — pagination artifact on last page */
+      const via = getText(0);
+      const dept = getText(1);
+      if (!via && !dept) continue;
+
       const condition = getText(4);
-      const startRaw  = getText(7);
-      const endRaw    = getText(8);
-      const indef     = getText(9).toLowerCase().includes("si") ||
-                        getText(9).toLowerCase().includes("sí") ||
-                        getText(9) === "Yes";
+      const indef = getText(9).toLowerCase().includes("si") ||
+                    getText(9).toLowerCase().includes("sí") ||
+                    getText(9) === "Yes";
 
       conditions.push({
-        via:               getText(0),
-        department:        getText(1),
+        via,
+        department:        dept,
         sector:            getText(2),
         km:                getText(3),
         condition,
         conditionCode:     normalizeConditionCode(condition),
         reason:            getText(5),
         alternativeRoute:  getText(6),
-        startDate:         startRaw,
-        endDate:           endRaw,
+        startDate:         getText(7),
+        endDate:           getText(8),
         indefinite:        indef,
         responsibleEntity: getText(10) || "N/A",
       });
     }
 
-    cache = { data: conditions, fetchedAt: Date.now(), error: null };
+    return conditions;
   } catch (err: any) {
-    const msg = err?.name === "AbortError" ? "Timeout al conectar con policia.gov.co" : String(err?.message ?? err);
-    /* Keep old data if available, just log the error */
+    clearTimeout(timeout);
+    throw err;
+  }
+}
+
+async function fetchConditions(): Promise<void> {
+  try {
+    const all: RoadCondition[] = [];
+    const MAX_PAGES = 25;
+
+    for (let page = 0; page < MAX_PAGES; page++) {
+      /* Polite delay between pages — avoid hammering the server */
+      if (page > 0) await new Promise(r => setTimeout(r, 800));
+
+      const rows = await fetchPage(page);
+
+      /* null = fetch error; empty array = no more data */
+      if (rows === null || rows.length === 0) break;
+
+      all.push(...rows);
+    }
+
+    cache = { data: all, fetchedAt: Date.now(), error: null };
+  } catch (err: any) {
+    const msg = err?.name === "AbortError"
+      ? "Timeout al conectar con policia.gov.co"
+      : String(err?.message ?? err);
     cache = { ...cache, fetchedAt: Date.now(), error: msg };
   }
 }
