@@ -23,29 +23,12 @@ services:
 
   - type: web
     name: colombia-crime-dashboard
-    env: static
-    buildCommand: echo "Static files pre-built in dist/public"
-    staticPublishPath: ./artifacts/crime-dashboard/dist/public
-    headers:
-      - path: /assets/*
-        name: Access-Control-Allow-Origin
-        value: "*"
-      - path: /assets/*
-        name: Cross-Origin-Resource-Policy
-        value: cross-origin
-      - path: /*
-        name: Access-Control-Allow-Origin
-        value: "*"
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
+    env: node
+    plan: starter
+    buildCommand: cd artifacts/crime-dashboard && npm install express
+    startCommand: node artifacts/crime-dashboard/server.js
     envVars:
-      - key: NODE_VERSION
-        value: "22"
       - key: NODE_ENV
         value: production
-      - key: BASE_PATH
-        value: /
-      - key: VITE_API_URL
-        value: https://colombia-crime-api.onrender.com
+      - key: PORT
+        value: "10000"
