@@ -36,12 +36,54 @@ function removeCrossOriginPlugin() {
   };
 }
 
+function blobLoaderPlugin() {
+  return {
+    name: "blob-loader",
+    transformIndexHtml(html: string) {
+      const scriptMatch = html.match(/<script type="module" src="([^"]+)"><\/script>/);
+      const cssMatch = html.match(/<link rel="stylesheet" href="([^"]+)">/);
+      if (!scriptMatch || !cssMatch) return html;
+      const jsUrl = scriptMatch[1];
+      const cssUrl = cssMatch[1];
+      let result = html
+        .replace(/<script type="module" src="[^"]+"><\/script>/g, "")
+        .replace(/<link rel="modulepreload"[^>]+>/g, "")
+        .replace(/<link rel="stylesheet" href="[^"]+">/g, "");
+      const loader = `
+<script>
+(async function() {
+  try {
+    var r1 = fetch('${jsUrl}'), r2 = fetch('${cssUrl}');
+    var jsRes = await r1, cssRes = await r2;
+    if (!jsRes.ok) throw new Error('JS ' + jsRes.status);
+    if (!cssRes.ok) throw new Error('CSS ' + cssRes.status);
+    var css = await cssRes.text();
+    var style = document.createElement('style');
+    style.textContent = css;
+    document.head.appendChild(style);
+    var code = await jsRes.text();
+    var blob = new Blob([code], {type: 'application/javascript'});
+    var url = URL.createObjectURL(blob);
+    await import(url);
+    URL.revokeObjectURL(url);
+  } catch(e) {
+    var el = document.getElementById('app-loader');
+    if (el) el.innerHTML = '<p style="color:#ef4444;padding:20px">Error al cargar: ' + e.message + '. Recargue la pagina.</p>';
+  }
+})();
+</script>`;
+      return result.replace("</body>", loader + "\n</body>");
+    },
+  };
+}
+
 export default defineConfig({
   base: basePath,
   plugins: [
     react(),
     tailwindcss(),
     removeCrossOriginPlugin(),
+    ...(isProduction ? [blobLoaderPlugin()] : []),
     ...(isReplit && !isProduction
       ? [
           (await import("@replit/vite-plugin-runtime-error-modal")).default(),
@@ -67,18 +109,12 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
-    chunkSizeWarningLimit: 2000,
+    chunkSizeWarningLimit: 4000,
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          if (id.includes("node_modules")) {
-            if (id.includes("react-dom") || (id.includes("/react/") && !id.includes("react-query"))) return "vendor-react";
-            if (id.includes("recharts") || id.includes("d3-") || id.includes("victory-vendor")) return "vendor-charts";
-            if (id.includes("jspdf") || id.includes("html2canvas")) return "vendor-pdf";
-            if (id.includes("@tanstack")) return "vendor-query";
-            if (id.includes("lucide-react") || id.includes("date-fns")) return "vendor-ui";
-          }
-        },
+        inlineDynamicImports: true,
+        entryFileNames: "assets/app.js",
+        assetFileNames: "assets/[name][extname]",
       },
     },
   },
