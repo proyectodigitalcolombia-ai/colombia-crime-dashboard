@@ -25,11 +25,23 @@ if (!basePath) {
   throw new Error("BASE_PATH environment variable is required but was not provided.");
 }
 
+function removeCrossOriginPlugin() {
+  return {
+    name: "remove-crossorigin",
+    transformIndexHtml(html: string) {
+      return html
+        .replace(/(<script[^>]*)\scrossorigin/g, "$1")
+        .replace(/(<link[^>]*(?:modulepreload|stylesheet)[^>]*)\scrossorigin/g, "$1");
+    },
+  };
+}
+
 export default defineConfig({
   base: basePath,
   plugins: [
     react(),
     tailwindcss(),
+    removeCrossOriginPlugin(),
     ...(isReplit && !isProduction
       ? [
           (await import("@replit/vite-plugin-runtime-error-modal")).default(),
