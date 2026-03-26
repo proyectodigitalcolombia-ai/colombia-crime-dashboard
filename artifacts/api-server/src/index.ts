@@ -1,7 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { pool } from "@workspace/db";
-import { loadDemoIfEmpty } from "./routes/crimes";
+import { loadDemoIfEmpty, startDailyAutoRefresh } from "./routes/crimes";
 
 async function ensureSchema() {
   const client = await pool.connect();
@@ -59,6 +59,7 @@ app.listen(port, (err) => {
 
   ensureSchema()
     .then(() => loadDemoIfEmpty())
+    .then(() => startDailyAutoRefresh())
     .catch((err) => {
       logger.error({ err }, "Failed to ensure database schema or load initial data");
     });

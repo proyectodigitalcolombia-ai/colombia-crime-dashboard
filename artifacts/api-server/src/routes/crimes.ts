@@ -1074,5 +1074,101 @@ router.post("/crimes/refresh", async (req, res) => {
   });
 });
 
+/* ══════════════════════════════════════════════════════════════════
+   AUTO-REFRESH DIARIO — AICRI 2026
+   Verifica diariamente si la Policía publicó un nuevo archivo Excel.
+   Usa solo HEAD request (sin descargar el archivo completo) para
+   comparar tamaño y fecha de modificación. Solo descarga si cambió.
+   ══════════════════════════════════════════════════════════════════ */
+
+interface FileFingerprint {
+  contentLength: string | null;
+  lastModified:  string | null;
+  etag:          string | null;
+}
+
+let lastFingerprint: FileFingerprint | null = null;
+
+async function getFileFingerprint(url: string): Promise<FileFingerprint | null> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    const res = await fetch(url, {
+      method: "HEAD",
+      signal: controller.signal,
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; SafeNodeBot/1.0)" },
+    });
+    clearTimeout(timeout);
+    if (!res.ok) return null;
+    return {
+      contentLength: res.headers.get("content-length"),
+      lastModified:  res.headers.get("last-modified"),
+      etag:          res.headers.get("etag"),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function fingerprintsMatch(a: FileFingerprint, b: FileFingerprint): boolean {
+  /* ETag is most reliable; fall back to size + date */
+  if (a.etag && b.etag) return a.etag === b.etag;
+  return a.contentLength === b.contentLength && a.lastModified === b.lastModified;
+}
+
+async function checkAndAutoRefresh(): Promise<void> {
+  const sourceUrl = REGISTRO_SOURCES[0]?.url;
+  if (!sourceUrl) return;
+
+  console.log("[AutoRefresh] Verificando si hay nuevo archivo AICRI en policia.gov.co…");
+
+  const current = await getFileFingerprint(sourceUrl);
+  if (!current) {
+    console.log("[AutoRefresh] No se pudo consultar el servidor de la Policía. Se reintentará mañana.");
+    return;
+  }
+
+  if (!lastFingerprint) {
+    /* Primera vez — solo guardamos referencia, no recargamos */
+    lastFingerprint = current;
+    console.log(`[AutoRefresh] Huella inicial guardada — tamaño: ${current.contentLength ?? "desconocido"}, fecha: ${current.lastModified ?? "N/A"}`);
+    return;
+  }
+
+  if (fingerprintsMatch(lastFingerprint, current)) {
+    console.log("[AutoRefresh] Sin cambios detectados. Próxima verificación en 24h.");
+    return;
+  }
+
+  /* Archivo cambió → descargar y actualizar */
+  console.log("[AutoRefresh] ¡Nuevo archivo AICRI detectado! Actualizando datos automáticamente…");
+  lastFingerprint = current;
+
+  if (refreshState.status === "refreshing") {
+    console.log("[AutoRefresh] Ya hay una actualización en curso, se omite.");
+    return;
+  }
+
+  try {
+    const result = await refreshData();
+    console.log(`[AutoRefresh] Actualización completada: ${result.message}`);
+  } catch (err) {
+    console.error("[AutoRefresh] Error en actualización automática:", err);
+  }
+}
+
+export function startDailyAutoRefresh(): void {
+  const INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 horas
+
+  /* Primera verificación 5 minutos después del arranque (da tiempo al servidor de cargar) */
+  setTimeout(() => {
+    checkAndAutoRefresh();
+    /* Luego, cada 24 horas */
+    setInterval(checkAndAutoRefresh, INTERVAL_MS);
+  }, 5 * 60 * 1000);
+
+  console.log("[AutoRefresh] Programado: revisión diaria del archivo AICRI activada (primera revisión en 5 min).");
+}
+
 export { ensureDataLoaded, loadDemoIfEmpty };
 export default router;
