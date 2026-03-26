@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 
 import { ColombiaMap } from "@/components/ColombiaMap";
+import { RouteAnalyzer } from "@/components/RouteAnalyzer";
 
 /* ───────── EXECUTIVE PALETTE ───────── */
 const E = {
@@ -217,6 +218,7 @@ function ChartPanel({ title, children, onExport, exportData, exportName, dark, l
 export default function Dashboard() {
   const queryClient = useQueryClient();
   const [isDark, setIsDark] = useState(true);
+  const [activeTab, setActiveTab] = useState<"estadisticas" | "ruta">("estadisticas");
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -498,6 +500,45 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* ── TABS ── */}
+        <div style={{ display: "flex", gap: "4px", marginBottom: "22px", borderBottom: `1px solid ${isDark ? E.border : "rgba(0,0,0,0.07)"}`, paddingBottom: "0" }} className="print:hidden">
+          {([
+            { id: "estadisticas", label: "📊  Estadísticas Delictivas" },
+            { id: "ruta",         label: "🚛  Análisis de Ruta — Piratería Terrestre" },
+          ] as const).map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                padding: "9px 18px", fontSize: "12px", fontWeight: 600,
+                border: "none", cursor: "pointer",
+                borderRadius: "8px 8px 0 0",
+                background: activeTab === tab.id
+                  ? (isDark ? E.panel : "#fff")
+                  : "transparent",
+                color: activeTab === tab.id
+                  ? (isDark ? E.cyan : "#0369a1")
+                  : (isDark ? E.textDim : "#6b7280"),
+                borderBottom: activeTab === tab.id
+                  ? `2px solid ${E.cyan}`
+                  : "2px solid transparent",
+                transition: "all 0.15s",
+                letterSpacing: "0.02em",
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── ROUTE ANALYZER TAB ── */}
+        {activeTab === "ruta" && (
+          <RouteAnalyzer dark={isDark} />
+        )}
+
+        {/* ── STATS TAB content starts here ── */}
+        {activeTab === "estadisticas" && <>
+
         {/* ── FILTERS ── */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "24px", alignItems: "flex-end" }} className="print:hidden">
           {[
@@ -679,6 +720,8 @@ export default function Dashboard() {
             )}
           </ChartPanel>
         </div>
+
+        </>}
 
       </div>
     </div>
