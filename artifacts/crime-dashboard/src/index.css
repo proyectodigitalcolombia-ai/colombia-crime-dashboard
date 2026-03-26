@@ -76,45 +76,45 @@
   --elevate-1: rgba(0,0,0, .03);
   --elevate-2: rgba(0,0,0, .08);
 
-  --background: 220 20% 97%;
+  --background: 220 18% 95%;
   --foreground: 222 47% 11%;
-  --border: 214 32% 91%;
+  --border: 214 32% 88%;
   --card: 0 0% 100%;
   --card-foreground: 222 47% 11%;
-  --card-border: 214 32% 91%;
+  --card-border: 214 32% 88%;
   --sidebar: 222 47% 15%;
   --sidebar-foreground: 210 40% 96%;
   --sidebar-border: 222 47% 20%;
-  --sidebar-primary: 211 100% 47%;
+  --sidebar-primary: 195 100% 40%;
   --sidebar-primary-foreground: 0 0% 100%;
   --sidebar-accent: 222 47% 22%;
   --sidebar-accent-foreground: 210 40% 96%;
-  --sidebar-ring: 211 100% 47%;
+  --sidebar-ring: 195 100% 40%;
   --popover: 0 0% 100%;
   --popover-foreground: 222 47% 11%;
-  --popover-border: 214 32% 91%;
-  --primary: 211 100% 47%;
+  --popover-border: 214 32% 88%;
+  --primary: 195 100% 40%;
   --primary-foreground: 0 0% 100%;
   --secondary: 210 40% 96%;
   --secondary-foreground: 222 47% 11%;
-  --muted: 210 40% 96%;
+  --muted: 210 40% 94%;
   --muted-foreground: 215 16% 47%;
-  --accent: 210 40% 94%;
+  --accent: 210 40% 92%;
   --accent-foreground: 222 47% 11%;
-  --destructive: 0 84% 60%;
+  --destructive: 0 84% 56%;
   --destructive-foreground: 0 0% 100%;
-  --input: 214 32% 91%;
-  --ring: 211 100% 47%;
+  --input: 214 32% 88%;
+  --ring: 195 100% 40%;
 
-  --chart-1: 211 100% 47%;
-  --chart-2: 250 100% 68%;
-  --chart-3: 130 100% 28%;
-  --chart-4: 0 91% 34%;
-  --chart-5: 330 81% 60%;
+  --chart-1: 195 100% 40%;
+  --chart-2: 39 100% 50%;
+  --chart-3: 142 76% 36%;
+  --chart-4: 0 84% 56%;
+  --chart-5: 270 80% 60%;
 
   --app-font-sans: 'IBM Plex Sans', sans-serif;
   --app-font-serif: Georgia, serif;
-  --app-font-mono: Menlo, monospace;
+  --app-font-mono: 'IBM Plex Mono', 'Menlo', monospace;
   --radius: .5rem;
 
   --shadow-2xs: 0 1px 1px 0 rgb(0 0 0 / 0);
@@ -144,49 +144,50 @@
   --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
 }
 
+/* EXECUTIVE DARK MODE */
 .dark {
   color-scheme: dark;
-  --button-outline: rgba(255,255,255, .10);
-  --badge-outline: rgba(255,255,255, .05);
+  --button-outline: rgba(255,255,255, .08);
+  --badge-outline: rgba(255,255,255, .04);
   --opaque-button-border-intensity: 9;
-  --elevate-1: rgba(255,255,255, .04);
-  --elevate-2: rgba(255,255,255, .09);
+  --elevate-1: rgba(255,255,255, .03);
+  --elevate-2: rgba(255,255,255, .07);
 
-  --background: 222 47% 8%;
-  --foreground: 210 40% 96%;
-  --border: 222 47% 18%;
-  --card: 222 47% 11%;
-  --card-foreground: 210 40% 96%;
-  --card-border: 222 47% 18%;
-  --sidebar: 222 47% 7%;
-  --sidebar-foreground: 210 40% 96%;
-  --sidebar-border: 222 47% 14%;
-  --sidebar-primary: 211 100% 55%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 222 47% 14%;
-  --sidebar-accent-foreground: 210 40% 96%;
-  --sidebar-ring: 211 100% 55%;
-  --popover: 222 47% 11%;
-  --popover-foreground: 210 40% 96%;
-  --popover-border: 222 47% 18%;
-  --primary: 211 100% 55%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 222 47% 18%;
-  --secondary-foreground: 210 40% 96%;
-  --muted: 222 47% 15%;
-  --muted-foreground: 215 20% 65%;
-  --accent: 222 47% 18%;
-  --accent-foreground: 210 40% 96%;
-  --destructive: 0 84% 60%;
+  --background: 224 30% 5%;
+  --foreground: 210 30% 90%;
+  --border: 224 20% 14%;
+  --card: 224 28% 8%;
+  --card-foreground: 210 30% 90%;
+  --card-border: 224 20% 14%;
+  --sidebar: 224 30% 4%;
+  --sidebar-foreground: 210 30% 90%;
+  --sidebar-border: 224 20% 10%;
+  --sidebar-primary: 195 100% 50%;
+  --sidebar-primary-foreground: 224 30% 5%;
+  --sidebar-accent: 224 28% 10%;
+  --sidebar-accent-foreground: 210 30% 90%;
+  --sidebar-ring: 195 100% 50%;
+  --popover: 224 28% 8%;
+  --popover-foreground: 210 30% 90%;
+  --popover-border: 224 20% 16%;
+  --primary: 195 100% 50%;
+  --primary-foreground: 224 30% 5%;
+  --secondary: 224 20% 13%;
+  --secondary-foreground: 210 30% 90%;
+  --muted: 224 20% 11%;
+  --muted-foreground: 215 15% 55%;
+  --accent: 224 20% 13%;
+  --accent-foreground: 210 30% 90%;
+  --destructive: 0 84% 58%;
   --destructive-foreground: 0 0% 100%;
-  --input: 222 47% 18%;
-  --ring: 211 100% 55%;
+  --input: 224 20% 13%;
+  --ring: 195 100% 50%;
 
-  --chart-1: 211 100% 55%;
-  --chart-2: 250 100% 74%;
-  --chart-3: 130 100% 36%;
-  --chart-4: 0 91% 42%;
-  --chart-5: 330 81% 65%;
+  --chart-1: 195 100% 50%;
+  --chart-2: 39 100% 58%;
+  --chart-3: 142 76% 44%;
+  --chart-4: 0 84% 60%;
+  --chart-5: 270 80% 68%;
 
   --shadow-2xs: 0 1px 1px 0 rgb(0 0 0 / 0);
   --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0);
@@ -209,17 +210,13 @@
 
   button { cursor: pointer; }
 
-  [data-slot="calendar"] {
-    --cell-size: 2.25rem;
-  }
-
   [data-radix-popper-content-wrapper] [data-slot="popover-content"] {
     box-shadow: 0 4px 16px -2px rgb(0 0 0 / 0.12), 0 2px 4px -2px rgb(0 0 0 / 0.06);
     border: 1px solid hsl(var(--border));
   }
 
   .dark [data-radix-popper-content-wrapper] [data-slot="popover-content"] {
-    box-shadow: 0 4px 16px -2px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.2);
+    box-shadow: 0 8px 32px -4px rgb(0 0 0 / 0.6), 0 2px 8px -2px rgb(0 0 0 / 0.4);
   }
 }
 
@@ -292,6 +289,80 @@
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
     inset: -1px;
   }
+}
+
+/* Glowing KPI card animation */
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+.status-dot {
+  animation: status-pulse 2s ease-in-out infinite;
+}
+
+/* Scanline overlay for dark mode — subtle texture */
+.dark .exec-bg::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.03) 2px,
+    rgba(0, 0, 0, 0.03) 4px
+  );
+  z-index: 0;
+}
+
+.exec-bg {
+  position: relative;
+}
+
+.exec-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* Executive card glow */
+.kpi-card {
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.kpi-card:hover {
+  transform: translateY(-1px);
+}
+
+.dark .kpi-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* Scrollbar styling for dark mode */
+.dark ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.dark ::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.03);
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.12);
+  border-radius: 3px;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.2);
 }
 
 @media print {
