@@ -1,8 +1,17 @@
 import { useState, useMemo, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { ComposableMap, Geographies, Geography } from "react-simple-maps";
-import { useGetCrimesByDepartment, useGetCrimeTypes } from "@workspace/api-client-react";
 import {
-  AlertTriangle, Shield, Truck, MapPin, ChevronRight,
+  useGetCrimesByDepartment,
+  useGetCrimeTypes,
+  useGetBlockades,
+  useCreateBlockade,
+  useDeleteBlockade,
+  getGetBlockadesQueryKey,
+} from "@workspace/api-client-react";
+import type { Blockade } from "@workspace/api-client-react";
+import {
+  Shield, Truck, MapPin, ChevronRight,
   Moon, Radio, CloudRain, Users, Ban, Plus, X, Clock, BarChart2,
 } from "lucide-react";
 
@@ -122,18 +131,6 @@ const ROAD_CONDITION: Record<string, { score: "good" | "regular" | "difficult"; 
    Fuentes: INVIAS, Policía de Carreteras, medios regionales
    Nivel: 0=ninguno, 1=esporádico, 2=frecuente, 3=muy frecuente/activo
    ══════════════════════════════════════════════════════════════════ */
-export interface BlockadeRecord {
-  id: string;
-  corridorId: string;
-  department: string;
-  date: string;
-  cause: "comunidad" | "protesta_social" | "paro_camionero" | "grupos_ilegales" | "otro";
-  location: string;
-  durationHours: number | null;
-  status: "activo" | "levantado" | "intermitente";
-  notes: string;
-  reporter: string;
-}
 
 const BLOCKADE_HISTORY: Record<string, { level: number; avgDurationHours: number; hotspot: string; lastEvent: string; cause: string }> = {
   "Bogotá D.C.":       { level: 0, avgDurationHours: 0,  hotspot: "N/A",                               lastEvent: "Sin registro", cause: "" },
@@ -239,7 +236,7 @@ function blockadeLabel(level: number): { label: string; color: string; bg: strin
   if (level === 2) return { label: "Frecuente",      color: E.orange,  bg: "rgba(249,115,22,0.1)" };
   return            { label: "Muy frecuente",   color: E.red,     bg: "rgba(239,68,68,0.1)" };
 }
-const CAUSE_LABELS: Record<BlockadeRecord["cause"], string> = {
+const CAUSE_LABELS: Record<string, string> = {
   comunidad:       "🏘 Comunidad / Exigencias locales",
   protesta_social: "✊ Protesta Social",
   paro_camionero:  "🚛 Paro Camionero",
@@ -297,19 +294,24 @@ function buildRecommendations(corridor: Corridor, pirataMap: Record<string, numb
    ══════════════════════════════════════════════════════════════════ */
 interface Props { dark?: boolean }
 
-const EMPTY_BLOCKADE = (): Omit<BlockadeRecord, "id"> => ({
-  corridorId: "", department: "", date: new Date().toISOString().split("T")[0],
+interface FormData {
+  corridorId: string; department: string; date: string;
+  cause: string; location: string;
+  durationHours: number | null; status: string; notes: string; reporter: string;
+}
+const EMPTY_FORM = (corridorId = "", department = ""): FormData => ({
+  corridorId, department, date: new Date().toISOString().split("T")[0],
   cause: "comunidad", location: "", durationHours: null, status: "activo", notes: "", reporter: "",
 });
 
 export function RouteAnalyzer({ dark = true }: Props) {
+  const queryClient = useQueryClient();
   const [selectedCorridor, setSelectedCorridor] = useState<Corridor | null>(null);
   const [activeView,       setActiveView]        = useState<"pirateria" | "compuesto">("compuesto");
   const [activeTab,        setActiveTab]         = useState<"risk" | "blockades">("risk");
   const [hovered,          setHovered]           = useState<{ name: string; pirataCount: number; score: number; ex: number; ey: number } | null>(null);
   const [showForm,         setShowForm]          = useState(false);
-  const [userBlockades,    setUserBlockades]      = useState<BlockadeRecord[]>([]);
-  const [formData,         setFormData]          = useState<Omit<BlockadeRecord, "id">>(EMPTY_BLOCKADE());
+  const [formData,         setFormData]          = useState<FormData>(EMPTY_FORM());
   const [formError,        setFormError]         = useState("");
 
   const panelBg   = dark ? E.panel   : "#ffffff";
@@ -329,6 +331,30 @@ export function RouteAnalyzer({ dark = true }: Props) {
     for (const row of deptDataRaw as any[]) { const k = normKey(row.department); m[k] = (m[k] ?? 0) + row.totalCount; }
     return m;
   }, [deptDataRaw]);
+
+  /* ── Blockades from DB (fetches all; filter client-side per corridor) ── */
+  const { data: allBlockades = [] } = useGetBlockades(undefined, {
+    query: { refetchInterval: 30000 },
+  });
+
+  const createBlockadeMutation = useCreateBlockade({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetBlockadesQueryKey() });
+        setShowForm(false);
+        setFormData(EMPTY_FORM());
+        setActiveTab("blockades");
+      },
+    },
+  });
+
+  const deleteBlockadeMutation = useDeleteBlockade({
+    mutation: {
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetBlockadesQueryKey() }),
+    },
+  });
+
+  const userBlockades: Blockade[] = allBlockades as Blockade[];
 
   const routeSet = useMemo(() => !selectedCorridor ? new Set<string>() : new Set(selectedCorridor.departments.map(d => normKey(d))), [selectedCorridor]);
 
@@ -375,16 +401,22 @@ export function RouteAnalyzer({ dark = true }: Props) {
     if (!formData.department) return setFormError("Indique el departamento afectado.");
     if (!formData.location.trim()) return setFormError("Describa el punto / sector de cierre.");
     setFormError("");
-    const newRecord: BlockadeRecord = { ...formData, id: `B-${Date.now()}` };
-    setUserBlockades(prev => [newRecord, ...prev]);
-    setShowForm(false);
-    setFormData(EMPTY_BLOCKADE());
     if (selectedCorridor?.id !== formData.corridorId) {
       const c = CORRIDORS.find(c => c.id === formData.corridorId);
       if (c) setSelectedCorridor(c);
     }
-    setActiveTab("blockades");
-  }, [formData, selectedCorridor]);
+    createBlockadeMutation.mutate({
+      corridorId:    formData.corridorId,
+      department:    formData.department,
+      date:          formData.date,
+      cause:         formData.cause as any,
+      location:      formData.location,
+      durationHours: formData.durationHours,
+      status:        formData.status as any,
+      notes:         formData.notes || null,
+      reporter:      formData.reporter || null,
+    });
+  }, [formData, selectedCorridor, createBlockadeMutation]);
 
   const inputStyle: React.CSSProperties = {
     width: "100%", background: dark ? "rgba(255,255,255,0.04)" : "#f1f5f9",
@@ -413,7 +445,7 @@ export function RouteAnalyzer({ dark = true }: Props) {
               ← Cambiar ruta
             </button>
           )}
-          <button onClick={() => { setShowForm(true); setFormData({ ...EMPTY_BLOCKADE(), corridorId: selectedCorridor?.id ?? "" }); }} style={{ fontSize: "11px", fontWeight: 700, color: E.pink, background: "rgba(236,72,153,0.1)", border: "1px solid rgba(236,72,153,0.25)", borderRadius: "6px", padding: "5px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}>
+          <button onClick={() => { setShowForm(true); setFormData(EMPTY_FORM(selectedCorridor?.id ?? "")); }} style={{ fontSize: "11px", fontWeight: 700, color: E.pink, background: "rgba(236,72,153,0.1)", border: "1px solid rgba(236,72,153,0.25)", borderRadius: "6px", padding: "5px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}>
             <Plus style={{ width: 11, height: 11 }} /> Registrar Bloqueo
           </button>
         </div>
@@ -760,7 +792,7 @@ export function RouteAnalyzer({ dark = true }: Props) {
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
                     <Ban style={{ width: 13, height: 13, color: E.pink }} />
                     <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: E.pink }}>Bloqueos Registrados por Operadores</span>
-                    <button onClick={() => { setShowForm(true); setFormData({ ...EMPTY_BLOCKADE(), corridorId: selectedCorridor.id, department: selectedCorridor.departments[0] }); }} style={{ marginLeft: "auto", fontSize: "10px", fontWeight: 700, color: E.pink, background: "rgba(236,72,153,0.1)", border: "1px solid rgba(236,72,153,0.25)", borderRadius: "5px", padding: "4px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}>
+                    <button onClick={() => { setShowForm(true); setFormData(EMPTY_FORM(selectedCorridor.id, selectedCorridor.departments[0])); }} style={{ marginLeft: "auto", fontSize: "10px", fontWeight: 700, color: E.pink, background: "rgba(236,72,153,0.1)", border: "1px solid rgba(236,72,153,0.25)", borderRadius: "5px", padding: "4px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}>
                       <Plus style={{ width: 10, height: 10 }} /> Nuevo registro
                     </button>
                   </div>
@@ -779,7 +811,7 @@ export function RouteAnalyzer({ dark = true }: Props) {
                             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "5px" }}>
                               <span style={{ fontSize: "11px", fontWeight: 700, color: textMain, flex: 1 }}>{blk.department} — {blk.location}</span>
                               <span style={{ fontSize: "8px", fontWeight: 700, color: statusInfo.color, background: `${statusInfo.color}18`, padding: "2px 7px", borderRadius: "4px" }}>{statusInfo.label}</span>
-                              <button onClick={() => setUserBlockades(p => p.filter(b => b.id !== blk.id))} title="Eliminar" style={{ background: "transparent", border: "none", cursor: "pointer", color: textMuted, display: "flex", padding: "2px" }}>
+                              <button onClick={() => deleteBlockadeMutation.mutate(blk.id)} title="Eliminar" style={{ background: "transparent", border: "none", cursor: "pointer", color: textMuted, display: "flex", padding: "2px" }}>
                                 <X style={{ width: 11, height: 11 }} />
                               </button>
                             </div>

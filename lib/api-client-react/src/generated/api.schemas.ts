@@ -91,3 +91,50 @@ export type GetCrimesByDepartmentParams = {
    */
   crimeType?: string | null;
 };
+
+export type BlockadeCause =
+  | "comunidad"
+  | "protesta_social"
+  | "paro_camionero"
+  | "grupos_ilegales"
+  | "otro";
+
+export type BlockadeStatus = "activo" | "levantado" | "intermitente";
+
+export interface Blockade {
+  id: number;
+  corridorId: string;
+  department: string;
+  date: string;
+  cause: BlockadeCause;
+  location: string;
+  /** @nullable */
+  durationHours: number | null;
+  status: BlockadeStatus;
+  /** @nullable */
+  notes: string | null;
+  /** @nullable */
+  reporter: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateBlockadeBody {
+  corridorId: string;
+  department: string;
+  date: string;
+  cause: BlockadeCause;
+  location: string;
+  /** @nullable */
+  durationHours?: number | null;
+  status?: BlockadeStatus;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
+  reporter?: string | null;
+}
+
+export interface GetBlockadesParams {
+  /** @nullable */
+  corridorId?: string | null;
+}

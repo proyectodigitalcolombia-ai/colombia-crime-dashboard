@@ -17,8 +17,12 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  Blockade,
+  BlockadeStatus,
+  CreateBlockadeBody,
   CrimeType,
   DepartmentStats,
+  GetBlockadesParams,
   GetCrimesByDepartmentParams,
   GetNationalMonthlyParams,
   HealthStatus,
@@ -616,4 +620,126 @@ export function useGetAvailableYears<
   };
 
   return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   BLOCKADES
+   ───────────────────────────────────────────────────────────────── */
+
+export const getBlockadesUrl = (params?: GetBlockadesParams) => {
+  const qs = params?.corridorId ? `?corridorId=${encodeURIComponent(params.corridorId)}` : "";
+  return `/api/blockades${qs}`;
+};
+
+export const getBlockades = async (
+  params?: GetBlockadesParams,
+  options?: RequestInit,
+): Promise<Blockade[]> => {
+  return customFetch<Blockade[]>(getBlockadesUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetBlockadesQueryKey = (params?: GetBlockadesParams) => {
+  return [`/api/blockades`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetBlockadesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getBlockades>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetBlockadesParams,
+  options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof getBlockades>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+  const queryKey = queryOptions?.queryKey ?? getGetBlockadesQueryKey(params);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getBlockades>>> = ({ signal }) =>
+    getBlockades(params, { signal, ...requestOptions });
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getBlockades>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export function useGetBlockades<
+  TData = Awaited<ReturnType<typeof getBlockades>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetBlockadesParams,
+  options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof getBlockades>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetBlockadesQueryOptions(params, options);
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const createBlockade = async (
+  body: CreateBlockadeBody,
+  options?: RequestInit,
+): Promise<Blockade> => {
+  return customFetch<Blockade>(`/api/blockades`, {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+};
+
+export function useCreateBlockade<TError = ErrorType<unknown>, TContext = unknown>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createBlockade>>,
+    TError,
+    CreateBlockadeBody,
+    TContext
+  >;
+}): UseMutationResult<Awaited<ReturnType<typeof createBlockade>>, TError, CreateBlockadeBody, TContext> {
+  const { mutation: mutationOptions } = options ?? {};
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof createBlockade>>, CreateBlockadeBody> = (body) =>
+    createBlockade(body);
+  return useMutation({ mutationFn, ...mutationOptions });
+}
+
+export const updateBlockadeStatus = async (
+  id: number,
+  status: BlockadeStatus,
+  options?: RequestInit,
+): Promise<Blockade> => {
+  return customFetch<Blockade>(`/api/blockades/${id}/status`, {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+};
+
+export const deleteBlockade = async (
+  id: number,
+  options?: RequestInit,
+): Promise<{ success: boolean; id: number }> => {
+  return customFetch<{ success: boolean; id: number }>(`/api/blockades/${id}`, {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export function useDeleteBlockade<TError = ErrorType<unknown>, TContext = unknown>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteBlockade>>,
+    TError,
+    number,
+    TContext
+  >;
+}): UseMutationResult<Awaited<ReturnType<typeof deleteBlockade>>, TError, number, TContext> {
+  const { mutation: mutationOptions } = options ?? {};
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteBlockade>>, number> = (id) =>
+    deleteBlockade(id);
+  return useMutation({ mutationFn, ...mutationOptions });
 }

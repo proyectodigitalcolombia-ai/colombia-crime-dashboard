@@ -33,3 +33,25 @@ export type CrimeStat = typeof crimeStatsTable.$inferSelect;
 export const insertRefreshLogSchema = createInsertSchema(refreshLogTable).omit({ id: true });
 export type InsertRefreshLog = z.infer<typeof insertRefreshLogSchema>;
 export type RefreshLog = typeof refreshLogTable.$inferSelect;
+
+export const blockadeTable = pgTable("blockades", {
+  id: serial("id").primaryKey(),
+  corridorId: text("corridor_id").notNull(),
+  department: text("department").notNull(),
+  date: text("date").notNull(),
+  cause: text("cause").notNull().default("comunidad"),
+  location: text("location").notNull(),
+  durationHours: integer("duration_hours"),
+  status: text("status").notNull().default("activo"),
+  notes: text("notes"),
+  reporter: text("reporter"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("blockades_corridor_idx").on(table.corridorId),
+  index("blockades_status_idx").on(table.status),
+]);
+
+export const insertBlockadeSchema = createInsertSchema(blockadeTable).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertBlockade = z.infer<typeof insertBlockadeSchema>;
+export type Blockade = typeof blockadeTable.$inferSelect;
