@@ -1,20 +1,13 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import {
-  Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
-  AlignmentType, HeadingLevel, WidthType, BorderStyle, ImageRun,
-  PageBreak, Header, Footer, PageNumber, NumberFormat,
-  TableOfContents, ShadingType,
-} from "docx";
-import { saveAs } from "file-saver";
+import { jsPDF } from "jspdf";
 import {
   useGetNationalMonthly,
   useGetCrimesByDepartment,
-  useGetCrimeTypes,
   useGetBlockades,
 } from "@workspace/api-client-react";
 import { Building2, Upload, Download, Palette, User, Mail, Phone, FileText, CheckCircle2, RefreshCw } from "lucide-react";
 
-const LS_KEY = "colombia_report_config";
+const LS_KEY = "colombia_report_config_v2";
 
 interface ReportConfig {
   companyName: string;
@@ -24,7 +17,6 @@ interface ReportConfig {
   analystPhone: string;
   primaryColor: string;
   logoDataUrl: string;
-  logoMimeType: string;
   footerDisclaimer: string;
 }
 
@@ -36,27 +28,30 @@ const DEFAULTS: ReportConfig = {
   analystPhone: "+57 300 000 0000",
   primaryColor: "#0066cc",
   logoDataUrl: "",
-  logoMimeType: "image/png",
-  footerDisclaimer: "Documento confidencial. Uso exclusivo interno. Prohibida su reproducción sin autorización.",
+  footerDisclaimer: "Documento confidencial — uso exclusivo interno.",
 };
 
-function hexToDocxColor(hex: string): string {
-  return hex.replace("#", "").toUpperCase();
-}
-
 function hexToRgb(hex: string) {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return { r, g, b };
+  const h = hex.replace("#", "");
+  return {
+    r: parseInt(h.slice(0, 2), 16),
+    g: parseInt(h.slice(2, 4), 16),
+    b: parseInt(h.slice(4, 6), 16),
+  };
 }
 
-function colorIsLight(hex: string): boolean {
+function isLight(hex: string) {
   const { r, g, b } = hexToRgb(hex);
-  return (r * 299 + g * 587 + b * 114) / 1000 > 128;
+  return (r * 299 + g * 587 + b * 114) / 1000 > 155;
 }
 
-const MONTHS_ES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+function darken(hex: string, amount = 40): [number, number, number] {
+  const { r, g, b } = hexToRgb(hex);
+  return [Math.max(0, r - amount), Math.max(0, g - amount), Math.max(0, b - amount)];
+}
+
+const MONTHS_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+const MONTHS_FULL = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
 interface Props { dark?: boolean }
 
@@ -73,639 +68,626 @@ export function ReportGenerator({ dark = true }: Props) {
   const borderC   = dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.08)";
   const inputBg   = dark ? "rgba(255,255,255,0.04)" : "#f8fafc";
 
-  /* Load saved config */
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(LS_KEY);
-      if (saved) setConfig(JSON.parse(saved));
-    } catch { /* ignore */ }
+    try { const s = localStorage.getItem(LS_KEY); if (s) setConfig(JSON.parse(s)); } catch { /* ignore */ }
   }, []);
 
   function updateConfig(patch: Partial<ReportConfig>) {
-    setConfig(prev => {
-      const next = { ...prev, ...patch };
-      localStorage.setItem(LS_KEY, JSON.stringify(next));
-      return next;
-    });
+    setConfig(prev => { const next = { ...prev, ...patch }; localStorage.setItem(LS_KEY, JSON.stringify(next)); return next; });
   }
 
-  /* Data */
   const { data: monthlyData = [] } = useGetNationalMonthly({ year });
-  const { data: deptData = [] }    = useGetCrimesByDepartment({ year });
-  const { data: crimeTypes = [] }  = useGetCrimeTypes();
+  const { data: deptData    = [] } = useGetCrimesByDepartment({ year });
   const { data: allBlockades = [] } = useGetBlockades();
 
-  const totalCrimes = useMemo(() => monthlyData.reduce((s, d) => s + d.count, 0), [monthlyData]);
+  const totalCrimes = useMemo(() => monthlyData.reduce((s: number, d: any) => s + d.count, 0), [monthlyData]);
 
   const topDepts = useMemo(() => {
-    const map: Record<string, number> = {};
-    for (const d of deptData as any[]) map[d.department] = (map[d.department] ?? 0) + d.totalCount;
-    return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 10);
+    const m: Record<string, number> = {};
+    for (const d of deptData as any[]) m[d.department] = (m[d.department] ?? 0) + d.totalCount;
+    return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 12);
   }, [deptData]);
 
   const crimeTypeSummary = useMemo(() => {
-    const map: Record<string, number> = {};
-    for (const d of monthlyData) map[d.crimeTypeName] = (map[d.crimeTypeName] ?? 0) + d.count;
-    return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    const m: Record<string, number> = {};
+    for (const d of monthlyData) m[d.crimeTypeName] = (m[d.crimeTypeName] ?? 0) + d.count;
+    return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 8);
   }, [monthlyData]);
 
   const monthlyTrend = useMemo(() => {
-    const map: Record<number, number> = {};
-    for (const d of monthlyData) map[d.month] = (map[d.month] ?? 0) + d.count;
-    return Array.from({ length: 12 }, (_, i) => ({ month: i + 1, count: map[i + 1] ?? 0 }));
+    const m: Record<number, number> = {};
+    for (const d of monthlyData) m[d.month] = (m[d.month] ?? 0) + d.count;
+    return Array.from({ length: 12 }, (_, i) => ({ month: i + 1, count: m[i + 1] ?? 0 }));
   }, [monthlyData]);
 
-  const activeBlockades = useMemo(() =>
-    (allBlockades as any[]).filter(b => b.status === "activo"),
-    [allBlockades]
-  );
+  const activeBlockades = useMemo(() => (allBlockades as any[]).filter(b => b.status === "activo"), [allBlockades]);
 
-  /* Logo upload */
   function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      updateConfig({ logoDataUrl: result, logoMimeType: file.type });
-    };
+    reader.onload = () => updateConfig({ logoDataUrl: reader.result as string });
     reader.readAsDataURL(file);
   }
 
-  /* Word generation */
-  const generateWord = useCallback(async () => {
+  const generatePDF = useCallback(async () => {
     if (totalCrimes === 0) return;
     setGenerating(true);
     setGenerated(false);
+
     try {
-      const primaryHex = hexToDocxColor(config.primaryColor);
-      const onPrimary  = colorIsLight(config.primaryColor) ? "000000" : "FFFFFF";
-      const today      = new Date();
-      const dateStr    = today.toLocaleDateString("es-CO", { year: "numeric", month: "long", day: "numeric" });
-      const yearStr    = String(year);
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const W = 210, H = 297, margin = 14;
+      const pri = hexToRgb(config.primaryColor);
+      const [dr, dg, db] = darken(config.primaryColor, 50);
+      const onPri: [number, number, number] = isLight(config.primaryColor) ? [20, 20, 20] : [255, 255, 255];
+      const today = new Date();
+      const dateStr = today.toLocaleDateString("es-CO", { year: "numeric", month: "long", day: "numeric" });
 
-      /* ── Helper styles ── */
-      const heading1 = (text: string) => new Paragraph({
-        text,
-        heading: HeadingLevel.HEADING_1,
-        spacing: { before: 400, after: 200 },
-        border: { bottom: { color: primaryHex, size: 10, space: 1, style: BorderStyle.SINGLE } },
-        run: { color: primaryHex, bold: true, size: 28 },
-      });
+      /* ─── Shared helpers ─── */
+      function setColor(hex: string) { const c = hexToRgb(hex); doc.setTextColor(c.r, c.g, c.b); }
+      function setFill(hex: string) { const c = hexToRgb(hex); doc.setFillColor(c.r, c.g, c.b); }
+      function setDraw(hex: string) { const c = hexToRgb(hex); doc.setDrawColor(c.r, c.g, c.b); }
 
-      const heading2 = (text: string) => new Paragraph({
-        text, heading: HeadingLevel.HEADING_2,
-        spacing: { before: 300, after: 150 },
-        run: { color: primaryHex, bold: true, size: 24 },
-      });
-
-      const bodyText = (text: string, opts?: { bold?: boolean; color?: string; size?: number }) =>
-        new Paragraph({
-          children: [new TextRun({ text, bold: opts?.bold, color: opts?.color, size: opts?.size ?? 22 })],
-          spacing: { after: 120 },
-        });
-
-      const spacer = (lines = 1) => new Paragraph({
-        children: [new TextRun({ text: "" })],
-        spacing: { after: 200 * lines },
-      });
-
-      /* ── Table helpers ── */
-      function headerCell(text: string) {
-        return new TableCell({
-          children: [new Paragraph({
-            children: [new TextRun({ text, bold: true, color: onPrimary, size: 18 })],
-            alignment: AlignmentType.CENTER,
-          })],
-          shading: { fill: primaryHex, type: ShadingType.SOLID, color: primaryHex },
-          margins: { top: 80, bottom: 80, left: 120, right: 120 },
-        });
+      function pageHeader(title: string, pageNum: number) {
+        /* top bar */
+        doc.setFillColor(pri.r, pri.g, pri.b);
+        doc.rect(0, 0, W, 14, "F");
+        doc.setTextColor(...onPri);
+        doc.setFontSize(8); doc.setFont("helvetica", "bold");
+        doc.text(config.companyName.toUpperCase(), margin, 9);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Informe Gerencial de Seguridad — ${year}`, W / 2, 9, { align: "center" });
+        doc.text(`Pág. ${pageNum}`, W - margin, 9, { align: "right" });
+        /* section title strip */
+        doc.setFillColor(245, 247, 250);
+        doc.rect(0, 14, W, 10, "F");
+        doc.setFontSize(10); doc.setFont("helvetica", "bold");
+        doc.setTextColor(pri.r, pri.g, pri.b);
+        doc.text(title, margin, 21);
+        doc.setTextColor(0, 0, 0);
       }
 
-      function dataCell(text: string, align: AlignmentType = AlignmentType.LEFT, bold = false) {
-        return new TableCell({
-          children: [new Paragraph({
-            children: [new TextRun({ text, bold, size: 18 })],
-            alignment: align,
-          })],
-          margins: { top: 60, bottom: 60, left: 120, right: 120 },
+      function pageFooter() {
+        doc.setFontSize(7); doc.setTextColor(160, 160, 160);
+        doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.3);
+        doc.line(margin, H - 10, W - margin, H - 10);
+        doc.text(config.footerDisclaimer, margin, H - 6);
+        doc.text(`Generado: ${dateStr}  ·  ${config.analystName}`, W - margin, H - 6, { align: "right" });
+      }
+
+      function sectionHeading(text: string, y: number): number {
+        doc.setFillColor(pri.r, pri.g, pri.b);
+        doc.roundedRect(margin, y, 4, 5, 1, 1, "F");
+        doc.setFontSize(11); doc.setFont("helvetica", "bold");
+        doc.setTextColor(pri.r, pri.g, pri.b);
+        doc.text(text, margin + 7, y + 4);
+        doc.setTextColor(0, 0, 0);
+        return y + 10;
+      }
+
+      function drawTable(
+        headers: string[],
+        rows: string[][],
+        colWidths: number[],
+        startY: number,
+        rowHeight = 7,
+      ): number {
+        const tableW = colWidths.reduce((s, w) => s + w, 0);
+        let y = startY;
+        /* header */
+        doc.setFillColor(pri.r, pri.g, pri.b);
+        doc.rect(margin, y, tableW, rowHeight + 2, "F");
+        doc.setFontSize(8); doc.setFont("helvetica", "bold");
+        doc.setTextColor(...onPri);
+        let x = margin;
+        headers.forEach((h, i) => {
+          doc.text(h, x + 2, y + rowHeight - 1);
+          x += colWidths[i];
         });
-      }
-
-      function altRow(idx: number) {
-        return idx % 2 === 0 ? "EFF6FF" : "FFFFFF";
-      }
-
-      function tableRow(cells: TableCell[], idx: number) {
-        return new TableRow({
-          children: cells.map(c => {
-            (c as any).options.shading = { fill: altRow(idx), type: ShadingType.SOLID, color: altRow(idx) };
-            return c;
-          }),
+        y += rowHeight + 2;
+        /* rows */
+        rows.forEach((row, ri) => {
+          if (ri % 2 === 0) {
+            doc.setFillColor(240, 246, 255);
+            doc.rect(margin, y, tableW, rowHeight, "F");
+          }
+          doc.setFontSize(8); doc.setFont("helvetica", ri === 0 ? "bold" : "normal");
+          doc.setTextColor(30, 30, 50);
+          x = margin;
+          row.forEach((cell, ci) => {
+            const maxW = colWidths[ci] - 4;
+            const lines = doc.splitTextToSize(cell, maxW);
+            doc.text(lines[0], x + 2, y + rowHeight - 1);
+            x += colWidths[ci];
+          });
+          /* row border */
+          doc.setDrawColor(220, 228, 240); doc.setLineWidth(0.2);
+          doc.line(margin, y + rowHeight, margin + tableW, y + rowHeight);
+          y += rowHeight;
         });
+        /* outer border */
+        setDraw(config.primaryColor); doc.setLineWidth(0.5);
+        doc.rect(margin, startY, tableW, y - startY, "S");
+        return y + 4;
       }
 
-      /* ── Logo image ── */
-      let logoImageRun: ImageRun | null = null;
+      /* ══════════════════════════════════════
+         PAGE 1 — COVER
+         ══════════════════════════════════════ */
+      /* Full primary background */
+      doc.setFillColor(pri.r, pri.g, pri.b);
+      doc.rect(0, 0, W, H, "F");
+      /* Dark bottom accent strip */
+      doc.setFillColor(dr, dg, db);
+      doc.rect(0, H - 50, W, 50, "F");
+
+      /* Logo */
       if (config.logoDataUrl) {
         try {
-          const base64 = config.logoDataUrl.split(",")[1];
-          const binary  = atob(base64);
-          const bytes   = new Uint8Array(binary.length);
-          for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-          const mimeType = config.logoMimeType.includes("png") ? "png" : "jpg";
-          logoImageRun = new ImageRun({
-            data: bytes,
-            transformation: { width: 120, height: 60 },
-            type: mimeType,
-          });
-        } catch { /* skip logo if corrupt */ }
+          const fmt = config.logoDataUrl.includes("png") ? "PNG" : "JPEG";
+          doc.addImage(config.logoDataUrl, fmt, margin, margin, 0, 18);
+        } catch { /* skip corrupt logo */ }
       }
 
-      /* ── Document sections ── */
-      const coverChildren: (Paragraph | Table)[] = [
-        /* Cover top spacer */
-        spacer(4),
-        /* Logo */
-        ...(logoImageRun ? [
-          new Paragraph({
-            children: [logoImageRun],
-            alignment: AlignmentType.CENTER,
-            spacing: { after: 300 },
-          }),
-        ] : []),
-        /* Company name */
-        new Paragraph({
-          children: [new TextRun({ text: config.companyName, bold: true, size: 48, color: primaryHex })],
-          alignment: AlignmentType.CENTER,
-          spacing: { after: 150 },
-        }),
-        new Paragraph({
-          children: [new TextRun({ text: config.companySubtitle, size: 24, color: "555555" })],
-          alignment: AlignmentType.CENTER,
-          spacing: { after: 600 },
-        }),
-        /* Report title */
-        new Paragraph({
-          children: [new TextRun({ text: "INFORME GERENCIAL DE SEGURIDAD VIAL", bold: true, size: 40, color: onPrimary })],
-          alignment: AlignmentType.CENTER,
-          shading: { fill: primaryHex, type: ShadingType.SOLID, color: primaryHex },
-          spacing: { before: 200, after: 0 },
-          border: { bottom: { color: primaryHex, size: 1, style: BorderStyle.NONE } },
-        }),
-        new Paragraph({
-          children: [new TextRun({ text: `Estadísticas Delictivas Colombia — Año ${yearStr}`, size: 26, color: onPrimary })],
-          alignment: AlignmentType.CENTER,
-          shading: { fill: primaryHex, type: ShadingType.SOLID, color: primaryHex },
-          spacing: { after: 400 },
-        }),
-        spacer(2),
-        /* Metadata */
-        new Paragraph({
-          children: [new TextRun({ text: `Fecha de generación: ${dateStr}`, size: 22, color: "444444" })],
-          alignment: AlignmentType.CENTER,
-          spacing: { after: 100 },
-        }),
-        new Paragraph({
-          children: [new TextRun({ text: `Elaborado por: ${config.analystName}`, size: 22, color: "444444" })],
-          alignment: AlignmentType.CENTER,
-          spacing: { after: 100 },
-        }),
-        new Paragraph({
-          children: [new TextRun({ text: `Fuente: Policía Nacional de Colombia / AICRI ${yearStr}`, size: 20, color: "888888" })],
-          alignment: AlignmentType.CENTER,
-          spacing: { after: 100 },
-        }),
-        spacer(6),
-        new Paragraph({
-          children: [new TextRun({ text: config.footerDisclaimer, size: 16, italics: true, color: "AAAAAA" })],
-          alignment: AlignmentType.CENTER,
-        }),
-        /* Page break before content */
-        new Paragraph({ children: [new PageBreak()] }),
+      /* Decorative circle */
+      doc.setFillColor(...onPri); doc.setGState(new (doc as any).GState({ opacity: 0.05 }));
+      doc.circle(W + 20, 60, 80, "F");
+      doc.circle(-20, H - 80, 60, "F");
+      doc.setGState(new (doc as any).GState({ opacity: 1 }));
+
+      /* System badge */
+      doc.setFontSize(8); doc.setFont("helvetica", "normal");
+      doc.setTextColor(...onPri); doc.setGState(new (doc as any).GState({ opacity: 0.75 }));
+      doc.text("SISTEMA INTEGRADO DE SEGURIDAD LOGÍSTICA", W / 2, 68, { align: "center" });
+      doc.setGState(new (doc as any).GState({ opacity: 1 }));
+
+      /* Main title */
+      doc.setFontSize(34); doc.setFont("helvetica", "bold");
+      doc.setTextColor(...onPri);
+      doc.text("INFORME GERENCIAL", W / 2, 90, { align: "center" });
+      doc.text("DE SEGURIDAD VIAL", W / 2, 106, { align: "center" });
+
+      /* Divider line */
+      doc.setDrawColor(...onPri); doc.setLineWidth(0.6);
+      const divOpacity = isLight(config.primaryColor) ? 0.4 : 0.5;
+      doc.setGState(new (doc as any).GState({ opacity: divOpacity }));
+      doc.line(40, 114, W - 40, 114);
+      doc.setGState(new (doc as any).GState({ opacity: 1 }));
+
+      /* Year chip */
+      doc.setFontSize(22); doc.setFont("helvetica", "bold");
+      doc.setTextColor(...onPri);
+      doc.text(`Colombia · ${year}`, W / 2, 128, { align: "center" });
+
+      /* Company block */
+      doc.setFontSize(16); doc.setFont("helvetica", "bold");
+      doc.text(config.companyName, W / 2, 155, { align: "center" });
+      doc.setFontSize(11); doc.setFont("helvetica", "normal");
+      doc.setGState(new (doc as any).GState({ opacity: 0.8 }));
+      doc.text(config.companySubtitle, W / 2, 164, { align: "center" });
+      doc.setGState(new (doc as any).GState({ opacity: 1 }));
+
+      /* Date and analyst - bottom strip */
+      doc.setFontSize(10); doc.setFont("helvetica", "bold");
+      doc.text(dateStr.toUpperCase(), W / 2, H - 35, { align: "center" });
+      doc.setFontSize(9); doc.setFont("helvetica", "normal");
+      doc.setGState(new (doc as any).GState({ opacity: 0.8 }));
+      doc.text(`${config.analystName}  ·  ${config.analystEmail}  ·  ${config.analystPhone}`, W / 2, H - 26, { align: "center" });
+      doc.text("Fuente: Policía Nacional de Colombia / AICRI", W / 2, H - 18, { align: "center" });
+      doc.setGState(new (doc as any).GState({ opacity: 0.55 }));
+      doc.setFontSize(7);
+      doc.text(config.footerDisclaimer, W / 2, H - 10, { align: "center" });
+      doc.setGState(new (doc as any).GState({ opacity: 1 }));
+
+      /* ══════════════════════════════════════
+         PAGE 2 — RESUMEN EJECUTIVO + KPIs
+         ══════════════════════════════════════ */
+      doc.addPage();
+      pageHeader("1. Resumen Ejecutivo", 2);
+      pageFooter();
+
+      let y = 30;
+      doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(60, 60, 80);
+      const introParts = doc.splitTextToSize(
+        `Este informe presenta el análisis de estadísticas delictivas de Colombia para el año ${year}, elaborado con datos de la Policía Nacional. La información apoya a ${config.companyName} en la toma de decisiones estratégicas de seguridad logística.`,
+        W - margin * 2
+      );
+      doc.text(introParts, margin, y); y += introParts.length * 5 + 6;
+
+      /* KPI boxes 2x2 */
+      const kpis = [
+        { label: "TOTAL DELITOS REGISTRADOS", value: totalCrimes.toLocaleString("es-CO"), sub: `Año ${year}`, icon: "▼" },
+        { label: "DEPTO. MAYOR INCIDENCIA",    value: topDepts[0]?.[0] ?? "—",             sub: `${topDepts[0]?.[1]?.toLocaleString("es-CO") ?? "—"} casos`, icon: "📍" },
+        { label: "DELITO MÁS FRECUENTE",       value: (crimeTypeSummary[0]?.[0] ?? "—").split(" ").slice(0, 3).join(" "), sub: `${crimeTypeSummary[0]?.[1]?.toLocaleString("es-CO") ?? "—"} casos`, icon: "!" },
+        { label: "BLOQUEOS VIALES ACTIVOS",    value: String(activeBlockades.length),      sub: activeBlockades.length > 0 ? "⚠ Verificar corredores" : "Sin bloqueos activos", icon: "🛑" },
       ];
 
-      /* ── Section 1: Resumen Ejecutivo ── */
-      const kpiRows = [
-        ["Total delitos registrados", totalCrimes.toLocaleString("es-CO"), `Año ${yearStr}`],
-        ["Departamento con mayor incidencia", topDepts[0]?.[0] ?? "—", topDepts[0]?.[1]?.toLocaleString("es-CO") + " casos" ?? ""],
-        ["Tipo de delito más frecuente", crimeTypeSummary[0]?.[0] ?? "—", crimeTypeSummary[0]?.[1]?.toLocaleString("es-CO") + " casos" ?? ""],
-        ["Bloqueos viales activos", String(activeBlockades.length), activeBlockades.length > 0 ? "⚠ Verificar corredores afectados" : "Sin bloqueos activos"],
-        ["Departamentos con datos", String(topDepts.length), "De 32 departamentos"],
+      const kpiW = (W - margin * 2 - 8) / 2;
+      const kpiH = 26;
+      kpis.forEach((kpi, i) => {
+        const kx = margin + (i % 2) * (kpiW + 8);
+        const ky = y + Math.floor(i / 2) * (kpiH + 6);
+        /* box background */
+        doc.setFillColor(pri.r, pri.g, pri.b);
+        doc.roundedRect(kx, ky, kpiW, kpiH, 2, 2, "F");
+        /* label */
+        doc.setFontSize(7); doc.setFont("helvetica", "bold"); doc.setTextColor(...onPri);
+        doc.setGState(new (doc as any).GState({ opacity: 0.75 }));
+        doc.text(kpi.label, kx + 5, ky + 6);
+        doc.setGState(new (doc as any).GState({ opacity: 1 }));
+        /* value */
+        doc.setFontSize(16); doc.setFont("helvetica", "bold");
+        const valParts = doc.splitTextToSize(kpi.value, kpiW - 10);
+        doc.text(valParts[0], kx + 5, ky + 16);
+        /* sub */
+        doc.setFontSize(7); doc.setFont("helvetica", "normal");
+        doc.setGState(new (doc as any).GState({ opacity: 0.8 }));
+        doc.text(kpi.sub, kx + 5, ky + 22);
+        doc.setGState(new (doc as any).GState({ opacity: 1 }));
+      });
+      y += 2 * (kpiH + 6) + 10;
+
+      /* Quick stats row */
+      y = sectionHeading("Datos clave del período", y);
+      const quickStats = [
+        ["Departamentos con datos", `${topDepts.length} de 32`],
+        ["Tipos de delito analizados", String(crimeTypeSummary.length)],
+        ["Meses con registros", String(monthlyTrend.filter(m => m.count > 0).length)],
+        ["Promedio mensual", Math.round(totalCrimes / Math.max(1, monthlyTrend.filter(m => m.count > 0).length)).toLocaleString("es-CO")],
       ];
-
-      const kpiTable = new Table({
-        width: { size: 100, type: WidthType.PERCENTAGE },
-        rows: [
-          new TableRow({
-            children: [headerCell("INDICADOR"), headerCell("VALOR"), headerCell("NOTA")],
-            tableHeader: true,
-          }),
-          ...kpiRows.map(([ind, val, note], i) =>
-            new TableRow({
-              children: [
-                dataCell(ind, AlignmentType.LEFT, true),
-                dataCell(val, AlignmentType.CENTER, true),
-                dataCell(note, AlignmentType.LEFT),
-              ],
-              cantSplit: true,
-            })
-          ),
-        ],
+      const sw = (W - margin * 2 - 12) / 4;
+      quickStats.forEach(([lbl, val], i) => {
+        const sx = margin + i * (sw + 4);
+        doc.setFillColor(245, 248, 255);
+        doc.setDrawColor(pri.r, pri.g, pri.b); doc.setLineWidth(0.3);
+        doc.roundedRect(sx, y, sw, 16, 1.5, 1.5, "FD");
+        doc.setFontSize(14); doc.setFont("helvetica", "bold"); doc.setTextColor(pri.r, pri.g, pri.b);
+        doc.text(val, sx + sw / 2, y + 9, { align: "center" });
+        doc.setFontSize(6.5); doc.setFont("helvetica", "normal"); doc.setTextColor(100, 110, 130);
+        doc.text(lbl.toUpperCase(), sx + sw / 2, y + 14, { align: "center" });
       });
 
-      /* ── Section 2: Top 10 Departamentos ── */
-      const deptTable = new Table({
-        width: { size: 100, type: WidthType.PERCENTAGE },
-        rows: [
-          new TableRow({
-            children: [headerCell("#"), headerCell("DEPARTAMENTO"), headerCell("TOTAL CASOS"), headerCell("% DEL TOTAL")],
-            tableHeader: true,
-          }),
-          ...topDepts.map(([dept, count], i) =>
-            tableRow([
-              dataCell(String(i + 1).padStart(2, "0"), AlignmentType.CENTER, true),
-              dataCell(dept),
-              dataCell(count.toLocaleString("es-CO"), AlignmentType.RIGHT, true),
-              dataCell(`${((count / totalCrimes) * 100).toFixed(1)}%`, AlignmentType.RIGHT),
-            ], i)
-          ),
-        ],
+      /* ══════════════════════════════════════
+         PAGE 3 — RANKING DEPARTAMENTAL
+         ══════════════════════════════════════ */
+      doc.addPage();
+      pageHeader("2. Ranking Departamental de Incidencia Delictiva", 3);
+      pageFooter();
+      y = 30;
+
+      doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(60, 60, 80);
+      doc.text("Los departamentos se ordenan de mayor a menor incidencia delictiva total registrada.", margin, y);
+      y += 8;
+
+      const maxDeptCount = topDepts[0]?.[1] ?? 1;
+      const barAreaW = 55;
+      const deptCols = [6, 54, 28, barAreaW, 20];
+      y = drawTable(
+        ["#", "DEPARTAMENTO", "TOTAL CASOS", "PROPORCIÓN", "% NAL."],
+        topDepts.map(([dept, count], i) => [
+          String(i + 1).padStart(2, "0"),
+          dept,
+          count.toLocaleString("es-CO"),
+          "█".repeat(Math.round((count / maxDeptCount) * 15)),  /* fake bar */
+          `${((count / totalCrimes) * 100).toFixed(1)}%`,
+        ]),
+        deptCols, y, 7
+      );
+
+      /* Mini horizontal bar chart */
+      y = sectionHeading("Comparativo visual — Top 10 departamentos", y);
+      const barMaxW = W - margin * 2 - 45;
+      const barH = 5.5;
+      topDepts.slice(0, 10).forEach(([dept, count], i) => {
+        const bW = (count / maxDeptCount) * barMaxW;
+        const by = y + i * (barH + 2);
+        /* label */
+        doc.setFontSize(7); doc.setFont("helvetica", "normal"); doc.setTextColor(50, 50, 70);
+        doc.text(dept.length > 18 ? dept.slice(0, 17) + "…" : dept, margin, by + barH - 1);
+        /* bar bg */
+        doc.setFillColor(235, 240, 250);
+        doc.roundedRect(margin + 44, by, barMaxW, barH, 1, 1, "F");
+        /* bar fill */
+        doc.setFillColor(pri.r, pri.g, pri.b);
+        doc.roundedRect(margin + 44, by, Math.max(bW, 2), barH, 1, 1, "F");
+        /* value */
+        doc.setFontSize(6.5); doc.setTextColor(80, 80, 100);
+        doc.text(count.toLocaleString("es-CO"), margin + 44 + barMaxW + 2, by + barH - 1);
       });
 
-      /* ── Section 3: Tipos de Delito ── */
-      const typeTable = new Table({
-        width: { size: 100, type: WidthType.PERCENTAGE },
-        rows: [
-          new TableRow({
-            children: [headerCell("#"), headerCell("TIPO DE DELITO"), headerCell("TOTAL CASOS"), headerCell("% DEL TOTAL")],
-            tableHeader: true,
-          }),
-          ...crimeTypeSummary.map(([name, count], i) =>
-            tableRow([
-              dataCell(String(i + 1).padStart(2, "0"), AlignmentType.CENTER),
-              dataCell(name),
-              dataCell(count.toLocaleString("es-CO"), AlignmentType.RIGHT, true),
-              dataCell(`${((count / totalCrimes) * 100).toFixed(1)}%`, AlignmentType.RIGHT),
-            ], i)
-          ),
-        ],
-      });
+      /* ══════════════════════════════════════
+         PAGE 4 — TIPOS DE DELITO + TENDENCIA
+         ══════════════════════════════════════ */
+      doc.addPage();
+      pageHeader("3. Distribución por Tipo de Delito", 4);
+      pageFooter();
+      y = 30;
 
-      /* ── Section 4: Tendencia mensual ── */
+      const typeCols = [10, 90, 30, 32];
+      y = drawTable(
+        ["#", "TIPO DE DELITO", "TOTAL CASOS", "% DEL TOTAL"],
+        crimeTypeSummary.map(([name, count], i) => [
+          String(i + 1).padStart(2, "0"),
+          name,
+          count.toLocaleString("es-CO"),
+          `${((count / totalCrimes) * 100).toFixed(1)}%`,
+        ]),
+        typeCols, y, 7
+      );
+      y += 4;
+
+      /* Donut-style distribution visual — simple pie slices via text */
+      y = sectionHeading("4. Tendencia Mensual de Delitos", y);
+      doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(80, 80, 100);
+      doc.text(`Evolución mensual durante ${year}. Se muestran los totales registrados por mes.`, margin, y);
+      y += 6;
+
+      /* Bar chart for monthly trend */
       const trendData = monthlyTrend.filter(m => m.count > 0);
-      const peakMonth = trendData.reduce((a, b) => a.count >= b.count ? a : b, trendData[0] ?? { month: 1, count: 0 });
-      const lowMonth  = trendData.reduce((a, b) => a.count <= b.count ? a : b, trendData[0] ?? { month: 1, count: 0 });
+      const maxTrend = Math.max(...trendData.map(m => m.count), 1);
+      const chartW = W - margin * 2;
+      const chartH2 = 40;
+      const barW2 = chartW / 12 - 1;
 
-      const trendTable = new Table({
-        width: { size: 100, type: WidthType.PERCENTAGE },
-        rows: [
-          new TableRow({
-            children: [headerCell("MES"), headerCell("TOTAL CASOS"), headerCell("TENDENCIA")],
-            tableHeader: true,
-          }),
-          ...trendData.map(({ month, count }, i) => {
-            const prev = trendData[i - 1]?.count ?? count;
-            const trend = count > prev ? "▲ Aumento" : count < prev ? "▼ Descenso" : "→ Estable";
-            const trendColor = count > prev ? "CC0000" : count < prev ? "006600" : "666666";
-            return new TableRow({
-              children: [
-                dataCell(MONTHS_ES[month - 1], AlignmentType.LEFT),
-                dataCell(count.toLocaleString("es-CO"), AlignmentType.RIGHT, true),
-                new TableCell({
-                  children: [new Paragraph({
-                    children: [new TextRun({ text: trend, color: trendColor, bold: true, size: 18 })],
-                    alignment: AlignmentType.CENTER,
-                  })],
-                  margins: { top: 60, bottom: 60, left: 120, right: 120 },
-                  shading: { fill: altRow(i), type: ShadingType.SOLID, color: altRow(i) },
-                }),
-              ],
-            });
-          }),
-        ],
+      /* Chart bg */
+      doc.setFillColor(247, 250, 255);
+      doc.setDrawColor(220, 225, 240); doc.setLineWidth(0.3);
+      doc.roundedRect(margin, y, chartW, chartH2 + 12, 2, 2, "FD");
+
+      monthlyTrend.forEach(({ month, count }, i) => {
+        const barH2 = count > 0 ? (count / maxTrend) * chartH2 : 0;
+        const bx = margin + i * (barW2 + 1) + 0.5;
+        const by2 = y + chartH2 - barH2;
+        /* bar */
+        if (count > 0) {
+          doc.setFillColor(pri.r, pri.g, pri.b);
+          doc.setGState(new (doc as any).GState({ opacity: 0.85 }));
+          doc.roundedRect(bx, by2, barW2, barH2, 0.8, 0.8, "F");
+          doc.setGState(new (doc as any).GState({ opacity: 1 }));
+          /* value on top */
+          if (barH2 > 8) {
+            doc.setFontSize(5); doc.setFont("helvetica", "bold"); doc.setTextColor(...onPri);
+            doc.text(count > 999 ? `${(count / 1000).toFixed(1)}k` : String(count), bx + barW2 / 2, by2 + 5, { align: "center" });
+          }
+        }
+        /* month label */
+        doc.setFontSize(6); doc.setFont("helvetica", "normal"); doc.setTextColor(100, 110, 130);
+        doc.text(MONTHS_ES[month - 1], bx + barW2 / 2, y + chartH2 + 8, { align: "center" });
       });
 
-      /* ── Section 5: Bloqueos activos ── */
-      const blockadeContent: (Paragraph | Table)[] = [];
+      /* ══════════════════════════════════════
+         PAGE 5 — BLOQUEOS + CONCLUSIONES
+         ══════════════════════════════════════ */
+      doc.addPage();
+      pageHeader("5. Bloqueos Viales y Conclusiones", 5);
+      pageFooter();
+      y = 30;
+
       if (activeBlockades.length > 0) {
-        blockadeContent.push(heading2("5. Bloqueos Viales Activos"));
-        blockadeContent.push(bodyText(`Se registran ${activeBlockades.length} bloqueo(s) activo(s) en los corredores de carga. Verificar situación antes de despachar carga.`, { bold: true, color: "CC0000" }));
-        const blkTable = new Table({
-          width: { size: 100, type: WidthType.PERCENTAGE },
-          rows: [
-            new TableRow({
-              children: [headerCell("DEPARTAMENTO"), headerCell("UBICACIÓN"), headerCell("FECHA"), headerCell("CAUSA"), headerCell("ESTADO")],
-              tableHeader: true,
-            }),
-            ...activeBlockades.map((b: any, i: number) =>
-              tableRow([
-                dataCell(b.department),
-                dataCell(b.location),
-                dataCell(b.date),
-                dataCell(b.cause?.replace("_", " ") ?? "—"),
-                dataCell("ACTIVO", AlignmentType.CENTER, true),
-              ], i)
-            ),
-          ],
-        });
-        blockadeContent.push(blkTable, spacer());
+        /* Alert banner */
+        doc.setFillColor(220, 38, 38); doc.setGState(new (doc as any).GState({ opacity: 0.12 }));
+        doc.roundedRect(margin, y, W - margin * 2, 10, 2, 2, "F");
+        doc.setGState(new (doc as any).GState({ opacity: 1 }));
+        doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(180, 20, 20);
+        doc.text(`⚠  ${activeBlockades.length} BLOQUEO(S) ACTIVO(S) — Verificar corredores antes de despachar carga`, margin + 4, y + 7);
+        y += 14;
+
+        const blkCols = [30, 50, 22, 30, 22];
+        y = drawTable(
+          ["DEPARTAMENTO", "UBICACIÓN", "FECHA", "CAUSA", "ESTADO"],
+          activeBlockades.map((b: any) => [
+            b.department,
+            b.location,
+            b.date ?? "—",
+            (b.cause ?? "—").replace(/_/g, " "),
+            "ACTIVO",
+          ]),
+          blkCols, y, 7
+        );
+        y += 4;
+      } else {
+        doc.setFillColor(16, 185, 129); doc.setGState(new (doc as any).GState({ opacity: 0.1 }));
+        doc.roundedRect(margin, y, W - margin * 2, 10, 2, 2, "F");
+        doc.setGState(new (doc as any).GState({ opacity: 1 }));
+        doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(5, 120, 80);
+        doc.text("✓  Sin bloqueos viales activos al momento de este informe", margin + 4, y + 7);
+        y += 16;
       }
 
-      /* ── Section 6: Conclusiones ── */
+      /* Conclusiones */
+      y = sectionHeading("Conclusiones y Recomendaciones", y);
+      const peakMo = monthlyTrend.reduce((a, b) => a.count >= b.count ? a : b, monthlyTrend[0]);
       const conclusions = [
-        `El análisis del período ${yearStr} registra un total de ${totalCrimes.toLocaleString("es-CO")} delitos en el territorio nacional.`,
-        `${topDepts[0]?.[0] ?? "—"} concentra el mayor volumen delictivo con ${topDepts[0]?.[1]?.toLocaleString("es-CO") ?? "—"} casos, representando el ${topDepts[0] ? ((topDepts[0][1] / totalCrimes) * 100).toFixed(1) : 0}% del total nacional.`,
-        `${crimeTypeSummary[0]?.[0] ?? "—"} es el delito de mayor frecuencia, lo que sugiere reforzar protocolos de seguridad física en instalaciones y vías de acceso.`,
-        peakMonth.count > 0 ? `El mes de mayor incidencia fue ${MONTHS_ES[peakMonth.month - 1]} con ${peakMonth.count.toLocaleString("es-CO")} casos registrados.` : "",
-        peakMonth.count > 0 && lowMonth.count > 0 ? `El mes con menor incidencia fue ${MONTHS_ES[lowMonth.month - 1]} con ${lowMonth.count.toLocaleString("es-CO")} casos.` : "",
-        activeBlockades.length > 0 ? `⚠ ALERTA: Existen ${activeBlockades.length} bloqueo(s) vial(es) activo(s). Se recomienda verificar alternativas de ruta antes de programar despachos.` : "No se registran bloqueos viales activos al momento de este informe.",
-      ].filter(Boolean);
+        `El período ${year} registra ${totalCrimes.toLocaleString("es-CO")} delitos en Colombia, con ${topDepts.length} departamentos en el sistema.`,
+        `${topDepts[0]?.[0] ?? "—"} concentra el mayor volumen con ${topDepts[0]?.[1]?.toLocaleString("es-CO") ?? "—"} casos (${topDepts[0] ? ((topDepts[0][1] / totalCrimes) * 100).toFixed(1) : 0}% del total nacional).`,
+        `${crimeTypeSummary[0]?.[0] ?? "—"} es el delito predominante. Se recomienda reforzar protocolos de seguridad en instalaciones y vehículos.`,
+        peakMo?.count > 0 ? `El mes de mayor incidencia fue ${MONTHS_FULL[peakMo.month - 1]} con ${peakMo.count.toLocaleString("es-CO")} casos registrados.` : null,
+        activeBlockades.length > 0
+          ? `ALERTA: Hay ${activeBlockades.length} bloqueo(s) activo(s). Validar rutas alternativas antes de programar despachos.`
+          : "No se registran bloqueos viales activos. Condiciones normales de circulación en corredores monitoreados.",
+        "Se recomienda realizar seguimiento semanal de este informe y ajustar los planes de despacho según los corredores con mayor riesgo compuesto.",
+      ].filter(Boolean) as string[];
 
-      /* ── Document assembly ── */
-      const doc = new Document({
-        title: `Informe Gerencial de Seguridad — ${config.companyName} — ${yearStr}`,
-        description: `Estadísticas delictivas Colombia ${yearStr}`,
-        creator: config.analystName,
-        company: config.companyName,
-        styles: {
-          default: {
-            document: { run: { font: "Calibri", size: 22, color: "1a1a2e" } },
-          },
-        },
-        sections: [
-          {
-            headers: {
-              default: new Header({
-                children: [
-                  new Paragraph({
-                    children: [
-                      new TextRun({ text: config.companyName, bold: true, size: 16, color: primaryHex }),
-                      new TextRun({ text: `  ·  Informe Gerencial de Seguridad ${yearStr}`, size: 16, color: "888888" }),
-                    ],
-                    border: { bottom: { color: primaryHex, size: 6, style: BorderStyle.SINGLE } },
-                    spacing: { after: 100 },
-                  }),
-                ],
-              }),
-            },
-            footers: {
-              default: new Footer({
-                children: [
-                  new Paragraph({
-                    children: [
-                      new TextRun({ text: config.footerDisclaimer + "  |  Pág. ", size: 16, color: "AAAAAA" }),
-                      new TextRun({ children: [PageNumber.CURRENT], size: 16, color: "AAAAAA" }),
-                      new TextRun({ text: " de ", size: 16, color: "AAAAAA" }),
-                      new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, color: "AAAAAA" }),
-                    ],
-                    alignment: AlignmentType.RIGHT,
-                    border: { top: { color: "DDDDDD", size: 4, style: BorderStyle.SINGLE } },
-                  }),
-                ],
-              }),
-            },
-            children: [
-              /* Cover */
-              ...coverChildren,
-              /* Section 1 */
-              heading1("1. Resumen Ejecutivo"),
-              bodyText(`Este informe presenta el análisis de las estadísticas delictivas de Colombia correspondiente al año ${yearStr}, con base en datos de la Policía Nacional de Colombia procesados por el sistema AICRI. La información permite a ${config.companyName} tomar decisiones estratégicas en materia de seguridad logística y gestión de riesgo en corredores de carga.`),
-              spacer(),
-              kpiTable,
-              spacer(),
-              new Paragraph({ children: [new PageBreak()] }),
-              /* Section 2 */
-              heading1("2. Ranking Departamental de Incidencia Delictiva"),
-              bodyText("La siguiente tabla presenta los departamentos con mayor número de delitos registrados, ordenados de mayor a menor incidencia."),
-              spacer(),
-              deptTable,
-              spacer(),
-              new Paragraph({ children: [new PageBreak()] }),
-              /* Section 3 */
-              heading1("3. Distribución por Tipo de Delito"),
-              bodyText("Análisis de los tipos de delitos con mayor frecuencia de ocurrencia en el período analizado."),
-              spacer(),
-              typeTable,
-              spacer(),
-              new Paragraph({ children: [new PageBreak()] }),
-              /* Section 4 */
-              heading1("4. Tendencia Mensual"),
-              bodyText(`Evolución mensual del total de delitos registrados durante el año ${yearStr}. Permite identificar períodos de mayor y menor incidencia para planificar operaciones logísticas.`),
-              spacer(),
-              trendTable,
-              spacer(),
-              new Paragraph({ children: [new PageBreak()] }),
-              /* Section 5 (blockades, conditional) */
-              ...blockadeContent,
-              /* Section 6 */
-              heading1(`${activeBlockades.length > 0 ? "6" : "5"}. Conclusiones y Recomendaciones`),
-              ...conclusions.map(c => new Paragraph({
-                children: [
-                  new TextRun({ text: "• ", color: primaryHex, bold: true }),
-                  new TextRun({ text: c, size: 22 }),
-                ],
-                spacing: { after: 150 },
-              })),
-              spacer(2),
-              /* Signature */
-              new Paragraph({
-                children: [new TextRun({ text: `Preparado por: ${config.analystName}`, bold: true, size: 22 })],
-                spacing: { after: 80 },
-              }),
-              ...(config.analystEmail ? [bodyText(`Email: ${config.analystEmail}`)] : []),
-              ...(config.analystPhone ? [bodyText(`Tel: ${config.analystPhone}`)] : []),
-              bodyText(`Fecha: ${dateStr}`),
-            ],
-          },
-        ],
+      conclusions.forEach((c, i) => {
+        const isAlert = c.startsWith("ALERTA");
+        doc.setFillColor(isAlert ? 255 : pri.r, isAlert ? 220 : pri.g, isAlert ? 220 : pri.b);
+        doc.circle(margin + 1.5, y + 2, 1.5, "F");
+        doc.setFontSize(8.5); doc.setFont("helvetica", isAlert ? "bold" : "normal");
+        doc.setTextColor(isAlert ? 150 : 30, isAlert ? 20 : 30, isAlert ? 20 : 50);
+        const lines = doc.splitTextToSize(c, W - margin * 2 - 8);
+        doc.text(lines, margin + 5, y + 3);
+        y += lines.length * 5 + 3;
       });
 
-      const blob = await Packer.toBlob(doc);
-      saveAs(blob, `informe_seguridad_${config.companyName.replace(/\s+/g, "_").toLowerCase()}_${yearStr}.docx`);
+      /* Signature block */
+      y += 8;
+      doc.setDrawColor(220, 220, 230); doc.setLineWidth(0.4);
+      doc.line(margin, y, margin + 60, y);
+      doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.setTextColor(40, 40, 60);
+      doc.text(config.analystName, margin, y + 5);
+      doc.setFont("helvetica", "normal"); doc.setTextColor(100, 110, 130); doc.setFontSize(7.5);
+      doc.text(config.analystEmail, margin, y + 10);
+      doc.text(config.analystPhone, margin, y + 15);
+      doc.text(dateStr, margin, y + 20);
+
+      /* Save */
+      const filename = `informe_seguridad_${config.companyName.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase()}_${year}.pdf`;
+      doc.save(filename);
       setGenerated(true);
       setTimeout(() => setGenerated(false), 4000);
     } catch (err) {
-      console.error("Error generating Word report:", err);
+      console.error("PDF generation error:", err);
     } finally {
       setGenerating(false);
     }
   }, [config, year, totalCrimes, topDepts, crimeTypeSummary, monthlyTrend, activeBlockades]);
 
-  /* ── UI ── */
+  /* ── UI styles ── */
   const S = {
-    section: {
-      background: panelBg,
-      border: `1px solid ${borderC}`,
-      borderRadius: "12px",
-      padding: "18px 20px",
-    } as React.CSSProperties,
-    label: { fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const, color: textMuted, marginBottom: "5px" },
-    input: {
-      width: "100%", background: inputBg, border: `1px solid ${borderC}`,
-      borderRadius: "6px", padding: "8px 11px", fontSize: "13px", color: textMain,
-      outline: "none", boxSizing: "border-box" as const,
-    } as React.CSSProperties,
-    row: { display: "flex", gap: "12px" } as React.CSSProperties,
+    section: { background: panelBg, border: `1px solid ${borderC}`, borderRadius: "12px", padding: "18px 20px" } as React.CSSProperties,
+    label: { fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const, color: textMuted, marginBottom: "5px", display: "block" },
+    input: { width: "100%", background: inputBg, border: `1px solid ${borderC}`, borderRadius: "6px", padding: "8px 11px", fontSize: "13px", color: textMain, outline: "none", boxSizing: "border-box" as const } as React.CSSProperties,
     field: { display: "flex", flexDirection: "column" as const, gap: "4px", flex: 1 },
-    sectionTitle: { fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const, color: textMuted, marginBottom: "12px", display: "flex", alignItems: "center", gap: "6px" } as React.CSSProperties,
+    row: { display: "flex", gap: "12px" } as React.CSSProperties,
+    sectionTitle: { fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const, color: textMuted, marginBottom: "14px", display: "flex", alignItems: "center", gap: "6px" } as React.CSSProperties,
   };
 
-  const PRESET_COLORS = ["#0066cc","#00897b","#e53935","#5e35b1","#f57c00","#1a237e","#2e7d32","#37474f"];
+  const PRESETS = ["#0066cc","#00897b","#e53935","#5e35b1","#f57c00","#1a237e","#2e7d32","#37474f","#c62828","#00695c"];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
 
-      {/* Header */}
-      <div style={{ background: dark ? "linear-gradient(135deg,#0c1628,#0e1f38)" : "linear-gradient(135deg,#e8f4ff,#dbeafe)", border: `1px solid ${dark?"rgba(99,102,241,0.2)":"rgba(99,102,241,0.15)"}`, borderRadius: "12px", padding: "14px 18px", display: "flex", alignItems: "center", gap: "12px" }}>
-        <div style={{ width: 36, height: 36, borderRadius: "10px", background: "rgba(99,102,241,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <FileText style={{ width: 18, height: 18, color: "#6366f1" }} />
+      {/* ── Header ── */}
+      <div style={{ background: dark?"linear-gradient(135deg,#0c1628,#0e1f38)":"linear-gradient(135deg,#e8f4ff,#dbeafe)", border:`1px solid ${dark?"rgba(99,102,241,0.2)":"rgba(99,102,241,0.15)"}`, borderRadius:"12px", padding:"14px 18px", display:"flex", alignItems:"center", gap:"12px" }}>
+        <div style={{ width:36, height:36, borderRadius:"10px", background:"rgba(99,102,241,0.15)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+          <FileText style={{ width:18, height:18, color:"#6366f1" }} />
         </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: "13px", fontWeight: 700, color: textMain }}>Informe Gerencial Word — Personalizable por Cliente</div>
-          <div style={{ fontSize: "11px", color: textMuted, marginTop: "2px" }}>
-            Configure el branding de su empresa · El informe se genera como archivo .docx listo para enviar
-          </div>
+        <div style={{ flex:1 }}>
+          <div style={{ fontSize:"13px", fontWeight:700, color:textMain }}>Informe Gerencial PDF — Personalizable por Cliente</div>
+          <div style={{ fontSize:"11px", color:textMuted, marginTop:"2px" }}>Configure el branding de su empresa · El PDF se genera localmente y se descarga listo para enviar</div>
         </div>
-        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-          <label style={{ fontSize: "10px", color: textMuted, fontWeight: 600 }}>AÑO</label>
-          <select value={year} onChange={e => setYear(+e.target.value)} style={{ ...S.input, width: "90px", padding: "5px 8px", fontSize: "12px" }}>
+        <div style={{ display:"flex", gap:"8px", alignItems:"center" }}>
+          <label style={{ fontSize:"10px", color:textMuted, fontWeight:600 }}>AÑO</label>
+          <select value={year} onChange={e => setYear(+e.target.value)} style={{ ...S.input, width:"90px", padding:"5px 8px", fontSize:"12px", cursor:"pointer" }}>
             {[2026,2025,2024,2023,2022,2021,2020].map(y => <option key={y} value={y}>{y}</option>)}
           </select>
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"14px" }}>
 
-        {/* ── LEFT: Company branding ── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-
+        {/* LEFT: Company data */}
+        <div style={{ display:"flex", flexDirection:"column", gap:"14px" }}>
           <div style={S.section}>
             <div style={S.sectionTitle}><Building2 size={12} /> Datos de la Empresa</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
               <div style={S.field}>
                 <label style={S.label}>Nombre de la empresa</label>
-                <input style={S.input} value={config.companyName} onChange={e => updateConfig({ companyName: e.target.value })} placeholder="Ej: Transportes del Norte S.A.S." />
+                <input style={S.input} value={config.companyName} onChange={e => updateConfig({ companyName: e.target.value })} placeholder="Transportes del Norte S.A.S." />
               </div>
               <div style={S.field}>
                 <label style={S.label}>Subtítulo / Sector</label>
-                <input style={S.input} value={config.companySubtitle} onChange={e => updateConfig({ companySubtitle: e.target.value })} placeholder="Ej: Logística y Transporte de Carga" />
+                <input style={S.input} value={config.companySubtitle} onChange={e => updateConfig({ companySubtitle: e.target.value })} placeholder="Logística y Transporte de Carga" />
               </div>
               <div style={S.field}>
-                <label style={S.label}>Pie de página / Cláusula de confidencialidad</label>
-                <textarea rows={2} style={{ ...S.input, resize: "none" as const }} value={config.footerDisclaimer} onChange={e => updateConfig({ footerDisclaimer: e.target.value })} />
+                <label style={S.label}>Pie de página / Confidencialidad</label>
+                <textarea rows={2} style={{ ...S.input, resize:"none" }} value={config.footerDisclaimer} onChange={e => updateConfig({ footerDisclaimer: e.target.value })} />
               </div>
             </div>
           </div>
 
           <div style={S.section}>
             <div style={S.sectionTitle}><User size={12} /> Analista / Firmante</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
               <div style={S.field}>
                 <label style={S.label}>Nombre completo</label>
                 <input style={S.input} value={config.analystName} onChange={e => updateConfig({ analystName: e.target.value })} placeholder="Ing. Ana Martínez" />
               </div>
               <div style={S.row}>
                 <div style={S.field}>
-                  <label style={S.label}><Mail size={9} style={{ display: "inline", marginRight: "3px" }} />Correo</label>
+                  <label style={S.label}><Mail size={9} style={{ display:"inline", marginRight:"3px" }} />Email</label>
                   <input style={S.input} value={config.analystEmail} onChange={e => updateConfig({ analystEmail: e.target.value })} placeholder="analista@empresa.com" />
                 </div>
                 <div style={S.field}>
-                  <label style={S.label}><Phone size={9} style={{ display: "inline", marginRight: "3px" }} />Teléfono</label>
+                  <label style={S.label}><Phone size={9} style={{ display:"inline", marginRight:"3px" }} />Teléfono</label>
                   <input style={S.input} value={config.analystPhone} onChange={e => updateConfig({ analystPhone: e.target.value })} placeholder="+57 310 000 0000" />
                 </div>
               </div>
             </div>
           </div>
-
         </div>
 
-        {/* ── RIGHT: Logo + color ── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-
+        {/* RIGHT: Logo + color */}
+        <div style={{ display:"flex", flexDirection:"column", gap:"14px" }}>
           <div style={S.section}>
             <div style={S.sectionTitle}><Upload size={12} /> Logo de la Empresa</div>
             <div
               onClick={() => fileInputRef.current?.click()}
-              style={{
-                border: `2px dashed ${dark?"rgba(255,255,255,0.12)":"rgba(0,0,0,0.12)"}`,
-                borderRadius: "10px",
-                padding: "24px",
-                textAlign: "center",
-                cursor: "pointer",
-                background: dark?"rgba(255,255,255,0.02)":"#f8fafc",
-                transition: "border-color 0.15s",
-              }}
+              style={{ border:`2px dashed ${dark?"rgba(255,255,255,0.12)":"rgba(0,0,0,0.12)"}`, borderRadius:"10px", padding:"22px", textAlign:"center", cursor:"pointer", background:dark?"rgba(255,255,255,0.02)":"#f8fafc" }}
               onMouseEnter={e => (e.currentTarget.style.borderColor = config.primaryColor)}
               onMouseLeave={e => (e.currentTarget.style.borderColor = dark?"rgba(255,255,255,0.12)":"rgba(0,0,0,0.12)")}
             >
               {config.logoDataUrl ? (
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
-                  <img src={config.logoDataUrl} alt="Logo" style={{ maxHeight: "72px", maxWidth: "180px", objectFit: "contain", borderRadius: "4px" }} />
-                  <span style={{ fontSize: "11px", color: textMuted }}>Clic para cambiar logo</span>
+                <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:"8px" }}>
+                  <img src={config.logoDataUrl} alt="Logo" style={{ maxHeight:"64px", maxWidth:"180px", objectFit:"contain" }} />
+                  <span style={{ fontSize:"11px", color:textMuted }}>Clic para cambiar</span>
                 </div>
               ) : (
                 <>
-                  <Upload style={{ width: 28, height: 28, color: textMuted, margin: "0 auto 8px" }} />
-                  <div style={{ fontSize: "12px", fontWeight: 600, color: textMain }}>Subir logo de empresa</div>
-                  <div style={{ fontSize: "11px", color: textMuted, marginTop: "4px" }}>PNG, JPG hasta 2MB</div>
+                  <Upload style={{ width:26, height:26, color:textMuted, margin:"0 auto 8px" }} />
+                  <div style={{ fontSize:"12px", fontWeight:600, color:textMain }}>Subir logo de empresa</div>
+                  <div style={{ fontSize:"11px", color:textMuted, marginTop:"4px" }}>PNG o JPG — aparece en la portada del PDF</div>
                 </>
               )}
             </div>
-            <input ref={fileInputRef} type="file" accept="image/png,image/jpeg" style={{ display: "none" }} onChange={handleLogoUpload} />
+            <input ref={fileInputRef} type="file" accept="image/png,image/jpeg" style={{ display:"none" }} onChange={handleLogoUpload} />
             {config.logoDataUrl && (
-              <button onClick={() => updateConfig({ logoDataUrl: "", logoMimeType: "image/png" })} style={{ marginTop: "8px", fontSize: "10px", color: "#ef4444", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}>
-                ✕ Eliminar logo
-              </button>
+              <button onClick={() => updateConfig({ logoDataUrl:"" })} style={{ marginTop:"6px", fontSize:"10px", color:"#ef4444", background:"transparent", border:"none", cursor:"pointer" }}>✕ Eliminar logo</button>
             )}
           </div>
 
           <div style={S.section}>
             <div style={S.sectionTitle}><Palette size={12} /> Color Corporativo</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                {PRESET_COLORS.map(c => (
-                  <button key={c} onClick={() => updateConfig({ primaryColor: c })} title={c}
-                    style={{ width: 32, height: 32, borderRadius: "8px", background: c, cursor: "pointer", border: config.primaryColor === c ? "3px solid white" : "2px solid transparent", boxSizing: "border-box", boxShadow: config.primaryColor === c ? `0 0 0 2px ${c}` : "none", transition: "all 0.15s" }}
-                  />
+            <div style={{ display:"flex", flexDirection:"column", gap:"12px" }}>
+              <div style={{ display:"flex", gap:"7px", flexWrap:"wrap" }}>
+                {PRESETS.map(c => (
+                  <button key={c} onClick={() => updateConfig({ primaryColor:c })} title={c}
+                    style={{ width:30, height:30, borderRadius:"7px", background:c, cursor:"pointer", border:config.primaryColor===c?"3px solid white":"2px solid transparent", boxSizing:"border-box", boxShadow:config.primaryColor===c?`0 0 0 2px ${c}`:"none", transition:"all 0.15s" }} />
                 ))}
               </div>
               <div style={S.field}>
                 <label style={S.label}>Color personalizado (hex)</label>
-                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                  <input type="color" value={config.primaryColor} onChange={e => updateConfig({ primaryColor: e.target.value })}
-                    style={{ width: 40, height: 36, borderRadius: "6px", border: `1px solid ${borderC}`, background: "none", cursor: "pointer", padding: "2px" }} />
-                  <input style={{ ...S.input, flex: 1 }} value={config.primaryColor} onChange={e => {
-                    if (/^#[0-9A-Fa-f]{0,6}$/.test(e.target.value)) updateConfig({ primaryColor: e.target.value });
-                  }} />
-                  <div style={{ width: 60, height: 36, borderRadius: "6px", background: config.primaryColor, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <span style={{ fontSize: "9px", fontWeight: 700, color: colorIsLight(config.primaryColor) ? "#000" : "#fff" }}>MUESTRA</span>
+                <div style={{ display:"flex", gap:"8px", alignItems:"center" }}>
+                  <input type="color" value={config.primaryColor} onChange={e => updateConfig({ primaryColor:e.target.value })}
+                    style={{ width:38, height:34, borderRadius:"6px", border:`1px solid ${borderC}`, cursor:"pointer", padding:"2px", background:"none" }} />
+                  <input style={{ ...S.input, flex:1 }} value={config.primaryColor} onChange={e => { if (/^#[0-9A-Fa-f]{0,6}$/.test(e.target.value)) updateConfig({ primaryColor:e.target.value }); }} />
+                  <div style={{ width:56, height:34, borderRadius:"6px", background:config.primaryColor, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                    <span style={{ fontSize:"8px", fontWeight:700, color:isLight(config.primaryColor)?"#000":"#fff" }}>MUESTRA</span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-
         </div>
       </div>
 
-      {/* Preview of what will be in the report */}
-      <div style={{ background: dark?"rgba(99,102,241,0.06)":"rgba(99,102,241,0.04)", border: `1px solid ${dark?"rgba(99,102,241,0.2)":"rgba(99,102,241,0.12)"}`, borderRadius: "12px", padding: "14px 18px" }}>
-        <div style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#6366f1", marginBottom: "10px" }}>
-          Contenido del informe ({year}) — {totalCrimes.toLocaleString("es-CO")} delitos registrados
+      {/* Preview summary */}
+      <div style={{ background:dark?"rgba(99,102,241,0.06)":"rgba(99,102,241,0.04)", border:`1px solid ${dark?"rgba(99,102,241,0.2)":"rgba(99,102,241,0.12)"}`, borderRadius:"12px", padding:"14px 18px" }}>
+        <div style={{ fontSize:"11px", fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", color:"#6366f1", marginBottom:"10px" }}>
+          Contenido del PDF · {year} · {totalCrimes.toLocaleString("es-CO")} delitos · 5 páginas
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:"8px" }}>
           {[
-            ["1. Resumen Ejecutivo", `${Object.keys({}).length + 5} KPIs principales`],
-            ["2. Ranking Departamental", `Top ${topDepts.length} departamentos`],
-            ["3. Tipos de Delito", `${crimeTypeSummary.length} categorías analizadas`],
-            ["4. Tendencia Mensual", `${monthlyTrend.filter(m => m.count > 0).length} meses con datos`],
-            ["5. Bloqueos Activos", activeBlockades.length > 0 ? `${activeBlockades.length} bloqueo(s) registrado(s)` : "Sin bloqueos activos"],
-            ["6. Conclusiones", "Recomendaciones automáticas"],
-          ].map(([title, detail]) => (
-            <div key={title} style={{ background: dark?"rgba(255,255,255,0.025)":"#fff", border: `1px solid ${dark?"rgba(99,102,241,0.1)":"rgba(99,102,241,0.08)"}`, borderRadius: "7px", padding: "9px 11px" }}>
-              <div style={{ fontSize: "10px", fontWeight: 700, color: "#6366f1", marginBottom: "3px" }}>{title}</div>
-              <div style={{ fontSize: "10px", color: textMuted }}>{detail}</div>
+            ["Portada","Logo + branding corporativo"],
+            ["Resumen Ejecutivo","4 KPIs + estadísticas clave"],
+            ["Ranking Deptal.","Top 12 depts. con gráfico"],
+            ["Tipos + Tendencia","Tabla + gráfico de barras"],
+            ["Bloqueos + Conclusiones","Alertas + recomendaciones"],
+          ].map(([title,detail]) => (
+            <div key={title} style={{ background:dark?"rgba(255,255,255,0.025)":"#fff", border:`1px solid ${dark?"rgba(99,102,241,0.1)":"rgba(99,102,241,0.08)"}`, borderRadius:"7px", padding:"9px 11px" }}>
+              <div style={{ fontSize:"10px", fontWeight:700, color:"#6366f1", marginBottom:"3px" }}>{title}</div>
+              <div style={{ fontSize:"10px", color:textMuted }}>{detail}</div>
             </div>
           ))}
         </div>
@@ -713,33 +695,18 @@ export function ReportGenerator({ dark = true }: Props) {
 
       {/* Generate button */}
       <button
-        onClick={generateWord}
+        onClick={generatePDF}
         disabled={generating || totalCrimes === 0}
-        style={{
-          display: "flex", alignItems: "center", justifyContent: "center", gap: "10px",
-          padding: "14px 28px", borderRadius: "10px", cursor: generating ? "wait" : "pointer",
-          fontSize: "14px", fontWeight: 700, letterSpacing: "0.04em",
-          background: generated ? "#10b981" : config.primaryColor,
-          color: generated ? "#fff" : (colorIsLight(config.primaryColor) ? "#000" : "#fff"),
-          border: "none",
-          boxShadow: `0 4px 20px ${config.primaryColor}55`,
-          opacity: (generating || totalCrimes === 0) ? 0.6 : 1,
-          transition: "all 0.2s",
-        }}
+        style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:"10px", padding:"15px 28px", borderRadius:"10px", cursor:generating?"wait":"pointer", fontSize:"14px", fontWeight:700, letterSpacing:"0.04em", background:generated?"#10b981":config.primaryColor, color:generated?"#fff":(isLight(config.primaryColor)?"#000":"#fff"), border:"none", boxShadow:`0 4px 22px ${config.primaryColor}55`, opacity:(generating||totalCrimes===0)?0.6:1, transition:"all 0.2s" }}
       >
         {generated
-          ? <><CheckCircle2 size={18} /> Informe descargado</>
+          ? <><CheckCircle2 size={18} /> PDF descargado exitosamente</>
           : generating
-          ? <><RefreshCw size={18} className="animate-spin" /> Generando informe Word…</>
-          : <><Download size={18} /> Generar Informe Word (.docx)</>
+          ? <><RefreshCw size={18} className="animate-spin" /> Generando PDF…</>
+          : <><Download size={18} /> Generar Informe Gerencial PDF</>
         }
       </button>
-
-      {totalCrimes === 0 && (
-        <div style={{ textAlign: "center", fontSize: "12px", color: textMuted, marginTop: "-8px" }}>
-          Cargando datos del año {year}…
-        </div>
-      )}
+      {totalCrimes === 0 && <div style={{ textAlign:"center", fontSize:"12px", color:textMuted, marginTop:"-8px" }}>Cargando datos del año {year}…</div>}
     </div>
   );
 }

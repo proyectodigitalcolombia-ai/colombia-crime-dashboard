@@ -38,6 +38,7 @@ import {
 
 import { ColombiaMap } from "@/components/ColombiaMap";
 import { RouteAnalyzer } from "@/components/RouteAnalyzer";
+import { ReportGenerator } from "@/components/ReportGenerator";
 
 /* ───────── EXECUTIVE PALETTE ───────── */
 const E = {
@@ -219,7 +220,7 @@ function ChartPanel({ title, children, onExport, exportData, exportName, dark, l
 export default function Dashboard() {
   const queryClient = useQueryClient();
   const [isDark, setIsDark] = useState(true);
-  const [activeTab, setActiveTab] = useState<"estadisticas" | "ruta">("estadisticas");
+  const [activeTab, setActiveTab] = useState<"estadisticas" | "ruta" | "informe">("estadisticas");
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -515,6 +516,7 @@ export default function Dashboard() {
           {([
             { id: "estadisticas", label: "📊  Estadísticas Delictivas" },
             { id: "ruta",         label: "🚛  Análisis de Ruta — Piratería Terrestre" },
+            { id: "informe",      label: "📄  Informe Gerencial PDF" },
           ] as const).map(tab => (
             <button
               key={tab.id}
@@ -544,6 +546,11 @@ export default function Dashboard() {
         {/* ── ROUTE ANALYZER TAB ── */}
         {activeTab === "ruta" && (
           <RouteAnalyzer dark={isDark} />
+        )}
+
+        {/* ── INFORME GERENCIAL TAB ── */}
+        {activeTab === "informe" && (
+          <ReportGenerator dark={isDark} />
         )}
 
         {/* ── STATS TAB content starts here ── */}
