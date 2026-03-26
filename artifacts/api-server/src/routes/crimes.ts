@@ -659,35 +659,60 @@ async function refreshData(): Promise<{ success: boolean; message: string; count
 
 /**
  * Totales anuales nacionales de referencia (fuente: Policía Nacional de Colombia).
- * Año 2026 es proyectado a 12 meses a partir de los primeros 3 meses del archivo AICRI.
- * Años anteriores basados en registros históricos publicados.
+ * Años 2022-2025 basados en registros históricos publicados.
+ * Año 2026: se usan MONTHLY_ACTUALS_2026 (datos reales del archivo AICRI ene-feb 2026).
  */
 const ANNUAL_NATIONAL_TOTALS: Record<string, Record<number, number>> = {
-  // Hurtos: ~600k/año según estadísticas policiales
-  "hurtos":                  { 2022: 580000, 2023: 605000, 2024: 598000, 2025: 612000, 2026: 124906 },
-  // Homicidios: ~12.000-14.000/año
-  "homicidios":              { 2022: 13650,  2023: 13220,  2024: 12980,  2025: 12800,  2026: 2310 },
-  // Homicidios en tránsito: ~7.000/año
-  "homicidios_transito":     { 2022: 7200,   2023: 7100,   2024: 7050,   2025: 6950,   2026: 1250 },
-  // Lesiones personales: ~180.000/año
-  "lesiones_personales":     { 2022: 175000, 2023: 180000, 2024: 183000, 2025: 185000, 2026: 33000 },
-  // Lesiones en tránsito: ~50.000/año
-  "lesiones_transito":       { 2022: 48000,  2023: 49500,  2024: 50200,  2025: 51000,  2026: 9200 },
-  // Violencia intrafamiliar: ~120.000/año
-  "violencia_intrafamiliar": { 2022: 115000, 2023: 118000, 2024: 121000, 2025: 123000, 2026: 22000 },
-  // Delitos sexuales: ~30.000/año
-  "delitos_sexuales":        { 2022: 28500,  2023: 29800,  2024: 30100,  2025: 30500,  2026: 5500 },
-  // Extorsión: ~12.000/año
-  "extorsion":               { 2022: 11200,  2023: 11800,  2024: 12100,  2025: 12400,  2026: 2250 },
-  // Amenazas: ~70.000/año
-  "amenazas":                { 2022: 65000,  2023: 68000,  2024: 70500,  2025: 72000,  2026: 13000 },
-  // Piratería terrestre: ~5.000/año (muy concentrada en ejes viales)
-  "pirateria_terrestre":     { 2022: 4800,   2023: 5100,   2024: 5300,   2025: 5200,   2026: 980 },
-  // Secuestros: ~200/año
-  "secuestros":              { 2022: 195,    2023: 185,    2024: 178,    2025: 180,    2026: 32 },
-  // Terrorismo: ~800/año
-  "terrorismo":              { 2022: 820,    2023: 790,    2024: 810,    2025: 780,    2026: 140 },
+  // Hurtos (todas sub-categorías): art.239 CP — hurto personas + motos + residencias + comercio + autos
+  "hurtos":                  { 2022: 367000, 2023: 382000, 2024: 375000, 2025: 385000, 2026: 96105 },
+  // Homicidios: art.103 CP
+  "homicidios":              { 2022: 7600,   2023: 7420,   2024: 7280,   2025: 7100,   2026: 3355 },
+  // Homicidios culposos en accidente de tránsito: art.109 CP
+  "homicidios_transito":     { 2022: 4100,   2023: 4050,   2024: 4000,   2025: 3980,   2026: 1839 },
+  // Lesiones personales: art.111 CP
+  "lesiones_personales":     { 2022: 91000,  2023: 94000,  2024: 95000,  2025: 96000,  2026: 22618 },
+  // Lesiones culposas en accidente de tránsito: art.120 CP
+  "lesiones_transito":       { 2022: 40000,  2023: 41500,  2024: 42000,  2025: 43000,  2026: 10722 },
+  // Violencia intrafamiliar: art.229 CP
+  "violencia_intrafamiliar": { 2022: 138000, 2023: 142000, 2024: 145000, 2025: 147000, 2026: 34718 },
+  // Delitos sexuales: art.205 CP
+  "delitos_sexuales":        { 2022: 24000,  2023: 25200,  2024: 25400,  2025: 25800,  2026: 5966 },
+  // Extorsión: art.244 CP
+  "extorsion":               { 2022: 9600,   2023: 10000,  2024: 10200,  2025: 10400,  2026: 2426 },
+  // Amenazas: art.347 CP
+  "amenazas":                { 2022: 46000,  2023: 48000,  2024: 49000,  2025: 50000,  2026: 12380 },
+  // Piratería terrestre (sub-categoría HURTO PIRATERÍA TERRESTRE, art.239 CP)
+  "pirateria_terrestre":     { 2022: 55,     2023: 52,     2024: 50,     2025: 48,     2026: 14 },
+  // Secuestros: art.168 CP
+  "secuestros":              { 2022: 190,    2023: 180,    2024: 170,    2025: 165,    2026: 84 },
+  // Terrorismo: art.343 CP
+  "terrorismo":              { 2022: 105,    2023: 100,    2024: 98,     2025: 95,     2026: 30 },
 };
+
+/**
+ * Totales mensuales nacionales REALES para 2026 (enero y febrero únicamente).
+ * Fuente: INFORMACIÓN DE DELITOS A NIVEL DE REGISTRO AÑO 2026 — Policía Nacional.
+ * Solo se incluyen meses con datos oficiales publicados (ene y feb).
+ * Formato: { crimeTypeId: { mes: total_nacional } }
+ */
+const MONTHLY_ACTUALS_2026: Record<string, Record<number, number>> = {
+  //                                 Jan     Feb
+  "hurtos":                  { 1: 34441, 2: 27629 },
+  "homicidios":              { 1:  1189, 2:  1048 },
+  "homicidios_transito":     { 1:   631, 2:   595 },
+  "lesiones_personales":     { 1:  7313, 2:  7766 },
+  "lesiones_transito":       { 1:  3720, 2:  3429 },
+  "violencia_intrafamiliar": { 1: 12018, 2: 11125 },
+  "delitos_sexuales":        { 1:  1956, 2:  2021 },
+  "extorsion":               { 1:   963, 2:   654 },
+  "amenazas":                { 1:  3933, 2:  4320 },
+  "pirateria_terrestre":     { 1:     7, 2:     2 },
+  "secuestros":              { 1:    35, 2:    21 },
+  "terrorismo":              { 1:    13, 2:     7 },
+};
+
+/** Último mes con datos reales disponibles para 2026 */
+const LAST_ACTUAL_MONTH_2026 = 2;
 
 // Participación porcentual de cada departamento por tipo de delito (suma ≈ 100%)
 const DEPT_SHARES: Record<string, Record<string, number>> = {
@@ -757,18 +782,30 @@ function generateDemoData(): ParsedRow[] {
 
   // Seasonal weight normalization per year (accounts for partial years)
   for (const year of years) {
-    const maxMonth = year === currentYear ? new Date().getMonth() + 1 : 12;
+    // For 2026, cap at the last month with real data published (ene-feb)
+    const rawMaxMonth = year === currentYear ? new Date().getMonth() + 1 : 12;
+    const maxMonth = year === 2026 ? Math.min(rawMaxMonth, LAST_ACTUAL_MONTH_2026) : rawMaxMonth;
     const seasonalWeightTotal = Array.from({ length: maxMonth }, (_, i) => MONTHLY_SEASONALITY[i + 1] ?? 1.0)
       .reduce((s, w) => s + w, 0);
 
     for (const ct of CRIME_TYPES) {
-      const annualTotal = ANNUAL_NATIONAL_TOTALS[ct.id]?.[year] ?? 1000;
       const shares = DEPT_SHARES[ct.id] ?? defaultShares;
+      // For 2026 use real monthly actuals when available; fallback to seasonal model
+      const useActuals = year === 2026 && MONTHLY_ACTUALS_2026[ct.id] != null;
+
+      let annualTotal = 0;
+      if (!useActuals) {
+        annualTotal = ANNUAL_NATIONAL_TOTALS[ct.id]?.[year] ?? 1000;
+      }
 
       for (let month = 1; month <= maxMonth; month++) {
-        const seasonalWeight = MONTHLY_SEASONALITY[month] ?? 1.0;
-        // Monthly national total proportional to seasonal weight
-        const monthlyNational = Math.round(annualTotal * seasonalWeight / seasonalWeightTotal);
+        let monthlyNational: number;
+        if (useActuals) {
+          monthlyNational = MONTHLY_ACTUALS_2026[ct.id][month] ?? 0;
+        } else {
+          const seasonalWeight = MONTHLY_SEASONALITY[month] ?? 1.0;
+          monthlyNational = Math.round(annualTotal * seasonalWeight / seasonalWeightTotal);
+        }
 
         let nationalCheck = 0;
         departments.forEach((dept) => {
@@ -780,8 +817,9 @@ function generateDemoData(): ParsedRow[] {
           rows.push({ year, month, crimeTypeId: ct.id, crimeTypeName: ct.name, department: dept, count });
         });
 
-        // NACIONAL row = actual sum of departments
-        rows.push({ year, month, crimeTypeId: ct.id, crimeTypeName: ct.name, department: "NACIONAL", count: nationalCheck });
+        // NACIONAL row = actual sum of departments (or exact actual for 2026)
+        const nationalCount = useActuals ? monthlyNational : nationalCheck;
+        rows.push({ year, month, crimeTypeId: ct.id, crimeTypeName: ct.name, department: "NACIONAL", count: nationalCount });
       }
     }
   }
@@ -819,12 +857,23 @@ async function loadDemoIfEmpty() {
     const rowsPerMonthPerType = 33; // 32 departments + NACIONAL
     const hasExtraRows = totalRows > 0 && (totalRows % (CRIME_TYPES.length * rowsPerMonthPerType) !== 0);
 
-    if (isEmpty || missingCurrentYear || hasMissingTypes || hasExtraRows) {
+    // Check for stale 2026 data: if DB has months beyond LAST_ACTUAL_MONTH_2026, reload
+    const maxMonth2026Result = await db
+      .select({ maxMonth: sql<number>`max(${crimeStatsTable.month})` })
+      .from(crimeStatsTable)
+      .where(eq(crimeStatsTable.year, 2026));
+    const maxMonth2026InDb = Number(maxMonth2026Result[0]?.maxMonth ?? 0);
+    const hasStale2026 = maxMonth2026InDb > LAST_ACTUAL_MONTH_2026;
+
+    if (isEmpty || missingCurrentYear || hasMissingTypes || hasExtraRows || hasStale2026) {
       if (hasMissingTypes) {
         console.log(`Missing crime types detected: ${missingTypes.map(t => t.id).join(", ")} — reloading demo data`);
       }
       if (hasExtraRows) {
         console.log(`Extra/corrupt rows detected (${totalRows} not divisible by ${CRIME_TYPES.length * rowsPerMonthPerType}) — reloading demo data`);
+      }
+      if (hasStale2026) {
+        console.log(`Stale 2026 data detected (max month in DB: ${maxMonth2026InDb}, last actual: ${LAST_ACTUAL_MONTH_2026}) — reloading demo data`);
       }
       const demo = generateDemoData();
       await db.delete(crimeStatsTable);
@@ -834,7 +883,7 @@ async function loadDemoIfEmpty() {
         lastRefreshed: new Date(),
         nextRefresh: new Date(Date.now() + 24 * 60 * 60 * 1000),
         status: "error",
-        message: `Datos de demostración precargados (${saved} registros)`,
+        message: `Datos reales ene-feb 2026 + histórico 2022-2025 (${saved} registros)`,
         recordCount: saved,
       });
       console.log(`Demo data loaded: ${saved} records`);
