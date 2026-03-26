@@ -548,11 +548,16 @@ function parseRegistroFile(wb: XLSX.WorkBook, year: number): ParsedRow[] {
 }
 
 async function saveRows(rows: ParsedRow[]): Promise<number> {
-  const BATCH = 200;
+  const BATCH = 50;
   let saved = 0;
   for (let i = 0; i < rows.length; i += BATCH) {
-    await db.insert(crimeStatsTable).values(rows.slice(i, i + BATCH));
-    saved += Math.min(BATCH, rows.length - i);
+    try {
+      const batch = rows.slice(i, i + BATCH);
+      await db.insert(crimeStatsTable).values(batch);
+      saved += batch.length;
+    } catch (batchErr) {
+      console.error(`Batch insert failed at offset ${i}:`, batchErr instanceof Error ? batchErr.message : String(batchErr));
+    }
   }
   return saved;
 }
@@ -700,6 +705,8 @@ function generateDemoData(): ParsedRow[] {
 let refreshInProgress = false;
 
 async function loadDemoIfEmpty() {
+  if (refreshInProgress) return;
+  refreshInProgress = true;
   try {
     const currentYear = new Date().getFullYear();
     const countResult = await db
@@ -711,20 +718,44 @@ async function loadDemoIfEmpty() {
       .where(eq(crimeStatsTable.year, currentYear));
     const isEmpty = Number(countResult[0]?.count) === 0;
     const missingCurrentYear = yearResult.length === 0;
-    if (isEmpty || missingCurrentYear) {
+
+    // Check if all current crime types are present in the DB
+    const presentTypes = await db
+      .selectDistinct({ crimeType: crimeStatsTable.crimeTypeId })
+      .from(crimeStatsTable);
+    const presentTypeIds = new Set(presentTypes.map(r => r.crimeType));
+    const missingTypes = CRIME_TYPES.filter(ct => !presentTypeIds.has(ct.id));
+    const hasMissingTypes = missingTypes.length > 0;
+
+    // Check if row count is not a clean multiple of (CRIME_TYPES.length × 33 departments)
+    const totalRows = Number(countResult[0]?.count ?? 0);
+    const rowsPerMonthPerType = 33; // 32 departments + NACIONAL
+    const hasExtraRows = totalRows > 0 && (totalRows % (CRIME_TYPES.length * rowsPerMonthPerType) !== 0);
+
+    if (isEmpty || missingCurrentYear || hasMissingTypes || hasExtraRows) {
+      if (hasMissingTypes) {
+        console.log(`Missing crime types detected: ${missingTypes.map(t => t.id).join(", ")} — reloading demo data`);
+      }
+      if (hasExtraRows) {
+        console.log(`Extra/corrupt rows detected (${totalRows} not divisible by ${CRIME_TYPES.length * rowsPerMonthPerType}) — reloading demo data`);
+      }
       const demo = generateDemoData();
-      await saveRows(demo);
+      await db.delete(crimeStatsTable);
+      const saved = await saveRows(demo);
       await db.delete(refreshLogTable);
       await db.insert(refreshLogTable).values({
         lastRefreshed: new Date(),
         nextRefresh: new Date(Date.now() + 24 * 60 * 60 * 1000),
         status: "error",
-        message: `Datos de demostración precargados (${demo.length} registros)`,
-        recordCount: demo.length,
+        message: `Datos de demostración precargados (${saved} registros)`,
+        recordCount: saved,
       });
+      console.log(`Demo data loaded: ${saved} records`);
     }
-  } catch {
-    // If DB isn't ready yet, skip — will retry on next request
+  } catch (err) {
+    console.error("loadDemoIfEmpty error:", err instanceof Error ? err.message : String(err));
+  } finally {
+    refreshInProgress = false;
   }
 }
 
@@ -739,10 +770,18 @@ async function ensureDataLoaded() {
       .selectDistinct({ year: crimeStatsTable.year })
       .from(crimeStatsTable)
       .where(eq(crimeStatsTable.year, currentYear));
-    const needsLoad = Number(countResult[0]?.count) === 0 || yearResult.length === 0;
+
+    // Also check if all crime types are present
+    const presentTypes = await db
+      .selectDistinct({ crimeType: crimeStatsTable.crimeTypeId })
+      .from(crimeStatsTable);
+    const presentTypeIds = new Set(presentTypes.map(r => r.crimeType));
+    const hasMissingTypes = CRIME_TYPES.some(ct => !presentTypeIds.has(ct.id));
+
+    const needsLoad = Number(countResult[0]?.count) === 0 || yearResult.length === 0 || hasMissingTypes;
     if (needsLoad) {
-      refreshInProgress = true;
-      loadDemoIfEmpty().finally(() => { refreshInProgress = false; });
+      // loadDemoIfEmpty manages refreshInProgress internally
+      loadDemoIfEmpty().catch(err => console.error("ensureDataLoaded error:", err));
     }
   } catch {
     // Ignore DB errors in ensure
@@ -752,6 +791,7 @@ async function ensureDataLoaded() {
 router.get("/crimes/types", (_req, res) => {
   res.json(CRIME_TYPES.map((ct) => ({ id: ct.id, name: ct.name, description: null })));
 });
+
 
 router.get("/crimes/years", async (_req, res) => {
   try {
