@@ -39,6 +39,7 @@ import {
 import { ColombiaMap } from "@/components/ColombiaMap";
 import { RouteAnalyzer } from "@/components/RouteAnalyzer";
 import { ReportGenerator } from "@/components/ReportGenerator";
+import { DataAlertBanner } from "@/components/DataAlertBanner";
 
 /* ───────── EXECUTIVE PALETTE ───────── */
 const E = {
@@ -542,6 +543,9 @@ export default function Dashboard() {
             </button>
           ))}
         </div>
+
+        {/* ── GLOBAL ALERT BANNERS ── */}
+        <DataAlertBanner dark={isDark} />
 
         {/* ── ROUTE ANALYZER TAB ── */}
         {activeTab === "ruta" && (

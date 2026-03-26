@@ -381,3 +381,12 @@
   .overflow-auto, .overflow-y-auto, .overflow-scroll, .overflow-y-scroll { overflow: visible !important; max-height: none !important; }
   [style*="max-height"] { max-height: none !important; }
 }
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
