@@ -4,7 +4,7 @@ import { parse } from "node-html-parser";
 const router: IRouter = Router();
 
 const SOURCE_URL = "https://www.policia.gov.co/estado-de-las-vias";
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours — source updates daily
 
 interface RoadCondition {
   via: string;

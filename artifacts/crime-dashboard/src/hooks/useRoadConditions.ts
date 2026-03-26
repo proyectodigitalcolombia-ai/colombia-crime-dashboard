@@ -31,8 +31,8 @@ export function useRoadConditions() {
   return useQuery<RoadConditionsResponse>({
     queryKey: QUERY_KEY,
     queryFn: () => customFetch<RoadConditionsResponse>("/api/road-conditions"),
-    staleTime: 30 * 60 * 1000,
-    refetchInterval: 60 * 60 * 1000,
+    staleTime: 6 * 60 * 60 * 1000,
+    refetchInterval: 6 * 60 * 60 * 1000,
     retry: 2,
   });
 }

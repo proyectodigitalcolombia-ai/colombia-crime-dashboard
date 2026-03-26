@@ -979,7 +979,7 @@ export function RouteAnalyzer({ dark = true }: Props) {
                     <div style={{ textAlign: "center", color: textMuted, fontSize: "12px", padding: "20px 0", border: `1px dashed ${borderC}`, borderRadius: "8px" }}>
                       <div style={{ fontSize: "20px", marginBottom: "6px" }}>✅</div>
                       <div style={{ fontWeight: 600, color: dark ? "#e2eaf4" : "#1a2a3a" }}>Sin cierres oficiales reportados</div>
-                      <div style={{ fontSize: "10px", marginTop: "3px" }}>para los departamentos de este corredor</div>
+                      <div style={{ fontSize: "10px", marginTop: "3px" }}>para los departamentos de este corredor · Fuente se actualiza diariamente</div>
                     </div>
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -1019,7 +1019,7 @@ export function RouteAnalyzer({ dark = true }: Props) {
                         );
                       })}
                       <div style={{ fontSize: "9px", color: textMuted, textAlign: "right", marginTop: "2px" }}>
-                        {officialClosures.length} cierre{officialClosures.length !== 1 ? "s" : ""} en este corredor · Fuente oficial: policia.gov.co
+                        {officialClosures.length} cierre{officialClosures.length !== 1 ? "s" : ""} en este corredor · Fuente: policia.gov.co · Actualización diaria
                       </div>
                     </div>
                   )}
