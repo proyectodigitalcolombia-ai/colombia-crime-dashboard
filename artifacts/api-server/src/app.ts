@@ -1,6 +1,8 @@
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
+import path from "path";
+import fs from "fs";
 import router from "./routes";
 import { logger } from "./lib/logger";
 
@@ -25,29 +27,22 @@ app.use(
     },
   }),
 );
-app.use(cors());
+app.use(cors({ origin: "*" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.get("/", (_req, res) => {
-  res.json({
-    name: "Colombia Crime Statistics API",
-    version: "1.0.0",
-    description: "API de estadísticas de delitos en Colombia - Policía Nacional",
-    endpoints: {
-      health: "/api/healthz",
-      crimeTypes: "/api/crimes/types",
-      years: "/api/crimes/years",
-      nationalMonthly: "/api/crimes/national-monthly",
-      byDepartment: "/api/crimes/by-department",
-      refreshStatus: "/api/crimes/refresh-status",
-      refresh: "POST /api/crimes/refresh",
-    },
-    dashboard: "https://colombia-crime-dashboard.onrender.com",
-    status: "operational",
-  });
-});
-
 app.use("/api", router);
+
+const dashboardDist = path.join(__dirname, "../../crime-dashboard/dist/public");
+if (fs.existsSync(dashboardDist)) {
+  app.use(express.static(dashboardDist, { index: false }));
+  app.get("/{*splat}", (_req, res) => {
+    res.sendFile(path.join(dashboardDist, "index.html"));
+  });
+} else {
+  app.get("/", (_req, res) => {
+    res.json({ name: "Colombia Crime Statistics API", status: "operational" });
+  });
+}
 
 export default app;
