@@ -551,7 +551,7 @@ export default function Dashboard() {
             value={loading ? "—" : mostFrequentCrime.name}
             sub={loading ? undefined : `${mostFrequentCrime.count.toLocaleString("es-CO")} casos`}
             icon={AlertTriangle}
-            accentColor={E.purple}
+            accentColor={E.red}
             dark={isDark}
             loading={false}
           />
@@ -624,7 +624,7 @@ export default function Dashboard() {
           ) : (
             <ChartPanel title="Distribución Geográfica" exportData={deptData} exportName="geografica.csv" dark={isDark} loading={loading}>
               <div style={{ height: "300px" }}>
-                {loading ? <Skeleton className="w-full h-full" /> : <ColombiaMap data={deptData} />}
+                {loading ? <Skeleton className="w-full h-full" /> : <ColombiaMap data={deptData} dark={isDark} />}
               </div>
             </ChartPanel>
           )}
@@ -635,7 +635,7 @@ export default function Dashboard() {
           {selectedCrimeType === "all" && (
             <ChartPanel title="Mapa de Calor" exportData={deptData} exportName="mapa-calor.csv" dark={isDark} loading={loading}>
               <div style={{ height: "380px" }}>
-                {loading ? <Skeleton className="w-full h-full" /> : <ColombiaMap data={deptData} />}
+                {loading ? <Skeleton className="w-full h-full" /> : <ColombiaMap data={deptData} dark={isDark} />}
               </div>
             </ChartPanel>
           )}
