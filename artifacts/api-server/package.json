@@ -17,6 +17,7 @@
     "drizzle-orm": "catalog:",
     "express": "^5",
     "node-cron": "^4.2.1",
+    "node-html-parser": "^7.1.0",
     "pino": "^9",
     "pino-http": "^10",
     "xlsx": "^0.18.5"

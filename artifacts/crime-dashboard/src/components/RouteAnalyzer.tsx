@@ -13,9 +13,11 @@ import type { Blockade } from "@workspace/api-client-react";
 import {
   Shield, Truck, MapPin, ChevronRight,
   Moon, Radio, CloudRain, Users, Ban, Plus, X, Clock, BarChart2, FileText,
+  AlertTriangle, RefreshCw, ExternalLink,
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import { useWeather } from "@/hooks/useWeather";
+import { useRoadConditionsByDepartment, useRefreshRoadConditions } from "@/hooks/useRoadConditions";
 
 const GEO_URL =
   "https://gist.githubusercontent.com/john-guerra/43c7656821069d00dcbc/raw/be6a6e239cd5b5b803c6e7c2ec405b793a9064dd/colombia.geo.json";
@@ -317,6 +319,9 @@ export function RouteAnalyzer({ dark = true }: Props) {
   const [formError,        setFormError]         = useState("");
 
   const { data: weatherMap = {} } = useWeather(selectedCorridor?.departments ?? []);
+  const { conditions: officialClosures, meta: rcMeta, isLoading: rcLoading } =
+    useRoadConditionsByDepartment(selectedCorridor?.departments ?? []);
+  const refreshRcMutation = useRefreshRoadConditions();
 
   const panelBg   = dark ? E.panel   : "#ffffff";
   const textMain  = dark ? "#e2eaf4" : "#1a2a3a";
@@ -767,7 +772,11 @@ export function RouteAnalyzer({ dark = true }: Props) {
               {([["risk","📊 Análisis de Riesgo"],["blockades","🛑 Bloqueos Comunitarios"]] as const).map(([id, label]) => (
                 <button key={id} onClick={() => setActiveTab(id)} style={{ padding: "6px 14px", fontSize: "11px", fontWeight: 600, border: `1px solid ${activeTab===id?E.pink:borderC}`, borderRadius: "7px", background: activeTab===id?"rgba(236,72,153,0.1)":"transparent", color: activeTab===id?E.pink:textMuted, cursor: "pointer" }}>
                   {label}
-                  {id === "blockades" && corridorBlockades.length > 0 && <span style={{ marginLeft: "5px", background: E.pink, color: "#fff", borderRadius: "10px", padding: "1px 6px", fontSize: "9px" }}>{corridorBlockades.length}</span>}
+                  {id === "blockades" && (corridorBlockades.length > 0 || officialClosures.length > 0) && (
+                    <span style={{ marginLeft: "5px", background: officialClosures.some(c=>c.conditionCode==="cierre_total") ? E.red : E.pink, color: "#fff", borderRadius: "10px", padding: "1px 6px", fontSize: "9px" }}>
+                      {corridorBlockades.length + officialClosures.length}
+                    </span>
+                  )}
                 </button>
               ))}
               {activeTab === "risk" && (
@@ -934,6 +943,84 @@ export function RouteAnalyzer({ dark = true }: Props) {
                           </div>
                         );
                       })}
+                    </div>
+                  )}
+                </div>
+
+                {/* ── OFFICIAL POLICE ROAD CONDITIONS ── */}
+                <div style={{ background: panelBg, border: `1px solid ${dark?"rgba(239,68,68,0.25)":borderC}`, borderRadius: "12px", padding: "14px 16px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px", flexWrap: "wrap" }}>
+                    <AlertTriangle style={{ width: 13, height: 13, color: E.red, flexShrink: 0 }} />
+                    <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: E.red }}>Cierres Oficiales — Policía Nacional</span>
+                    <a href="https://www.policia.gov.co/estado-de-las-vias" target="_blank" rel="noopener noreferrer"
+                       style={{ marginLeft: "auto", fontSize: "9px", color: E.cyan, textDecoration: "none", display: "flex", alignItems: "center", gap: "3px", flexShrink: 0 }}>
+                      <ExternalLink style={{ width: 9, height: 9 }} /> policia.gov.co
+                    </a>
+                    <button
+                      onClick={() => refreshRcMutation.mutate()}
+                      disabled={refreshRcMutation.isPending || rcLoading}
+                      title="Actualizar ahora"
+                      style={{ background: "transparent", border: `1px solid ${borderC}`, borderRadius: "5px", padding: "3px 7px", cursor: "pointer", color: textMuted, display: "flex", alignItems: "center", gap: "3px", fontSize: "9px" }}>
+                      <RefreshCw style={{ width: 9, height: 9, animation: (refreshRcMutation.isPending || rcLoading) ? "spin 1s linear infinite" : "none" }} />
+                      {rcMeta?.fetchedAt ? `Act. ${new Date(rcMeta.fetchedAt).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}` : "Actualizar"}
+                    </button>
+                  </div>
+
+                  {/* Error banner */}
+                  {rcMeta?.error && (
+                    <div style={{ fontSize: "10px", color: E.amber, background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: "6px", padding: "6px 10px", marginBottom: "8px" }}>
+                      ⚠️ {rcMeta.error} — Mostrando datos de última actualización disponible.
+                    </div>
+                  )}
+
+                  {rcLoading ? (
+                    <div style={{ textAlign: "center", color: textMuted, fontSize: "12px", padding: "20px 0" }}>Consultando policia.gov.co…</div>
+                  ) : officialClosures.length === 0 ? (
+                    <div style={{ textAlign: "center", color: textMuted, fontSize: "12px", padding: "20px 0", border: `1px dashed ${borderC}`, borderRadius: "8px" }}>
+                      <div style={{ fontSize: "20px", marginBottom: "6px" }}>✅</div>
+                      <div style={{ fontWeight: 600, color: dark ? "#e2eaf4" : "#1a2a3a" }}>Sin cierres oficiales reportados</div>
+                      <div style={{ fontSize: "10px", marginTop: "3px" }}>para los departamentos de este corredor</div>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                      {officialClosures.map((c, i) => {
+                        const isTotalClosure = c.conditionCode === "cierre_total";
+                        const accentColor = isTotalClosure ? E.red : E.amber;
+                        return (
+                          <div key={i} style={{ background: dark ? `${accentColor}08` : "#fff", border: `1px solid ${accentColor}30`, borderRadius: "8px", padding: "10px 12px" }}>
+                            <div style={{ display: "flex", alignItems: "flex-start", gap: "8px", marginBottom: "6px" }}>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: "11px", fontWeight: 700, color: textMain, lineHeight: 1.3 }}>{c.via || "Vía sin nombre"}</div>
+                                <div style={{ fontSize: "10px", color: textMuted, marginTop: "2px" }}>{c.department}{c.sector && c.sector !== "Sin Sector" ? ` · ${c.sector}` : ""}{c.km ? ` · ${c.km}` : ""}</div>
+                              </div>
+                              <span style={{ fontSize: "8px", fontWeight: 700, color: accentColor, background: `${accentColor}18`, padding: "2px 7px", borderRadius: "4px", flexShrink: 0, whiteSpace: "nowrap" }}>
+                                {c.condition}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: "10px", color: textMuted, marginBottom: "3px" }}>
+                              <span style={{ color: accentColor, fontWeight: 600 }}>Motivo:</span> {c.reason || "No especificado"}
+                            </div>
+                            {c.alternativeRoute && c.alternativeRoute !== "No aplica" && c.alternativeRoute !== "N/A" && (
+                              <div style={{ fontSize: "10px", color: E.emerald, marginBottom: "3px" }}>
+                                🔀 <span style={{ fontWeight: 600 }}>Vía alterna:</span> {c.alternativeRoute}
+                              </div>
+                            )}
+                            <div style={{ display: "flex", gap: "12px", fontSize: "10px", color: textMuted, marginTop: "4px", flexWrap: "wrap" }}>
+                              {c.startDate && <span>📅 Desde: <span style={{ color: textMain }}>{c.startDate.split(" - ").pop()?.trim() || c.startDate}</span></span>}
+                              {c.indefinite
+                                ? <span style={{ color: E.red, fontWeight: 700 }}>🔴 Cierre indefinido</span>
+                                : c.endDate && <span>⏱ Hasta: <span style={{ color: textMain }}>{c.endDate.split(" - ").pop()?.trim() || c.endDate}</span></span>
+                              }
+                              {c.responsibleEntity && c.responsibleEntity !== "N/A" && (
+                                <span>🏛 <span style={{ color: textMain }}>{c.responsibleEntity}</span></span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <div style={{ fontSize: "9px", color: textMuted, textAlign: "right", marginTop: "2px" }}>
+                        {officialClosures.length} cierre{officialClosures.length !== 1 ? "s" : ""} en este corredor · Fuente oficial: policia.gov.co
+                      </div>
                     </div>
                   )}
                 </div>
