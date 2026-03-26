@@ -6,6 +6,7 @@ import {
   useGetBlockades,
 } from "@workspace/api-client-react";
 import { Building2, Upload, Download, Palette, User, Mail, Phone, FileText, CheckCircle2, RefreshCw } from "lucide-react";
+import safeNodeLogoUrl from "../assets/safenode-logo.png";
 
 const LS_KEY = "colombia_report_config_v2";
 
@@ -69,12 +70,12 @@ export function ReportGenerator({ dark = true }: Props) {
   const borderC   = dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.08)";
   const inputBg   = dark ? "rgba(255,255,255,0.04)" : "#f8fafc";
 
-  /* Load saved config and default logo */
+  /* Load saved config and default logo as data URL (needed for PDF generation) */
   useEffect(() => {
     try { const s = localStorage.getItem(LS_KEY); if (s) setConfig(JSON.parse(s)); } catch { /* ignore */ }
-    /* Load SafeNode default logo from public dir */
-    fetch("/safenode-logo.png")
-      .then(r => r.blob())
+    /* Convert SafeNode logo to data URL for jsPDF compatibility */
+    fetch(safeNodeLogoUrl)
+      .then(r => { if (!r.ok) throw new Error("logo not found"); return r.blob(); })
       .then(blob => {
         const reader = new FileReader();
         reader.onload = () => setDefaultLogo(reader.result as string);
@@ -83,8 +84,11 @@ export function ReportGenerator({ dark = true }: Props) {
       .catch(() => { /* logo not available */ });
   }, []);
 
-  /* Active logo: user upload takes priority, falls back to SafeNode default */
-  const activeLogo = config.logoDataUrl || defaultLogo;
+  /* For display: use imported URL directly (instant, no async needed) */
+  /* For PDF: use data URL (jsPDF requires data URL or canvas element) */
+  const activeLogoDisplay = config.logoDataUrl || defaultLogo || safeNodeLogoUrl;
+  const activeLogoForPdf  = config.logoDataUrl || defaultLogo;
+  const activeLogo = activeLogoDisplay;
 
   function updateConfig(patch: Partial<ReportConfig>) {
     setConfig(prev => { const next = { ...prev, ...patch }; localStorage.setItem(LS_KEY, JSON.stringify(next)); return next; });
@@ -242,7 +246,7 @@ export function ReportGenerator({ dark = true }: Props) {
       doc.setGState(new (doc as any).GState({ opacity: 1 }));
 
       /* Logo — centered at top, large, blends into navy background */
-      const logoSrc = activeLogo;
+      const logoSrc = activeLogoForPdf;
       if (logoSrc) {
         try {
           const fmt = logoSrc.startsWith("data:image/png") ? "PNG" : "JPEG";
