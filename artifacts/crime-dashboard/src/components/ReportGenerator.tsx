@@ -21,12 +21,12 @@ interface ReportConfig {
 }
 
 const DEFAULTS: ReportConfig = {
-  companyName: "Mi Empresa S.A.S.",
-  companySubtitle: "Gestión Logística y Transporte",
+  companyName: "SafeNode S.A.S.",
+  companySubtitle: "Inteligencia en Seguridad Logística y Transporte",
   analystName: "Analista de Seguridad",
-  analystEmail: "seguridad@miempresa.com",
+  analystEmail: "seguridad@safenode.com.co",
   analystPhone: "+57 300 000 0000",
-  primaryColor: "#0066cc",
+  primaryColor: "#00bcd4",
   logoDataUrl: "",
   footerDisclaimer: "Documento confidencial — uso exclusivo interno.",
 };
@@ -60,6 +60,7 @@ export function ReportGenerator({ dark = true }: Props) {
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState(false);
   const [year, setYear] = useState(2026);
+  const [defaultLogo, setDefaultLogo] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const panelBg   = dark ? "#0c1220" : "#ffffff";
@@ -68,9 +69,22 @@ export function ReportGenerator({ dark = true }: Props) {
   const borderC   = dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.08)";
   const inputBg   = dark ? "rgba(255,255,255,0.04)" : "#f8fafc";
 
+  /* Load saved config and default logo */
   useEffect(() => {
     try { const s = localStorage.getItem(LS_KEY); if (s) setConfig(JSON.parse(s)); } catch { /* ignore */ }
+    /* Load SafeNode default logo from public dir */
+    fetch("/safenode-logo.png")
+      .then(r => r.blob())
+      .then(blob => {
+        const reader = new FileReader();
+        reader.onload = () => setDefaultLogo(reader.result as string);
+        reader.readAsDataURL(blob);
+      })
+      .catch(() => { /* logo not available */ });
   }, []);
+
+  /* Active logo: user upload takes priority, falls back to SafeNode default */
+  const activeLogo = config.logoDataUrl || defaultLogo;
 
   function updateConfig(patch: Partial<ReportConfig>) {
     setConfig(prev => { const next = { ...prev, ...patch }; localStorage.setItem(LS_KEY, JSON.stringify(next)); return next; });
@@ -213,71 +227,81 @@ export function ReportGenerator({ dark = true }: Props) {
       }
 
       /* ══════════════════════════════════════
-         PAGE 1 — COVER
+         PAGE 1 — COVER  (always dark navy — matches SafeNode brand)
          ══════════════════════════════════════ */
-      /* Full primary background */
-      doc.setFillColor(pri.r, pri.g, pri.b);
+      const navyR = 13, navyG = 27, navyB = 49;
+      doc.setFillColor(navyR, navyG, navyB);
       doc.rect(0, 0, W, H, "F");
-      /* Dark bottom accent strip */
-      doc.setFillColor(dr, dg, db);
-      doc.rect(0, H - 50, W, 50, "F");
+      /* Cyan top accent stripe */
+      doc.setFillColor(pri.r, pri.g, pri.b);
+      doc.rect(0, 0, W, 6, "F");
+      /* Cyan bottom accent strip */
+      doc.setFillColor(pri.r, pri.g, pri.b);
+      doc.setGState(new (doc as any).GState({ opacity: 0.85 }));
+      doc.rect(0, H - 44, W, 44, "F");
+      doc.setGState(new (doc as any).GState({ opacity: 1 }));
 
-      /* Logo */
-      if (config.logoDataUrl) {
+      /* Logo — centered at top, large, blends into navy background */
+      const logoSrc = activeLogo;
+      if (logoSrc) {
         try {
-          const fmt = config.logoDataUrl.includes("png") ? "PNG" : "JPEG";
-          doc.addImage(config.logoDataUrl, fmt, margin, margin, 0, 18);
+          const fmt = logoSrc.startsWith("data:image/png") ? "PNG" : "JPEG";
+          const logoW = 52, logoH = 52;
+          doc.addImage(logoSrc, fmt, (W - logoW) / 2, 18, logoW, logoH);
         } catch { /* skip corrupt logo */ }
       }
 
-      /* Decorative circle */
-      doc.setFillColor(...onPri); doc.setGState(new (doc as any).GState({ opacity: 0.05 }));
-      doc.circle(W + 20, 60, 80, "F");
-      doc.circle(-20, H - 80, 60, "F");
+      /* Subtle decorative glow circles (cyan, low opacity) */
+      doc.setFillColor(pri.r, pri.g, pri.b);
+      doc.setGState(new (doc as any).GState({ opacity: 0.07 }));
+      doc.circle(W + 10, 50, 80, "F");
+      doc.circle(-10, H - 80, 60, "F");
       doc.setGState(new (doc as any).GState({ opacity: 1 }));
 
-      /* System badge */
-      doc.setFontSize(8); doc.setFont("helvetica", "normal");
-      doc.setTextColor(...onPri); doc.setGState(new (doc as any).GState({ opacity: 0.75 }));
-      doc.text("SISTEMA INTEGRADO DE SEGURIDAD LOGÍSTICA", W / 2, 68, { align: "center" });
+      /* ── Cover text — always WHITE on dark navy ── */
+      /* System badge above title */
+      doc.setFontSize(7.5); doc.setFont("helvetica", "normal");
+      doc.setTextColor(pri.r, pri.g, pri.b);
+      doc.setGState(new (doc as any).GState({ opacity: 0.9 }));
+      doc.text("SISTEMA INTEGRADO DE SEGURIDAD LOGÍSTICA", W / 2, 83, { align: "center" });
       doc.setGState(new (doc as any).GState({ opacity: 1 }));
 
       /* Main title */
-      doc.setFontSize(34); doc.setFont("helvetica", "bold");
-      doc.setTextColor(...onPri);
-      doc.text("INFORME GERENCIAL", W / 2, 90, { align: "center" });
-      doc.text("DE SEGURIDAD VIAL", W / 2, 106, { align: "center" });
+      doc.setFontSize(32); doc.setFont("helvetica", "bold");
+      doc.setTextColor(255, 255, 255);
+      doc.text("INFORME GERENCIAL", W / 2, 104, { align: "center" });
+      doc.text("DE SEGURIDAD VIAL", W / 2, 119, { align: "center" });
 
-      /* Divider line */
-      doc.setDrawColor(...onPri); doc.setLineWidth(0.6);
-      const divOpacity = isLight(config.primaryColor) ? 0.4 : 0.5;
-      doc.setGState(new (doc as any).GState({ opacity: divOpacity }));
-      doc.line(40, 114, W - 40, 114);
-      doc.setGState(new (doc as any).GState({ opacity: 1 }));
+      /* Cyan divider line */
+      doc.setDrawColor(pri.r, pri.g, pri.b); doc.setLineWidth(0.8);
+      doc.line(45, 127, W - 45, 127);
 
       /* Year chip */
-      doc.setFontSize(22); doc.setFont("helvetica", "bold");
-      doc.setTextColor(...onPri);
-      doc.text(`Colombia · ${year}`, W / 2, 128, { align: "center" });
+      doc.setFontSize(20); doc.setFont("helvetica", "bold");
+      doc.setTextColor(pri.r, pri.g, pri.b);
+      doc.text(`Colombia · ${year}`, W / 2, 142, { align: "center" });
 
-      /* Company block */
-      doc.setFontSize(16); doc.setFont("helvetica", "bold");
-      doc.text(config.companyName, W / 2, 155, { align: "center" });
-      doc.setFontSize(11); doc.setFont("helvetica", "normal");
-      doc.setGState(new (doc as any).GState({ opacity: 0.8 }));
-      doc.text(config.companySubtitle, W / 2, 164, { align: "center" });
+      /* Company name block */
+      doc.setFontSize(15); doc.setFont("helvetica", "bold");
+      doc.setTextColor(255, 255, 255);
+      doc.text(config.companyName, W / 2, 170, { align: "center" });
+      doc.setFontSize(10); doc.setFont("helvetica", "normal");
+      doc.setTextColor(pri.r, pri.g, pri.b);
+      doc.setGState(new (doc as any).GState({ opacity: 0.9 }));
+      doc.text(config.companySubtitle, W / 2, 179, { align: "center" });
       doc.setGState(new (doc as any).GState({ opacity: 1 }));
 
-      /* Date and analyst - bottom strip */
+      /* Bottom cyan strip — date + analyst */
+      doc.setTextColor(navyR, navyG, navyB);
       doc.setFontSize(10); doc.setFont("helvetica", "bold");
-      doc.text(dateStr.toUpperCase(), W / 2, H - 35, { align: "center" });
-      doc.setFontSize(9); doc.setFont("helvetica", "normal");
-      doc.setGState(new (doc as any).GState({ opacity: 0.8 }));
-      doc.text(`${config.analystName}  ·  ${config.analystEmail}  ·  ${config.analystPhone}`, W / 2, H - 26, { align: "center" });
-      doc.text("Fuente: Policía Nacional de Colombia / AICRI", W / 2, H - 18, { align: "center" });
-      doc.setGState(new (doc as any).GState({ opacity: 0.55 }));
-      doc.setFontSize(7);
-      doc.text(config.footerDisclaimer, W / 2, H - 10, { align: "center" });
+      doc.text(dateStr.toUpperCase(), W / 2, H - 32, { align: "center" });
+      doc.setFontSize(8.5); doc.setFont("helvetica", "normal");
+      doc.text(`${config.analystName}  ·  ${config.analystEmail}  ·  ${config.analystPhone}`, W / 2, H - 23, { align: "center" });
+      doc.setFontSize(7.5);
+      doc.text("Fuente: Policía Nacional de Colombia / AICRI", W / 2, H - 15, { align: "center" });
+      doc.setFontSize(6.5);
+      doc.setGState(new (doc as any).GState({ opacity: 0.7 }));
+      doc.text(config.footerDisclaimer, W / 2, H - 7, { align: "center" });
       doc.setGState(new (doc as any).GState({ opacity: 1 }));
 
       /* ══════════════════════════════════════
@@ -553,7 +577,7 @@ export function ReportGenerator({ dark = true }: Props) {
     sectionTitle: { fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const, color: textMuted, marginBottom: "14px", display: "flex", alignItems: "center", gap: "6px" } as React.CSSProperties,
   };
 
-  const PRESETS = ["#0066cc","#00897b","#e53935","#5e35b1","#f57c00","#1a237e","#2e7d32","#37474f","#c62828","#00695c"];
+  const PRESETS = ["#00bcd4","#0d1b31","#006b87","#0066cc","#00897b","#5e35b1","#e53935","#f57c00","#2e7d32","#37474f"];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -628,10 +652,12 @@ export function ReportGenerator({ dark = true }: Props) {
               onMouseEnter={e => (e.currentTarget.style.borderColor = config.primaryColor)}
               onMouseLeave={e => (e.currentTarget.style.borderColor = dark?"rgba(255,255,255,0.12)":"rgba(0,0,0,0.12)")}
             >
-              {config.logoDataUrl ? (
+              {activeLogo ? (
                 <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:"8px" }}>
-                  <img src={config.logoDataUrl} alt="Logo" style={{ maxHeight:"64px", maxWidth:"180px", objectFit:"contain" }} />
-                  <span style={{ fontSize:"11px", color:textMuted }}>Clic para cambiar</span>
+                  <img src={activeLogo} alt="Logo" style={{ maxHeight:"72px", maxWidth:"180px", objectFit:"contain", borderRadius:"6px" }} />
+                  <span style={{ fontSize:"11px", color:textMuted }}>
+                    {config.logoDataUrl ? "Logo personalizado · clic para cambiar" : "Logo SafeNode (por defecto) · clic para reemplazar"}
+                  </span>
                 </div>
               ) : (
                 <>
@@ -643,7 +669,7 @@ export function ReportGenerator({ dark = true }: Props) {
             </div>
             <input ref={fileInputRef} type="file" accept="image/png,image/jpeg" style={{ display:"none" }} onChange={handleLogoUpload} />
             {config.logoDataUrl && (
-              <button onClick={() => updateConfig({ logoDataUrl:"" })} style={{ marginTop:"6px", fontSize:"10px", color:"#ef4444", background:"transparent", border:"none", cursor:"pointer" }}>✕ Eliminar logo</button>
+              <button onClick={() => updateConfig({ logoDataUrl:"" })} style={{ marginTop:"6px", fontSize:"10px", color:"#ef4444", background:"transparent", border:"none", cursor:"pointer" }}>✕ Restaurar logo SafeNode</button>
             )}
           </div>
 
