@@ -23,12 +23,14 @@ services:
 
   - type: web
     name: colombia-crime-dashboard
-    env: node
+    env: static
     plan: starter
-    buildCommand: cd artifacts/crime-dashboard && npm install express
-    startCommand: node artifacts/crime-dashboard/server.js
+    staticPublishPath: ./artifacts/crime-dashboard/dist/public
+    buildCommand: echo "pre-built"
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
     envVars:
-      - key: NODE_ENV
-        value: production
-      - key: PORT
-        value: "10000"
+      - key: NODE_VERSION
+        value: "22"
