@@ -29,8 +29,42 @@ async function ensureSchema() {
         message TEXT,
         record_count INTEGER NOT NULL DEFAULT 0
       );
+
+      CREATE TABLE IF NOT EXISTS blockades (
+        id SERIAL PRIMARY KEY,
+        corridor_id TEXT NOT NULL,
+        department TEXT NOT NULL,
+        date TEXT NOT NULL,
+        cause TEXT NOT NULL DEFAULT 'comunidad',
+        location TEXT NOT NULL,
+        duration_hours INTEGER,
+        status TEXT NOT NULL DEFAULT 'activo',
+        notes TEXT,
+        reporter TEXT,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS blockades_corridor_idx ON blockades (corridor_id);
+      CREATE INDEX IF NOT EXISTS blockades_status_idx ON blockades (status);
+
+      CREATE TABLE IF NOT EXISTS road_conditions_cache (
+        id SERIAL PRIMARY KEY,
+        via TEXT NOT NULL,
+        department TEXT NOT NULL,
+        sector TEXT,
+        km TEXT,
+        condition TEXT,
+        condition_code TEXT,
+        reason TEXT,
+        alternative_route TEXT,
+        start_date TEXT,
+        end_date TEXT,
+        indefinite BOOLEAN NOT NULL DEFAULT FALSE,
+        responsible_entity TEXT,
+        fetched_at TIMESTAMP NOT NULL DEFAULT NOW()
+      );
     `);
-    logger.info("Database schema ensured");
+    logger.info("Database schema ensured (all tables)");
   } finally {
     client.release();
   }

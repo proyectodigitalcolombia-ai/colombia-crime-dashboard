@@ -363,7 +363,7 @@ export function RouteAnalyzer({ dark = true }: Props) {
     },
   });
 
-  const userBlockades: Blockade[] = allBlockades as Blockade[];
+  const userBlockades: Blockade[] = Array.isArray(allBlockades) ? allBlockades as Blockade[] : [];
 
   const routeSet = useMemo(() => !selectedCorridor ? new Set<string>() : new Set(selectedCorridor.departments.map(d => normKey(d))), [selectedCorridor]);
 

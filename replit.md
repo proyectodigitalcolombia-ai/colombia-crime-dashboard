@@ -138,6 +138,27 @@ The 2026 file has individual registration records (one row per crime). Parser: `
 
 Refresh strategy: loads 2026 registro file first (fast), then historical cuadro file for 2020-2025 (filters out years already loaded). Falls back to demo data if both fail.
 
+## Known Bugs & Fixes
+
+### Production API Routes Missing (FIXED — needs next deploy)
+**Root cause**: The `blockades.ts` and `road-conditions.ts` route files were added locally AFTER the last Render deploy (commit `e45d1ebd7f7573027216a4a5317691c264ee91de`). The live production server has an old compiled bundle without these routes. All unmatched `/api/*` paths fall through to the SPA catch-all and return `index.html` (200 HTML).
+
+**Fix applied**:
+1. `artifacts/api-server/src/index.ts` — `ensureSchema()` now creates the `blockades` table on server startup (was only creating `crime_stats` and `refresh_log`)
+2. `artifacts/crime-dashboard/src/components/RouteAnalyzer.tsx` — added `Array.isArray()` guard before `.filter()` on `allBlockades`
+3. `artifacts/crime-dashboard/src/components/ReportGenerator.tsx` — same guard for `allBlockades.filter()`
+4. `artifacts/crime-dashboard/src/pages/Dashboard.tsx` — same guard for `allBlockadesRaw`
+
+**After next auto-deploy**: Both routes will be registered, `blockades` table will be created, and `Q.filter is not a function` crash in Piratería Terrestre tab will be fixed.
+
+### Blob Loader for Bright Data Proxy (ACTIVE)
+User's Bright Data proxy extension blocks `<script src="...">` but allows `fetch()`. `blobLoaderPlugin()` in `vite.config.ts` replaces all `<script src>` tags with inline `fetch() + createObjectURL() + import()`. Single bundle build (`inlineDynamicImports: true`) ensures no relative imports break inside the blob URL.
+
+### Build Command for Dashboard
+```bash
+BASE_PATH=/ NODE_ENV=production pnpm --filter @workspace/crime-dashboard run build
+```
+
 ## Render + GitHub Deployment
 
 The project is configured to deploy as two Render services from a single GitHub repo.

@@ -276,7 +276,7 @@ export default function Dashboard() {
   const { data: allBlockadesRaw = [] } = useGetBlockades(undefined, { query: { refetchInterval: 60000 } });
   const blockadeCounts = useMemo<Record<string, number>>(() => {
     const m: Record<string, number> = {};
-    for (const b of allBlockadesRaw as any[]) {
+    for (const b of (Array.isArray(allBlockadesRaw) ? allBlockadesRaw : []) as any[]) {
       if (b.status === "activo") m[b.department] = (m[b.department] ?? 0) + 1;
     }
     return m;

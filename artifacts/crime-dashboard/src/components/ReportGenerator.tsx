@@ -114,7 +114,7 @@ export function ReportGenerator({ dark = true }: Props) {
     return Array.from({ length: 12 }, (_, i) => ({ month: i + 1, count: m[i + 1] ?? 0 }));
   }, [monthlyData]);
 
-  const activeBlockades = useMemo(() => (allBlockades as any[]).filter(b => b.status === "activo"), [allBlockades]);
+  const activeBlockades = useMemo(() => (Array.isArray(allBlockades) ? allBlockades : []).filter((b: any) => b.status === "activo"), [allBlockades]);
 
   function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
