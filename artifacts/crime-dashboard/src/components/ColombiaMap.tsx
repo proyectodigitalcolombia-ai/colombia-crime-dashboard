@@ -2,11 +2,9 @@ import { useState, useMemo } from "react";
 import { ComposableMap, Geographies, Geography } from "react-simple-maps";
 import { DepartmentStats } from "@workspace/api-client-react";
 
-// Real Colombia departments GeoJSON (John Guerra / public domain)
 const GEO_URL =
   "https://gist.githubusercontent.com/john-guerra/43c7656821069d00dcbc/raw/be6a6e239cd5b5b803c6e7c2ec405b793a9064dd/colombia.geo.json";
 
-/* ─── Normalize: strip accents, commas/dots, lowercase ─── */
 function normalize(s: string): string {
   return s
     .normalize("NFD")
@@ -16,7 +14,6 @@ function normalize(s: string): string {
     .trim();
 }
 
-/* ─── Map GeoJSON property names → normalized forms ─── */
 const GEOJSON_NAME_MAP: Record<string, string> = {
   "BOGOTÁ": "bogota dc",
   "BOGOTA": "bogota dc",
@@ -29,7 +26,13 @@ function normalizeDeptGeo(raw: string): string {
   return normalize(raw);
 }
 
-/* ─── Color scale ─── */
+function normalizeDeptKey(raw: string): string {
+  return normalize(raw)
+    .replace(/\bd\.c\./g, "dc")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function interpolate(a: string, b: string, t: number): string {
   const hexRgb = (h: string) => [
     parseInt(h.slice(1, 3), 16),
@@ -60,7 +63,6 @@ function getIntensityColor(value: number, dark: boolean): string {
   }
 }
 
-/* ─── Threat badge ─── */
 function getThreatBadge(v: number, dark: boolean) {
   if (v < 0.15) return { label: "BAJO",     color: dark ? "#2a8060" : "#1a6040" };
   if (v < 0.40) return { label: "MODERADO", color: dark ? "#b08000" : "#8a6000" };
@@ -68,18 +70,17 @@ function getThreatBadge(v: number, dark: boolean) {
   return              { label: "CRÍTICO",   color: dark ? "#cc0000" : "#900000" };
 }
 
-/* ─── Props ─── */
 interface Props {
   data: DepartmentStats[];
   dark?: boolean;
+  blockadeCounts?: Record<string, number>;
 }
 
-export function ColombiaMap({ data, dark = false }: Props) {
+export function ColombiaMap({ data, dark = false, blockadeCounts = {} }: Props) {
   const [hovered, setHovered] = useState<{
-    name: string; count: number; value: number; ex: number; ey: number;
+    name: string; count: number; value: number; blockades: number; ex: number; ey: number;
   } | null>(null);
 
-  /* Aggregate totals by normalized dept name, then cube-root scale */
   const valueMap = useMemo<Record<string, number>>(() => {
     const raw: Record<string, number> = {};
     for (const row of data) {
@@ -92,7 +93,6 @@ export function ColombiaMap({ data, dark = false }: Props) {
     return m;
   }, [data]);
 
-  /* Also keep raw totals for tooltip */
   const rawTotals = useMemo<Record<string, number>>(() => {
     const raw: Record<string, number> = {};
     for (const row of data) {
@@ -102,7 +102,17 @@ export function ColombiaMap({ data, dark = false }: Props) {
     return raw;
   }, [data]);
 
-  /* Styles */
+  /* Normalize blockade counts keys for matching */
+  const normalizedBlockadeCounts = useMemo<Record<string, number>>(() => {
+    const m: Record<string, number> = {};
+    for (const [dept, count] of Object.entries(blockadeCounts)) {
+      m[normalizeDeptKey(dept)] = count;
+    }
+    return m;
+  }, [blockadeCounts]);
+
+  const totalActiveBlockades = Object.values(blockadeCounts).reduce((s, n) => s + n, 0);
+
   const panelBg  = dark ? "rgba(10,18,30,0.95)" : "rgba(240,247,255,0.95)";
   const textMain = dark ? "#e2eaf4" : "#1a2a3a";
   const textSub  = dark ? "#6a8aaa" : "#4a6a8a";
@@ -111,19 +121,16 @@ export function ColombiaMap({ data, dark = false }: Props) {
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
 
-      {/* ── Colombia real geographic map ── */}
       <ComposableMap
         projection="geoMercator"
         projectionConfig={{ scale: 1800, center: [-73.5, 4.0] }}
         style={{ width: "100%", height: "100%", background: dark ? "#0a1220" : "#d8e8f4" }}
       >
-        {/* Ocean / background layer */}
         <rect x={0} y={0} width="100%" height="100%" fill={dark ? "#0a1220" : "#c0d8ee"} />
 
         <Geographies geography={GEO_URL}>
           {({ geographies }) =>
             geographies.map(geo => {
-              // Try both common property names in this GeoJSON
               const rawName: string =
                 geo.properties.NOMBRE_DPT ||
                 geo.properties.DPTO_CNMBR ||
@@ -135,36 +142,38 @@ export function ColombiaMap({ data, dark = false }: Props) {
               const fill    = getIntensityColor(val, dark);
               const isHigh  = val >= 0.70;
               const rawCount = rawTotals[geoKey] ?? 0;
+              const blockadeCount = normalizedBlockadeCounts[normalizeDeptKey(rawName)] ?? 0;
+              const hasBlockade = blockadeCount > 0;
 
               return (
                 <Geography
                   key={geo.rsmKey}
                   geography={geo}
                   fill={fill}
-                  stroke={dark ? "rgba(60,100,160,0.55)" : "rgba(80,120,180,0.40)"}
-                  strokeWidth={0.6}
+                  stroke={
+                    hasBlockade
+                      ? "#ec4899"
+                      : dark ? "rgba(60,100,160,0.55)" : "rgba(80,120,180,0.40)"
+                  }
+                  strokeWidth={hasBlockade ? 2.0 : 0.6}
                   style={{
                     default: {
                       outline: "none",
-                      filter: isHigh && dark ? "drop-shadow(0 0 4px rgba(255,40,0,0.5))" : "none",
+                      filter: hasBlockade
+                        ? "drop-shadow(0 0 6px rgba(236,72,153,0.7))"
+                        : isHigh && dark ? "drop-shadow(0 0 4px rgba(255,40,0,0.5))" : "none",
                     },
                     hover: {
                       outline: "none",
                       fill: dark ? "rgba(255,255,255,0.18)" : "rgba(0,60,180,0.18)",
-                      stroke: dark ? "rgba(200,220,255,0.9)" : "rgba(30,80,180,0.8)",
-                      strokeWidth: 1.4,
+                      stroke: hasBlockade ? "#f472b6" : dark ? "rgba(200,220,255,0.9)" : "rgba(30,80,180,0.8)",
+                      strokeWidth: 1.6,
                       cursor: "crosshair",
                     },
                     pressed: { outline: "none" },
                   }}
                   onMouseEnter={(e: React.MouseEvent) => {
-                    setHovered({
-                      name: rawName,
-                      count: rawCount,
-                      value: val,
-                      ex: e.clientX,
-                      ey: e.clientY,
-                    });
+                    setHovered({ name: rawName, count: rawCount, value: val, blockades: blockadeCount, ex: e.clientX, ey: e.clientY });
                   }}
                   onMouseMove={(e: React.MouseEvent) => {
                     setHovered(prev => prev ? { ...prev, ex: e.clientX, ey: e.clientY } : prev);
@@ -206,6 +215,16 @@ export function ColombiaMap({ data, dark = false }: Props) {
           <div style={{ width: 10, height: 10, borderRadius: 2, background: dark ? "#192438" : "#c5d5e8", flexShrink: 0, border: `1px solid ${borderC}` }} />
           <span style={{ fontSize: 9, color: textSub }}>Sin datos</span>
         </div>
+        {totalActiveBlockades > 0 && (
+          <div style={{ marginTop: 6, paddingTop: 6, borderTop: `1px solid ${borderC}` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 10, height: 10, borderRadius: 2, background: "#ec4899", flexShrink: 0, boxShadow: "0 0 5px rgba(236,72,153,0.7)" }} />
+              <span style={{ fontSize: 9, color: "#ec4899", fontWeight: 700 }}>
+                {totalActiveBlockades} bloqueo{totalActiveBlockades > 1 ? "s" : ""} activo{totalActiveBlockades > 1 ? "s" : ""}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Fixed tooltip following cursor ── */}
@@ -218,7 +237,7 @@ export function ColombiaMap({ data, dark = false }: Props) {
             zIndex: 9999,
             pointerEvents: "none",
             background: panelBg,
-            border: `1px solid ${borderC}`,
+            border: `1px solid ${hovered.blockades > 0 ? "rgba(236,72,153,0.45)" : borderC}`,
             borderRadius: 8,
             padding: "10px 14px",
             backdropFilter: "blur(12px)",
@@ -249,6 +268,14 @@ export function ColombiaMap({ data, dark = false }: Props) {
                 </div>
               );
             })()}
+            {hovered.blockades > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginTop: 2, paddingTop: 4, borderTop: "1px solid rgba(236,72,153,0.2)" }}>
+                <span style={{ fontSize: 10, color: "#ec4899" }}>🛑 Bloqueos activos</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#ec4899", fontFamily: "monospace" }}>
+                  {hovered.blockades}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       )}

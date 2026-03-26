@@ -12,6 +12,7 @@ import {
   useGetRefreshStatus,
   useGetAvailableYears,
   useTriggerRefresh,
+  useGetBlockades,
 } from "@workspace/api-client-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
@@ -269,6 +270,15 @@ export default function Dashboard() {
   const { data: monthlyData = [], isLoading: isLoadingMonthly, isFetching: isFetchingMonthly } = useGetNationalMonthly(queryParams);
   const { data: prevMonthlyData = [] } = useGetNationalMonthly(prevYearParams);
   const { data: deptData = [], isLoading: isLoadingDept, isFetching: isFetchingDept } = useGetCrimesByDepartment({ year: queryParams.year, crimeType: queryParams.crimeType });
+
+  const { data: allBlockadesRaw = [] } = useGetBlockades(undefined, { query: { refetchInterval: 60000 } });
+  const blockadeCounts = useMemo<Record<string, number>>(() => {
+    const m: Record<string, number> = {};
+    for (const b of allBlockadesRaw as any[]) {
+      if (b.status === "activo") m[b.department] = (m[b.department] ?? 0) + 1;
+    }
+    return m;
+  }, [allBlockadesRaw]);
 
   const availableDepartments = useMemo(() => {
     return [...new Set(deptData.map((d: any) => d.department as string))].sort((a: string, b: string) => a.localeCompare(b, "es"));
@@ -665,7 +675,7 @@ export default function Dashboard() {
           ) : (
             <ChartPanel title="Distribución Geográfica" exportData={deptData} exportName="geografica.csv" dark={isDark} loading={loading}>
               <div style={{ height: "300px" }}>
-                {loading ? <Skeleton className="w-full h-full" /> : <ColombiaMap data={deptData} dark={isDark} />}
+                {loading ? <Skeleton className="w-full h-full" /> : <ColombiaMap data={deptData} dark={isDark} blockadeCounts={blockadeCounts} />}
               </div>
             </ChartPanel>
           )}
@@ -676,7 +686,7 @@ export default function Dashboard() {
           {selectedCrimeType === "all" && (
             <ChartPanel title="Mapa de Calor" exportData={deptData} exportName="mapa-calor.csv" dark={isDark} loading={loading}>
               <div style={{ height: "380px" }}>
-                {loading ? <Skeleton className="w-full h-full" /> : <ColombiaMap data={deptData} dark={isDark} />}
+                {loading ? <Skeleton className="w-full h-full" /> : <ColombiaMap data={deptData} dark={isDark} blockadeCounts={blockadeCounts} />}
               </div>
             </ChartPanel>
           )}

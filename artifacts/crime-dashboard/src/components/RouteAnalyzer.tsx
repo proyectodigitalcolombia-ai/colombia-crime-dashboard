@@ -12,8 +12,10 @@ import {
 import type { Blockade } from "@workspace/api-client-react";
 import {
   Shield, Truck, MapPin, ChevronRight,
-  Moon, Radio, CloudRain, Users, Ban, Plus, X, Clock, BarChart2,
+  Moon, Radio, CloudRain, Users, Ban, Plus, X, Clock, BarChart2, FileText,
 } from "lucide-react";
+import { jsPDF } from "jspdf";
+import { useWeather } from "@/hooks/useWeather";
 
 const GEO_URL =
   "https://gist.githubusercontent.com/john-guerra/43c7656821069d00dcbc/raw/be6a6e239cd5b5b803c6e7c2ec405b793a9064dd/colombia.geo.json";
@@ -314,6 +316,8 @@ export function RouteAnalyzer({ dark = true }: Props) {
   const [formData,         setFormData]          = useState<FormData>(EMPTY_FORM());
   const [formError,        setFormError]         = useState("");
 
+  const { data: weatherMap = {} } = useWeather(selectedCorridor?.departments ?? []);
+
   const panelBg   = dark ? E.panel   : "#ffffff";
   const textMain  = dark ? "#e2eaf4" : "#1a2a3a";
   const textMuted = dark ? E.textDim : "#64748b";
@@ -396,6 +400,137 @@ export function RouteAnalyzer({ dark = true }: Props) {
     if (score < 70) return "#c04000"; return "#cc1000";
   }
 
+  const generatePDF = useCallback(() => {
+    if (!selectedCorridor) return;
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const cyan = [0, 180, 220] as [number, number, number];
+    const pink = [220, 60, 140] as [number, number, number];
+    const dark2 = [20, 30, 50] as [number, number, number];
+    const gray  = [100, 110, 130] as [number, number, number];
+    const W = 210, margin = 14;
+    let y = 0;
+
+    /* Header */
+    doc.setFillColor(...dark2);
+    doc.rect(0, 0, W, 30, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16); doc.setFont("helvetica", "bold");
+    doc.text("INFORME DE RIESGO DE CORREDOR", margin, 12);
+    doc.setFontSize(9); doc.setFont("helvetica", "normal");
+    doc.setTextColor(...cyan);
+    doc.text("Sistema de Gestión de Piratería Terrestre — Colombia 2026", margin, 20);
+    doc.setTextColor(160, 170, 190);
+    doc.text(`Generado: ${new Date().toLocaleString("es-CO", { dateStyle: "full", timeStyle: "short" })}`, margin, 26);
+    y = 38;
+
+    /* Corridor name + score */
+    doc.setTextColor(...dark2);
+    doc.setFontSize(13); doc.setFont("helvetica", "bold");
+    doc.text(selectedCorridor.name, margin, y);
+    const scoreLabel = compositeLabel(routeStats.avgScore);
+    doc.setFontSize(10); doc.setTextColor(...cyan);
+    doc.text(`Score compuesto: ${routeStats.avgScore}/100  ·  Piratería 2026: ${routeStats.total} casos`, margin, y + 7);
+    doc.setFontSize(9); doc.setFont("helvetica", "normal");
+    doc.setTextColor(...gray);
+    doc.text(`Nivel general: ${scoreLabel.label}  ·  Departamentos: ${selectedCorridor.departments.join(" → ")}`, margin, y + 14);
+    y += 24;
+
+    /* Active blockades banner */
+    const activeBlks2 = corridorBlockades.filter(b => b.status === "activo");
+    if (activeBlks2.length > 0) {
+      doc.setFillColor(180, 30, 100);
+      doc.roundedRect(margin, y, W - margin * 2, 9, 2, 2, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(9); doc.setFont("helvetica", "bold");
+      doc.text(`⚠  ${activeBlks2.length} BLOQUEO(S) ACTIVO(S) REGISTRADO(S) EN ESTE CORREDOR`, margin + 3, y + 6);
+      y += 14;
+    }
+
+    /* Divider */
+    doc.setDrawColor(...cyan);
+    doc.setLineWidth(0.4);
+    doc.line(margin, y, W - margin, y);
+    y += 6;
+
+    /* Risk factors table header */
+    doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(...dark2);
+    doc.text("FACTORES DE RIESGO POR DEPARTAMENTO", margin, y);
+    y += 7;
+
+    const headers = ["Departamento", "Score", "Piratería", "Noc.", "G.Arm.", "Señal", "Vía"];
+    const colX = [margin, margin+40, margin+62, margin+84, margin+104, margin+122, margin+140];
+
+    doc.setFontSize(7); doc.setFont("helvetica", "bold");
+    doc.setFillColor(230, 240, 250); doc.rect(margin, y, W - margin * 2, 7, "F");
+    headers.forEach((h, i) => { doc.setTextColor(50, 70, 100); doc.text(h, colX[i], y + 5); });
+    y += 9;
+
+    selectedCorridor.departments.forEach((dept, idx) => {
+      const count = pirataMap[normKey(dept)] ?? 0;
+      const score = compositeScore(dept, count);
+      const clabel = compositeLabel(score);
+      const night  = nightLabel(NIGHT_RISK[dept] ?? 60);
+      const armed  = armedLabel(ARMED_GROUPS[dept]?.level ?? 0);
+      const signal = signalLabel(CELL_SIGNAL[dept] ?? "partial");
+      const road   = roadLabel(ROAD_CONDITION[dept]?.score ?? "regular");
+      const rowBg  = idx % 2 === 0 ? [250, 252, 255] as [number,number,number] : [255, 255, 255] as [number,number,number];
+      doc.setFillColor(...rowBg); doc.rect(margin, y, W - margin * 2, 7, "F");
+      doc.setFontSize(7); doc.setFont("helvetica", "normal"); doc.setTextColor(...dark2);
+      doc.text(dept.length > 18 ? dept.slice(0, 17) + "…" : dept, colX[0], y + 5);
+      doc.setTextColor(0, 120, 180); doc.text(`${score}/100`, colX[1], y + 5);
+      doc.setTextColor(...dark2);
+      doc.text(count > 0 ? `${count}` : "–", colX[2], y + 5);
+      doc.text(night.label,  colX[3], y + 5);
+      doc.text(armed.label,  colX[4], y + 5);
+      doc.text(signal.label, colX[5], y + 5);
+      doc.text(road.label,   colX[6], y + 5);
+      y += 8;
+      if (y > 260) { doc.addPage(); y = 20; }
+    });
+    y += 4;
+
+    /* Recommendations */
+    doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(...dark2);
+    doc.text("RECOMENDACIONES OPERACIONALES", margin, y);
+    y += 6;
+    doc.setFontSize(8); doc.setFont("helvetica", "normal");
+    recommendations.forEach((rec, i) => {
+      const lines = doc.splitTextToSize(`${i + 1}. ${rec}`, W - margin * 2 - 4);
+      doc.setTextColor(...gray);
+      doc.text(lines, margin + 2, y);
+      y += lines.length * 5 + 2;
+      if (y > 260) { doc.addPage(); y = 20; }
+    });
+
+    /* Registered blockades */
+    if (corridorBlockades.length > 0) {
+      y += 4;
+      doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(...pink);
+      doc.text("BLOQUEOS REGISTRADOS POR OPERADORES", margin, y);
+      y += 7;
+      doc.setFontSize(8); doc.setFont("helvetica", "normal");
+      corridorBlockades.forEach(blk => {
+        doc.setTextColor(...dark2);
+        doc.text(`• ${blk.department} — ${blk.location}`, margin + 2, y);
+        doc.setTextColor(...gray);
+        doc.text(`  Estado: ${blk.status} | Fecha: ${blk.date} | Causa: ${CAUSE_LABELS[blk.cause]}`, margin + 4, y + 5);
+        if (blk.notes) { doc.text(`  Nota: ${blk.notes}`, margin + 4, y + 10); y += 5; }
+        y += 12;
+        if (y > 265) { doc.addPage(); y = 20; }
+      });
+    }
+
+    /* Footer */
+    const pages = doc.getNumberOfPages();
+    for (let p = 1; p <= pages; p++) {
+      doc.setPage(p);
+      doc.setFontSize(7); doc.setTextColor(160, 170, 190);
+      doc.text(`Informe confidencial — Sistema de Piratería Terrestre Colombia · Pág. ${p}/${pages}`, margin, 292);
+    }
+
+    doc.save(`riesgo_${selectedCorridor.id}_${new Date().toISOString().split("T")[0]}.pdf`);
+  }, [selectedCorridor, routeStats, pirataMap, recommendations, corridorBlockades]);
+
   const submitBlockade = useCallback(() => {
     if (!formData.corridorId) return setFormError("Seleccione un corredor.");
     if (!formData.department) return setFormError("Indique el departamento afectado.");
@@ -439,11 +574,16 @@ export function RouteAnalyzer({ dark = true }: Props) {
             Piratería terrestre · Grupos armados · Riesgo nocturno · Condición vial · Señal celular · Bloqueos comunitarios
           </div>
         </div>
-        <div style={{ display: "flex", gap: "6px" }}>
+        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
           {selectedCorridor && (
-            <button onClick={() => { setSelectedCorridor(null); setActiveTab("risk"); }} style={{ fontSize: "11px", color: textMuted, background: "transparent", border: `1px solid ${borderC}`, borderRadius: "6px", padding: "5px 10px", cursor: "pointer" }}>
-              ← Cambiar ruta
-            </button>
+            <>
+              <button onClick={() => { setSelectedCorridor(null); setActiveTab("risk"); }} style={{ fontSize: "11px", color: textMuted, background: "transparent", border: `1px solid ${borderC}`, borderRadius: "6px", padding: "5px 10px", cursor: "pointer" }}>
+                ← Cambiar ruta
+              </button>
+              <button onClick={generatePDF} title="Exportar PDF" style={{ fontSize: "11px", fontWeight: 700, color: E.cyan, background: "rgba(0,212,255,0.08)", border: "1px solid rgba(0,212,255,0.25)", borderRadius: "6px", padding: "5px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}>
+                <FileText style={{ width: 11, height: 11 }} /> PDF
+              </button>
+            </>
           )}
           <button onClick={() => { setShowForm(true); setFormData(EMPTY_FORM(selectedCorridor?.id ?? "")); }} style={{ fontSize: "11px", fontWeight: 700, color: E.pink, background: "rgba(236,72,153,0.1)", border: "1px solid rgba(236,72,153,0.25)", borderRadius: "6px", padding: "5px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}>
             <Plus style={{ width: 11, height: 11 }} /> Registrar Bloqueo
@@ -701,16 +841,27 @@ export function RouteAnalyzer({ dark = true }: Props) {
                         const isEnd   = i === 0 || i === selectedCorridor.departments.length - 1;
                         return (
                           <div key={dept} style={{ background: dark?(isEnd?"rgba(0,212,255,0.04)":"rgba(255,255,255,0.02)"):(isEnd?"rgba(59,130,246,0.04)":"#f8fafc"), border: `1px solid ${isEnd?"rgba(0,212,255,0.15)":borderC}`, borderRadius: "7px", padding: "8px 10px" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "6px" }}>
-                              <span style={{ fontSize: "10px", fontWeight: 700, color: "rgba(255,255,255,0.18)", fontFamily: "monospace" }}>{String(i+1).padStart(2,"0")}</span>
-                              <span style={{ fontSize: "11px", fontWeight: 700, color: isEnd?E.cyan:textMain, flex: 1 }}>
-                                {dept}
-                                {i === 0 && <span style={{ fontSize: "8px", marginLeft: "5px", color: E.cyan }}>ORIGEN</span>}
-                                {i === selectedCorridor.departments.length - 1 && <span style={{ fontSize: "8px", marginLeft: "5px", color: E.cyan }}>DESTINO</span>}
-                              </span>
-                              <span style={{ fontSize: "10px", fontWeight: 800, color: clabel.color, fontFamily: "monospace" }}>{score}</span>
-                              <span style={{ fontSize: "9px", fontWeight: 700, color: clabel.color, background: clabel.bg, padding: "1px 6px", borderRadius: "4px" }}>{clabel.label}</span>
-                            </div>
+                            {(() => {
+                              const wx = weatherMap[dept];
+                              const wxAlertColor = wx?.alert ? E.amber : (dark ? "rgba(255,255,255,0.4)" : "#6b7280");
+                              return (
+                                <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "6px" }}>
+                                  <span style={{ fontSize: "10px", fontWeight: 700, color: "rgba(255,255,255,0.18)", fontFamily: "monospace" }}>{String(i+1).padStart(2,"0")}</span>
+                                  <span style={{ fontSize: "11px", fontWeight: 700, color: isEnd?E.cyan:textMain, flex: 1 }}>
+                                    {dept}
+                                    {i === 0 && <span style={{ fontSize: "8px", marginLeft: "5px", color: E.cyan }}>ORIGEN</span>}
+                                    {i === selectedCorridor.departments.length - 1 && <span style={{ fontSize: "8px", marginLeft: "5px", color: E.cyan }}>DESTINO</span>}
+                                  </span>
+                                  {wx && (
+                                    <span title={`${wx.condition}${wx.precipitation > 0 ? ` · ${wx.precipitation}mm` : ""}`} style={{ fontSize: "9px", color: wxAlertColor, background: wx.alert ? "rgba(245,158,11,0.12)" : (dark?"rgba(255,255,255,0.05)":"rgba(0,0,0,0.05)"), border: `1px solid ${wx.alert ? "rgba(245,158,11,0.35)" : borderC}`, borderRadius: "4px", padding: "1px 5px", whiteSpace: "nowrap", cursor: "default" }}>
+                                      {wx.icon} {wx.temp}°C{wx.precipitation > 0 ? ` · ${wx.precipitation}mm` : ""}
+                                    </span>
+                                  )}
+                                  <span style={{ fontSize: "10px", fontWeight: 800, color: clabel.color, fontFamily: "monospace" }}>{score}</span>
+                                  <span style={{ fontSize: "9px", fontWeight: 700, color: clabel.color, background: clabel.bg, padding: "1px 6px", borderRadius: "4px" }}>{clabel.label}</span>
+                                </div>
+                              );
+                            })()}
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3px" }}>
                               {[
                                 { Icon: Truck,      label: "Piratería",    value: count > 0 ? `${count} casos` : "Sin datos", color: pirataRisk(count).color },

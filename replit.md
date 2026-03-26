@@ -97,13 +97,22 @@ Utility scripts package. Each script is a `.ts` file in `src/` with a correspond
 
 ### `artifacts/crime-dashboard` (`@workspace/crime-dashboard`)
 
-React + Vite dashboard for Colombian crime statistics. Displays interactive charts and a department heat map.
+React + Vite dashboard for Colombian crime statistics. Two-tab application:
 
+**Tab 1 — Estadísticas Delictivas:**
 - Entry: `src/main.tsx` → `src/pages/Dashboard.tsx`
-- Components: `ColombiaMap.tsx` (SVG heat map), charts via Recharts
+- Components: `ColombiaMap.tsx` (SVG heat map with blockade overlay in pink), Recharts charts
 - Data: fetches from `@workspace/api-server` using generated React Query hooks
-- Theme: dark/light mode, Spanish language
-- Auto-refresh every 24h; manual refresh button
+- Theme: dark/light mode, Spanish language; auto-refresh controls
+- Blockade overlay: departments with active blockades show pink border + glow + count in tooltip
+
+**Tab 2 — Análisis de Ruta (Piratería Terrestre):**
+- Component: `RouteAnalyzer.tsx`
+- 6-factor risk matrix: piratería, riesgo nocturno, grupos armados, señal celular, condición vial, bloqueos comunitarios
+- Real-time weather: `src/hooks/useWeather.ts` fetches Open-Meteo API for each corridor department (free, no key); shows icon, temperature, precipitation chip in each dept card; yellow alert for adverse weather
+- PDF export: `jsPDF` generates structured A4 report with risk table, blockades, recommendations on demand
+- Blockade CRUD: register/delete active blockades (persisted in PostgreSQL via `/api/blockades`); 30s auto-refresh
+- BLOCKADE_HISTORY: static historical data per department (FIP/INVIAS sources)
 
 **Data Sources** (loaded in `artifacts/api-server/src/routes/crimes.ts`):
 
