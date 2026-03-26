@@ -109,10 +109,23 @@ React + Vite dashboard for Colombian crime statistics. Two-tab application:
 **Tab 2 — Análisis de Ruta (Piratería Terrestre):**
 - Component: `RouteAnalyzer.tsx`
 - 6-factor risk matrix: piratería, riesgo nocturno, grupos armados, señal celular, condición vial, bloqueos comunitarios
-- Real-time weather: `src/hooks/useWeather.ts` fetches Open-Meteo API for each corridor department (free, no key); shows icon, temperature, precipitation chip in each dept card; yellow alert for adverse weather
-- PDF export: `jsPDF` generates structured A4 report with risk table, blockades, recommendations on demand
+- Real-time weather: `src/hooks/useWeather.ts` fetches Open-Meteo API for each corridor department (free, no key)
+- PDF export: `jsPDF` generates structured A4 report on demand
 - Blockade CRUD: register/delete active blockades (persisted in PostgreSQL via `/api/blockades`); 30s auto-refresh
 - BLOCKADE_HISTORY: static historical data per department (FIP/INVIAS sources)
+- **Official road closures**: `src/hooks/useRoadConditions.ts` fetches `/api/road-conditions` which scrapes all pages of `policia.gov.co/estado-de-las-vias` (67+ closures, multi-page, refreshed every 6h); shown in "Cierres Oficiales — Policía Nacional" section in blockades tab; badge turns red on total closures
+
+**Tab 3 — Informe Gerencial PDF:**
+- Component: `ReportGenerator.tsx` using `jsPDF`
+- 5-page branded PDF: portada (dark navy + SafeNode logo), resumen ejecutivo, ranking departamentos, tipos de delito + gráfico, bloqueos + conclusiones
+- Configurable per client: company name, subtitle, analyst info, logo upload, primary color (10 presets + hex), footer disclaimer — saved to `localStorage` key `colombia_report_config_v2`
+- SafeNode defaults pre-loaded: logo at `public/safenode-logo.png`, color `#00bcd4`
+
+**Alert Banner System:**
+- Component: `DataAlertBanner.tsx` — global, shown below tabs on all views
+- Monitors: AICRI refresh status (error state from API), road conditions fetch errors, stale data (>35 days)
+- Banner types: red (connection error), orange (warning/stale), cyan (informational — active closure count)
+- Each banner has retry action button and dismiss (X); auto-clears when data recovers
 
 **Data Sources** (loaded in `artifacts/api-server/src/routes/crimes.ts`):
 
