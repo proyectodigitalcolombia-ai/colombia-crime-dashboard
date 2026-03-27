@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   MapContainer, TileLayer, Marker, Polyline, useMapEvents, useMap,
 } from "react-leaflet";
@@ -168,9 +168,16 @@ function FlyTo({ lat, lng }: { lat: number; lng: number }) {
   return null;
 }
 
-/* ─── Click handler ─── */
-function MapClick({ onAdd, enabled }: { onAdd: (lat: number, lng: number) => void; enabled: boolean }) {
-  useMapEvents({ click: (e) => { if (enabled) onAdd(e.latlng.lat, e.latlng.lng); } });
+/* ─── Click handler — uses a stable handler object via useMemo so the
+       Leaflet event listener is registered only once. The callback ref is
+       updated synchronously on every render to always reflect the latest state. ─── */
+function MapClick({ onAdd }: { onAdd: (lat: number, lng: number) => void }) {
+  const onAddRef = useRef(onAdd);
+  onAddRef.current = onAdd; // always current, no stale closure
+  const handlers = useMemo(() => ({
+    click: (e: L.LeafletMouseEvent) => { onAddRef.current(e.latlng.lat, e.latlng.lng); },
+  }), []); // stable reference → useMapEvents runs once
+  useMapEvents(handlers);
   return null;
 }
 
@@ -316,41 +323,71 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
 
   const canGenerate = origin && dest;
 
-  /* ─ Map click ─ */
-  const handleMapClick = useCallback(async (lat: number, lng: number) => {
-    if (!mapClickMode) return;
+  /* ─ Refs so the stable MapClick handler always sees latest state ─ */
+  const mapClickModeRef = useRef(mapClickMode);
+  const originRef       = useRef(origin);
+  const viasRef         = useRef(vias);
+  mapClickModeRef.current = mapClickMode;
+  originRef.current       = origin;
+  viasRef.current         = vias;
+
+  /* ─ Map click ─────────────────────────────────────────────────────
+     Smart behaviour:
+       • If a 📍 mode is active → use it
+       • Otherwise: 1st click = origin, 2nd click = destination
+     The callback is STABLE (empty deps) because it only reads refs.
+  ─────────────────────────────────────────────────────────────────── */
+  const handleMapClick = useCallback((lat: number, lng: number) => {
     const short = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-    if (mapClickMode === "origin") {
+    const mode  = mapClickModeRef.current;
+
+    if (mode === "origin") {
       setOrigin({ lat, lng, name: short, type: "origin" });
       setOriginText(short);
       setMapClickMode(null);
-    } else if (mapClickMode === "dest") {
+      setRouteResult(null); setRouteDepts([]); setPhase("setup");
+      return;
+    }
+    if (mode === "dest") {
       setDest({ lat, lng, name: short, type: "dest" });
       setDestText(short);
       setMapClickMode(null);
-    } else if (mapClickMode === "via") {
+      setRouteResult(null); setRouteDepts([]); setPhase("setup");
+      return;
+    }
+    if (mode === "via") {
       const wp: WP = { lat, lng, name: short, type: "via" };
       setVias(prev => {
-        const placeholderIdx = prev.findIndex(v => v.lat === 0 && v.lng === 0);
-        if (placeholderIdx >= 0) {
-          const updated = [...prev];
-          updated[placeholderIdx] = wp;
-          return updated;
-        }
+        const idx = prev.findIndex(v => v.lat === 0 && v.lng === 0);
+        if (idx >= 0) { const c=[...prev]; c[idx]=wp; return c; }
         return [...prev, wp];
       });
       setViaTexts(prev => {
-        const placeholderIdx = vias.findIndex(v => v.lat === 0 && v.lng === 0);
-        if (placeholderIdx >= 0) {
-          const updated = [...prev];
-          updated[placeholderIdx] = short;
-          return updated;
-        }
+        const idx = viasRef.current.findIndex(v => v.lat === 0 && v.lng === 0);
+        if (idx >= 0) { const c=[...prev]; c[idx]=short; return c; }
         return [...prev, short];
       });
       setMapClickMode(null);
+      setRouteResult(null); setRouteDepts([]); setPhase("setup");
+      return;
     }
-  }, [mapClickMode, vias]);
+
+    /* ── Auto mode: no button pressed ────────────────────────────── */
+    if (!originRef.current) {
+      setOrigin({ lat, lng, name: short, type: "origin" });
+      setOriginText(short);
+      setRouteResult(null); setRouteDepts([]); setPhase("setup");
+    } else {
+      setDest(prev => {
+        if (!prev) {
+          setDestText(short);
+          setRouteResult(null); setRouteDepts([]); setPhase("setup");
+          return { lat, lng, name: short, type: "dest" };
+        }
+        return prev;
+      });
+    }
+  }, []); // stable — reads only refs
 
   /* ─ Nominatim select ─ */
   const selectNom = (r: NomResult, kind: "origin" | "dest" | "via", idx?: number) => {
@@ -622,7 +659,7 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
           zoomControl
         >
           <TileLayer url={tileUrl} attribution={tileAttr} />
-          <MapClick onAdd={handleMapClick} enabled={!!mapClickMode} />
+          <MapClick onAdd={handleMapClick} />
           {flyTarget && <FlyTo lat={flyTarget.lat} lng={flyTarget.lng} />}
 
           {/* Route polyline */}
@@ -733,7 +770,8 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
       {/* ── Empty state ── */}
       {phase === "setup" && !origin && !dest && (
         <div style={{ textAlign: "center", padding: "20px", fontSize: "11px", color: textMuted, lineHeight: 1.8 }}>
-          Escriba un origen y un destino para comenzar · También puede hacer clic en 📍 para marcar puntos directamente en el mapa
+          👆 Haga clic en el mapa para marcar el <strong style={{ color: E.emerald }}>origen</strong> · Segundo clic para el <strong style={{ color: "#ff4757" }}>destino</strong><br/>
+          O escriba en los campos de búsqueda para usar nombres de ciudades
         </div>
       )}
     </div>
