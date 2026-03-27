@@ -94,6 +94,7 @@ export function ArmedGroupsPanel({ dark }: { dark: boolean }) {
   const [loading, setLoading] = useState(true);
   const [selectedGroup, setSelectedGroup] = useState<string>("all");
   const [activeView, setActiveView] = useState<"overview" | "mapa" | "tendencia">("overview");
+  const [selectedYear, setSelectedYear] = useState("2025");
 
   const text = dark ? "#e2e8f0" : "#1e293b";
   const mutedText = dark ? E.textDim : E.textDimLight;
@@ -140,7 +141,9 @@ export function ArmedGroupsPanel({ dark }: { dark: boolean }) {
     });
   }, [groups]);
 
-  const totalIncidents2024 = groups.reduce((s, g) => s + (g.annualIncidents["2024"] ?? 0), 0);
+  const ALL_YEARS = ["2022", "2023", "2024", "2025", "2026"] as const;
+  const prevYear = String(Number(selectedYear) - 1);
+  const totalIncidentsYear = groups.reduce((s, g) => s + (g.annualIncidents[selectedYear] ?? 0), 0);
 
   const cardStyle = {
     background: panelBg,
@@ -182,6 +185,28 @@ export function ArmedGroupsPanel({ dark }: { dark: boolean }) {
         </div>
       )}
 
+      {/* ── YEAR SELECTOR ── */}
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", flexWrap: "wrap" }}>
+        <span style={{ fontSize: "11px", fontWeight: 600, color: mutedText }}>Año de referencia:</span>
+        {ALL_YEARS.map(y => (
+          <button key={y} onClick={() => setSelectedYear(y)}
+            style={{
+              padding: "4px 12px", borderRadius: "6px", fontSize: "12px", fontWeight: 700,
+              border: "none", cursor: "pointer",
+              background: selectedYear === y
+                ? (dark ? "rgba(0,212,255,0.18)" : "rgba(3,105,161,0.12)")
+                : (dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)"),
+              color: selectedYear === y ? (dark ? E.cyan : "#0369a1") : mutedText,
+              outline: selectedYear === y ? `1px solid ${dark ? "rgba(0,212,255,0.35)" : "rgba(3,105,161,0.25)"}` : "none",
+            }}>
+            {y}{y === "2026" ? " *" : ""}
+          </button>
+        ))}
+        {selectedYear === "2026" && (
+          <span style={{ fontSize: "10px", color: mutedText }}>* Datos parciales (ene–mar 2026)</span>
+        )}
+      </div>
+
       {/* ── KPI ROW ── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "12px", marginBottom: "20px" }}>
         <div style={{ ...cardStyle, borderLeft: `3px solid #ef4444` }}>
@@ -190,8 +215,8 @@ export function ArmedGroupsPanel({ dark }: { dark: boolean }) {
           <div style={{ fontSize: "11px", color: mutedText, marginTop: "4px" }}>organizaciones monitoreadas</div>
         </div>
         <div style={{ ...cardStyle, borderLeft: `3px solid ${E.amber}` }}>
-          <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: E.amber, marginBottom: "6px" }}>Acciones 2024</div>
-          <div style={{ fontSize: "28px", fontWeight: 800, lineHeight: 1 }}>{totalIncidents2024.toLocaleString("es-CO")}</div>
+          <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: E.amber, marginBottom: "6px" }}>Acciones {selectedYear}</div>
+          <div style={{ fontSize: "28px", fontWeight: 800, lineHeight: 1 }}>{totalIncidentsYear.toLocaleString("es-CO")}</div>
           <div style={{ fontSize: "11px", color: mutedText, marginTop: "4px" }}>acciones bélicas registradas</div>
         </div>
         <div style={{ ...cardStyle, borderLeft: `3px solid #a855f7` }}>
@@ -242,11 +267,11 @@ export function ArmedGroupsPanel({ dark }: { dark: boolean }) {
                 <div style={{ flex: "0 0 auto", display: "flex", gap: "16px", flexWrap: "wrap" }}>
                   {/* Incidents */}
                   <div style={{ textAlign: "center", minWidth: "80px" }}>
-                    <div style={{ fontSize: "10px", color: mutedText, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>Acciones 2024</div>
-                    <div style={{ fontSize: "22px", fontWeight: 800, color: group.color }}>{(group.annualIncidents["2024"] ?? 0).toLocaleString("es-CO")}</div>
+                    <div style={{ fontSize: "10px", color: mutedText, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>Acciones {selectedYear}</div>
+                    <div style={{ fontSize: "22px", fontWeight: 800, color: group.color }}>{(group.annualIncidents[selectedYear] ?? 0).toLocaleString("es-CO")}</div>
                     <div style={{ fontSize: "10px", color: mutedText }}>
-                      {group.annualIncidents["2024"] && group.annualIncidents["2023"]
-                        ? `${group.annualIncidents["2024"] > group.annualIncidents["2023"] ? "▲" : "▼"} ${Math.abs(((group.annualIncidents["2024"] - group.annualIncidents["2023"]) / group.annualIncidents["2023"]) * 100).toFixed(1)}% vs 2023`
+                      {group.annualIncidents[selectedYear] && group.annualIncidents[prevYear]
+                        ? `${group.annualIncidents[selectedYear] > group.annualIncidents[prevYear] ? "▲" : "▼"} ${Math.abs(((group.annualIncidents[selectedYear] - group.annualIncidents[prevYear]) / group.annualIncidents[prevYear]) * 100).toFixed(1)}% vs ${prevYear}`
                         : ""}
                     </div>
                   </div>
@@ -376,12 +401,12 @@ export function ArmedGroupsPanel({ dark }: { dark: boolean }) {
             </ResponsiveContainer>
           </div>
 
-          {/* Bar: 2024 comparison */}
+          {/* Bar: selected year comparison */}
           <div style={cardStyle}>
-            <div style={{ fontSize: "12px", fontWeight: 700, marginBottom: "4px" }}>Comparativo de Acciones 2024 — Por Grupo</div>
+            <div style={{ fontSize: "12px", fontWeight: 700, marginBottom: "4px" }}>Comparativo de Acciones {selectedYear} — Por Grupo</div>
             <div style={{ fontSize: "11px", color: mutedText, marginBottom: "16px" }}>Incluye todas las modalidades: piratería, extorsión, bloqueos, atentados</div>
             <ResponsiveContainer width="100%" height={220} debounce={0}>
-              <BarChart data={groups.map(g => ({ name: g.shortName, Acciones: g.annualIncidents["2024"] ?? 0, color: g.color }))} layout="vertical" margin={{ left: 10 }}>
+              <BarChart data={groups.map(g => ({ name: g.shortName, Acciones: g.annualIncidents[selectedYear] ?? 0, color: g.color }))} layout="vertical" margin={{ left: 10 }}>
                 <CartesianGrid strokeDasharray="4 4" stroke={gridColor} horizontal={false} />
                 <XAxis type="number" tickFormatter={v => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v)} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} />
                 <YAxis dataKey="name" type="category" tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={100} />
