@@ -13,7 +13,7 @@ import type { Blockade } from "@workspace/api-client-react";
 import {
   Shield, Truck, MapPin, ChevronRight,
   Moon, Radio, CloudRain, Users, Ban, Plus, X, Clock, BarChart2, FileText,
-  AlertTriangle, RefreshCw, ExternalLink,
+  AlertTriangle, RefreshCw, ExternalLink, Globe, Sparkles, CheckCircle2,
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import { useWeather } from "@/hooks/useWeather";
@@ -317,6 +317,10 @@ export function RouteAnalyzer({ dark = true }: Props) {
   const [showForm,         setShowForm]          = useState(false);
   const [formData,         setFormData]          = useState<FormData>(EMPTY_FORM());
   const [formError,        setFormError]         = useState("");
+  const [urlInput,         setUrlInput]          = useState("");
+  const [urlLoading,       setUrlLoading]        = useState(false);
+  const [urlResult,        setUrlResult]         = useState<{ count: number; message: string } | null>(null);
+  const [urlError,         setUrlError]          = useState("");
 
   const { data: weatherMap = {} } = useWeather(selectedCorridor?.departments ?? []);
   const { conditions: officialClosures, meta: rcMeta, isLoading: rcLoading } =
@@ -362,6 +366,33 @@ export function RouteAnalyzer({ dark = true }: Props) {
       onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetBlockadesQueryKey() }),
     },
   });
+
+  const handleUrlImport = useCallback(async () => {
+    if (!urlInput.trim()) return;
+    setUrlLoading(true);
+    setUrlError("");
+    setUrlResult(null);
+    try {
+      const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
+      const resp = await fetch(`${BASE}/api/blockades/from-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ url: urlInput.trim() }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) { setUrlError(data.error || "Error al procesar la URL"); return; }
+      setUrlResult({ count: data.inserted?.length ?? 0, message: data.message });
+      if ((data.inserted?.length ?? 0) > 0) {
+        queryClient.invalidateQueries({ queryKey: getGetBlockadesQueryKey() });
+        setUrlInput("");
+      }
+    } catch (e: any) {
+      setUrlError(e.message || "Error de red");
+    } finally {
+      setUrlLoading(false);
+    }
+  }, [urlInput, queryClient]);
 
   const userBlockades: Blockade[] = Array.isArray(allBlockades) ? allBlockades as Blockade[] : [];
 
@@ -1021,6 +1052,58 @@ export function RouteAnalyzer({ dark = true }: Props) {
                       <div style={{ fontSize: "9px", color: textMuted, textAlign: "right", marginTop: "2px" }}>
                         {officialClosures.length} cierre{officialClosures.length !== 1 ? "s" : ""} en este corredor · Fuente: policia.gov.co · Actualización diaria
                       </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* ── URL NEWS IMPORT ── */}
+                <div style={{ background: panelBg, border: `1px solid rgba(0,212,255,0.2)`, borderRadius: "12px", padding: "14px 16px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                    <Globe style={{ width: 13, height: 13, color: E.cyan }} />
+                    <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: E.cyan }}>Importar Novedades desde Noticias</span>
+                    <span style={{ marginLeft: "auto", fontSize: "9px", color: textMuted, background: "rgba(0,212,255,0.07)", padding: "2px 7px", borderRadius: "4px", fontStyle: "italic" }}>IA</span>
+                  </div>
+                  <div style={{ fontSize: "11px", color: textMuted, marginBottom: "10px", lineHeight: 1.5 }}>
+                    Pegue un enlace de noticias sobre cierres viales (ANSV, El Tiempo, W Radio, medios regionales) y la IA extraerá los bloqueos automáticamente.
+                  </div>
+                  <div style={{ display: "flex", gap: "8px", alignItems: "stretch" }}>
+                    <input
+                      type="url"
+                      placeholder="https://www.ansv.gov.co/..."
+                      value={urlInput}
+                      onChange={e => { setUrlInput(e.target.value); setUrlResult(null); setUrlError(""); }}
+                      onKeyDown={e => e.key === "Enter" && !urlLoading && handleUrlImport()}
+                      disabled={urlLoading}
+                      style={{
+                        flex: 1, padding: "7px 10px", fontSize: "11px", borderRadius: "6px",
+                        background: dark ? "rgba(255,255,255,0.05)" : "#f1f5f9",
+                        border: `1px solid ${urlError ? E.red : dark ? "rgba(0,212,255,0.18)" : "rgba(0,0,0,0.12)"}`,
+                        color: textMain, outline: "none",
+                      }}
+                    />
+                    <button
+                      onClick={handleUrlImport}
+                      disabled={urlLoading || !urlInput.trim()}
+                      style={{
+                        padding: "7px 14px", fontSize: "11px", fontWeight: 700, borderRadius: "6px",
+                        cursor: urlLoading || !urlInput.trim() ? "not-allowed" : "pointer",
+                        background: urlLoading || !urlInput.trim() ? "rgba(0,212,255,0.06)" : "rgba(0,212,255,0.14)",
+                        border: `1px solid ${urlLoading || !urlInput.trim() ? "rgba(0,212,255,0.1)" : "rgba(0,212,255,0.3)"}`,
+                        color: E.cyan, display: "flex", alignItems: "center", gap: "5px", whiteSpace: "nowrap",
+                      }}>
+                      {urlLoading
+                        ? <><RefreshCw style={{ width: 10, height: 10, animation: "spin 1s linear infinite" }} /> Analizando...</>
+                        : <><Sparkles style={{ width: 10, height: 10 }} /> Analizar URL</>}
+                    </button>
+                  </div>
+                  {urlError && (
+                    <div style={{ marginTop: "8px", fontSize: "10px", color: E.red, display: "flex", alignItems: "center", gap: "5px" }}>
+                      <AlertTriangle style={{ width: 10, height: 10 }} /> {urlError}
+                    </div>
+                  )}
+                  {urlResult && (
+                    <div style={{ marginTop: "8px", fontSize: "10px", display: "flex", alignItems: "center", gap: "5px", color: urlResult.count > 0 ? E.emerald : textMuted, fontWeight: urlResult.count > 0 ? 600 : 400 }}>
+                      <CheckCircle2 style={{ width: 10, height: 10 }} /> {urlResult.message}
                     </div>
                   )}
                 </div>

@@ -5,7 +5,7 @@ import {
   useGetCrimesByDepartment,
   useGetBlockades,
 } from "@workspace/api-client-react";
-import { Building2, Upload, Download, Palette, User, Mail, Phone, FileText, CheckCircle2, RefreshCw } from "lucide-react";
+import { Building2, Upload, Download, Palette, User, Mail, Phone, FileText, CheckCircle2, RefreshCw, Globe, Sparkles, AlertTriangle } from "lucide-react";
 import safeNodeLogoUrl from "../assets/safenode-logo.png";
 import { useAuth, type UserConfig } from "@/context/AuthContext";
 
@@ -75,6 +75,11 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState(false);
   const [year, setYear] = useState(2026);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [pdfAnalyzing, setPdfAnalyzing] = useState(false);
+  const [pdfAnalysis, setPdfAnalysis] = useState<any>(null);
+  const [pdfError, setPdfError] = useState("");
+  const pdfInputRef = useRef<HTMLInputElement>(null);
   const [defaultLogo, setDefaultLogo] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -167,6 +172,39 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
     reader.onload = () => updateConfig({ logoDataUrl: reader.result as string });
     reader.readAsDataURL(file);
   }
+
+  function handlePdfSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPdfFile(file);
+    setPdfAnalysis(null);
+    setPdfError("");
+  }
+
+  const handlePdfAnalyze = useCallback(async () => {
+    if (!pdfFile) return;
+    setPdfAnalyzing(true);
+    setPdfError("");
+    setPdfAnalysis(null);
+    try {
+      const ab = await pdfFile.arrayBuffer();
+      const b64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
+      const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
+      const resp = await fetch(`${BASE}/api/analyze/pdf`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ pdfBase64: b64 }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) { setPdfError(data.error || "Error al analizar el PDF"); return; }
+      setPdfAnalysis(data);
+    } catch (e: any) {
+      setPdfError(e.message || "Error de red");
+    } finally {
+      setPdfAnalyzing(false);
+    }
+  }, [pdfFile]);
 
   const generatePDF = useCallback(async () => {
     if (totalCrimes === 0) return;
@@ -815,6 +853,92 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
       doc.setFontSize(7); doc.setFont("helvetica", "italic");
       doc.text("Fuente: Policía Nacional de Colombia — AICRI  /  INDEPAZ  /  FIP  /  CERAC", margin, y + 16);
 
+      /* ══════════════════════════════════════
+         OPTIONAL PAGE 7 — FUENTE DOCUMENTAL (PDF gubernamental analizado por IA)
+         ══════════════════════════════════════ */
+      if (pdfAnalysis) {
+        doc.addPage();
+        pageHeader("6. Fuente Documental — Análisis de Inteligencia", 7);
+        pageFooter();
+        let yp = 26;
+
+        /* Risk badge */
+        const riskColor = pdfAnalysis.riesgoLogistico === "ALTO"
+          ? { r:180, g:30, b:30 } : pdfAnalysis.riesgoLogistico === "MEDIO"
+          ? { r:180, g:120, b:10 } : { r:20, g:130, b:80 };
+
+        doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(pri.r, pri.g, pri.b);
+        { const tl = doc.splitTextToSize("6.  Análisis de Documento Gubernamental — Apreciación de Inteligencia.", W - margin * 2); doc.text(tl, margin, yp); yp += tl.length * 5.5; }
+
+        /* Document metadata box */
+        doc.setFillColor(245, 247, 252);
+        doc.rect(margin, yp, W - margin * 2, 22, "F");
+        doc.setDrawColor(220, 225, 240); doc.setLineWidth(0.3);
+        doc.rect(margin, yp, W - margin * 2, 22, "S");
+        doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(30, 30, 50);
+        doc.text(doc.splitTextToSize(pdfAnalysis.titulo || "Documento sin título", W - margin * 2 - 20), margin + 4, yp + 6);
+        doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(80, 90, 110);
+        doc.text(`Fuente: ${pdfAnalysis.fuente || "—"}${pdfAnalysis.fechaDocumento ? `  ·  ${pdfAnalysis.fechaDocumento}` : ""}`, margin + 4, yp + 14);
+        /* Risk label */
+        doc.setFillColor(riskColor.r, riskColor.g, riskColor.b);
+        doc.roundedRect(W - margin - 36, yp + 5, 34, 12, 2, 2, "F");
+        doc.setFontSize(7.5); doc.setFont("helvetica", "bold"); doc.setTextColor(255, 255, 255);
+        doc.text(`RIESGO ${pdfAnalysis.riesgoLogistico}`, W - margin - 34, yp + 13);
+        yp += 28;
+
+        /* Resumen */
+        doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(pri.r, pri.g, pri.b);
+        { const tl = doc.splitTextToSize("6.1  Resumen ejecutivo.", W - margin * 2); doc.text(tl, margin, yp); yp += tl.length * 5.5; }
+        doc.setFontSize(8.5); doc.setFont("helvetica", "normal"); doc.setTextColor(50, 50, 70);
+        yp = justifyPara(pdfAnalysis.resumen || "", margin + indent, yp, W - margin * 2 - indent, 5, 6);
+
+        /* Hallazgos */
+        if (pdfAnalysis.hallazgos?.length > 0) {
+          doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(pri.r, pri.g, pri.b);
+          { const tl = doc.splitTextToSize("6.2  Hallazgos relevantes para operaciones logísticas.", W - margin * 2); doc.text(tl, margin, yp); yp += tl.length * 5.5; }
+          doc.setFontSize(8.5); doc.setFont("helvetica", "normal"); doc.setTextColor(50, 50, 70);
+          (pdfAnalysis.hallazgos as string[]).forEach(h => {
+            doc.setFillColor(pri.r, pri.g, pri.b); doc.circle(margin + 1.5, yp + 2, 1.5, "F");
+            yp = justifyPara(h, margin + indent, yp, W - margin * 2 - indent, 4.5, 3);
+          });
+          yp += 2;
+        }
+
+        /* Amenazas */
+        if (pdfAnalysis.amenazasIdentificadas?.length > 0) {
+          doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(pri.r, pri.g, pri.b);
+          { const tl = doc.splitTextToSize("6.3  Amenazas identificadas.", W - margin * 2); doc.text(tl, margin, yp); yp += tl.length * 5.5; }
+          doc.setFontSize(8.5); doc.setFont("helvetica", "normal"); doc.setTextColor(50, 50, 70);
+          (pdfAnalysis.amenazasIdentificadas as string[]).forEach(a => {
+            doc.setFillColor(180, 30, 30); doc.circle(margin + 1.5, yp + 2, 1.5, "F");
+            yp = justifyPara(a, margin + indent, yp, W - margin * 2 - indent, 4.5, 3);
+          });
+          yp += 2;
+        }
+
+        /* Departamentos afectados */
+        if (pdfAnalysis.departamentosAfectados?.length > 0) {
+          doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.setTextColor(80, 90, 110);
+          doc.text("Departamentos afectados:", margin, yp); yp += 5;
+          doc.setFont("helvetica", "normal"); doc.setTextColor(50, 50, 70);
+          doc.text((pdfAnalysis.departamentosAfectados as string[]).join("  ·  "), margin + indent, yp); yp += 7;
+        }
+
+        /* Recomendación */
+        if (pdfAnalysis.recomendacionOperacional) {
+          doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(pri.r, pri.g, pri.b);
+          { const tl = doc.splitTextToSize("6.4  Recomendación operacional para gestión de transporte y logística.", W - margin * 2); doc.text(tl, margin, yp); yp += tl.length * 5.5; }
+          doc.setFillColor(245, 247, 252); doc.rect(margin, yp, W - margin * 2, 2, "F");
+          yp += 4;
+          doc.setFontSize(8.5); doc.setFont("helvetica", "italic"); doc.setTextColor(60, 70, 90);
+          yp = justifyPara(pdfAnalysis.recomendacionOperacional, margin + indent, yp, W - margin * 2 - indent, 5, 4);
+        }
+
+        /* IA watermark note */
+        doc.setFontSize(7); doc.setFont("helvetica", "italic"); doc.setTextColor(150, 160, 180);
+        doc.text(`[Análisis generado por IA (Claude) sobre el documento: ${pdfFile?.name || "adjunto"}]`, margin, yp + 8);
+      }
+
       /* Save */
       const filename = `informe_seguridad_${config.companyName.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase()}_${year}.pdf`;
       doc.save(filename);
@@ -825,7 +949,7 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
     } finally {
       setGenerating(false);
     }
-  }, [config, year, totalCrimes, prevTotalCrimes, topDepts, crimeTypeSummary, monthlyTrend, prevMonthlyTrend, activeBlockades]);
+  }, [config, year, totalCrimes, prevTotalCrimes, topDepts, crimeTypeSummary, monthlyTrend, prevMonthlyTrend, activeBlockades, pdfAnalysis, pdfFile]);
 
   /* ── UI styles ── */
   const S = {
@@ -958,10 +1082,67 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
         </div>
       </div>
 
+      {/* PDF document analysis */}
+      <div style={{ background:dark?"rgba(0,212,255,0.04)":"rgba(0,212,255,0.03)", border:`1px solid ${dark?"rgba(0,212,255,0.18)":"rgba(0,212,255,0.15)"}`, borderRadius:"12px", padding:"14px 18px" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:"8px", marginBottom:"8px" }}>
+          <FileText style={{ width:14, height:14, color:"#00d4ff" }} />
+          <span style={{ fontSize:"11px", fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", color:"#00d4ff" }}>Fuente Documental — PDF Gubernamental</span>
+          <span style={{ marginLeft:"auto", fontSize:"9px", color:textMuted, background:"rgba(0,212,255,0.07)", padding:"2px 7px", borderRadius:"4px", fontStyle:"italic" }}>IA</span>
+        </div>
+        <div style={{ fontSize:"11px", color:textMuted, marginBottom:"12px", lineHeight:1.5 }}>
+          Suba un documento oficial (UNODC, Policía Nacional, Ministerio de Defensa, Procuraduría, INVIAS, etc.) y la IA generará un análisis de inteligencia que se incluirá como sección adicional en el PDF.
+        </div>
+        <input ref={pdfInputRef} type="file" accept=".pdf" onChange={handlePdfSelect} style={{ display:"none" }} />
+        <div style={{ display:"flex", gap:"8px", alignItems:"center", flexWrap:"wrap" }}>
+          <button
+            onClick={() => pdfInputRef.current?.click()}
+            style={{ display:"flex", alignItems:"center", gap:"6px", padding:"7px 14px", fontSize:"11px", fontWeight:700, borderRadius:"6px", cursor:"pointer", background:dark?"rgba(255,255,255,0.06)":"#f1f5f9", border:`1px solid ${dark?"rgba(255,255,255,0.12)":"rgba(0,0,0,0.12)"}`, color:textMain }}>
+            <Upload style={{ width:11, height:11 }} />
+            {pdfFile ? pdfFile.name.slice(0, 28) + (pdfFile.name.length > 28 ? "…" : "") : "Seleccionar PDF…"}
+          </button>
+          {pdfFile && (
+            <button
+              onClick={handlePdfAnalyze}
+              disabled={pdfAnalyzing}
+              style={{ display:"flex", alignItems:"center", gap:"6px", padding:"7px 14px", fontSize:"11px", fontWeight:700, borderRadius:"6px", cursor:pdfAnalyzing?"wait":"pointer", background:"rgba(0,212,255,0.12)", border:"1px solid rgba(0,212,255,0.3)", color:"#00d4ff" }}>
+              {pdfAnalyzing ? <><RefreshCw style={{ width:10, height:10, animation:"spin 1s linear infinite" }} /> Analizando…</> : <><Sparkles style={{ width:10, height:10 }} /> Analizar documento</>}
+            </button>
+          )}
+          {pdfAnalysis && (
+            <button onClick={() => { setPdfFile(null); setPdfAnalysis(null); if(pdfInputRef.current) pdfInputRef.current.value=""; }}
+              style={{ fontSize:"10px", color:textMuted, background:"transparent", border:`1px solid ${dark?"rgba(255,255,255,0.1)":"rgba(0,0,0,0.1)"}`, borderRadius:"5px", padding:"4px 8px", cursor:"pointer" }}>
+              Quitar
+            </button>
+          )}
+        </div>
+        {pdfError && (
+          <div style={{ marginTop:"10px", fontSize:"10px", color:"#ef4444", display:"flex", alignItems:"center", gap:"5px" }}>
+            <AlertTriangle style={{ width:10, height:10 }} /> {pdfError}
+          </div>
+        )}
+        {pdfAnalysis && (
+          <div style={{ marginTop:"12px", background:dark?"rgba(0,212,255,0.05)":"rgba(0,212,255,0.04)", border:`1px solid rgba(0,212,255,0.18)`, borderRadius:"8px", padding:"12px" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:"8px", marginBottom:"8px" }}>
+              <CheckCircle2 style={{ width:12, height:12, color:"#10b981" }} />
+              <span style={{ fontSize:"11px", fontWeight:700, color:"#10b981" }}>Análisis completado — se incluirá en el PDF como sección adicional</span>
+              <span style={{ marginLeft:"auto", fontSize:"9px", fontWeight:700, color: pdfAnalysis.riesgoLogistico==="ALTO"?"#ef4444": pdfAnalysis.riesgoLogistico==="MEDIO"?"#f59e0b":"#10b981", background: pdfAnalysis.riesgoLogistico==="ALTO"?"rgba(239,68,68,0.12)": pdfAnalysis.riesgoLogistico==="MEDIO"?"rgba(245,158,11,0.12)":"rgba(16,185,129,0.12)", padding:"2px 8px", borderRadius:"4px" }}>
+                RIESGO {pdfAnalysis.riesgoLogistico}
+              </span>
+            </div>
+            <div style={{ fontSize:"11px", fontWeight:700, color:textMain, marginBottom:"2px" }}>{pdfAnalysis.titulo}</div>
+            <div style={{ fontSize:"10px", color:textMuted, marginBottom:"8px" }}>{pdfAnalysis.fuente}{pdfAnalysis.fechaDocumento ? ` · ${pdfAnalysis.fechaDocumento}` : ""}</div>
+            <div style={{ fontSize:"11px", color:textMuted, lineHeight:1.5, marginBottom:"8px" }}>{pdfAnalysis.resumen}</div>
+            {pdfAnalysis.departamentosAfectados?.length > 0 && (
+              <div style={{ fontSize:"10px", color:"#00d4ff" }}>Departamentos: {pdfAnalysis.departamentosAfectados.join(", ")}</div>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Preview summary */}
       <div style={{ background:dark?"rgba(99,102,241,0.06)":"rgba(99,102,241,0.04)", border:`1px solid ${dark?"rgba(99,102,241,0.2)":"rgba(99,102,241,0.12)"}`, borderRadius:"12px", padding:"14px 18px" }}>
         <div style={{ fontSize:"11px", fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", color:"#6366f1", marginBottom:"10px" }}>
-          Contenido del PDF · {year} · {totalCrimes.toLocaleString("es-CO")} delitos · 5 páginas
+          Contenido del PDF · {year} · {totalCrimes.toLocaleString("es-CO")} delitos · {pdfAnalysis ? "6" : "5"} páginas
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:"8px" }}>
           {[
