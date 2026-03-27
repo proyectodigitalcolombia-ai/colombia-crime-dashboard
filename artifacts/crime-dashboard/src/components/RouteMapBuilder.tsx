@@ -187,12 +187,20 @@ function SearchInput({ label, icon, value, color, onChange, onSelect, onClear, p
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
   const textMain = dark ? "#e2eaf4" : "#1a2a3a";
   const textMuted = dark ? E.textDim : "#64748b";
   const borderC = dark ? E.border : "rgba(0,0,0,0.07)";
   const inputBg = dark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)";
   const dropBg = dark ? "#111827" : "#ffffff";
 
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => { document.removeEventListener("mousedown", handler); };
+  }, []);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
   const handle = (v: string) => {
@@ -211,7 +219,7 @@ function SearchInput({ label, icon, value, color, onChange, onSelect, onClear, p
   const shortName = (dn: string) => dn.split(",").slice(0, 2).join(",");
 
   return (
-    <div style={{ position: "relative" }}>
+    <div ref={ref} style={{ position: "relative" }}>
       <div style={{ fontSize: "9px", fontWeight: 700, color: textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>{label}</div>
       <div style={{ display: "flex", alignItems: "center", gap: "8px", background: inputBg, border: `1px solid ${locked ? color+"44" : borderC}`, borderRadius: "8px", padding: "7px 10px", transition: "border-color 0.2s" }}>
         <div style={{ fontSize: "16px", flexShrink: 0 }}>{icon}</div>
@@ -322,11 +330,27 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
       setMapClickMode(null);
     } else if (mapClickMode === "via") {
       const wp: WP = { lat, lng, name: short, type: "via" };
-      setVias(prev => [...prev, wp]);
-      setViaTexts(prev => [...prev, short]);
+      setVias(prev => {
+        const placeholderIdx = prev.findIndex(v => v.lat === 0 && v.lng === 0);
+        if (placeholderIdx >= 0) {
+          const updated = [...prev];
+          updated[placeholderIdx] = wp;
+          return updated;
+        }
+        return [...prev, wp];
+      });
+      setViaTexts(prev => {
+        const placeholderIdx = vias.findIndex(v => v.lat === 0 && v.lng === 0);
+        if (placeholderIdx >= 0) {
+          const updated = [...prev];
+          updated[placeholderIdx] = short;
+          return updated;
+        }
+        return [...prev, short];
+      });
       setMapClickMode(null);
     }
-  }, [mapClickMode]);
+  }, [mapClickMode, vias]);
 
   /* ─ Nominatim select ─ */
   const selectNom = (r: NomResult, kind: "origin" | "dest" | "via", idx?: number) => {
@@ -424,7 +448,7 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
     <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
 
       {/* ── TOP PANEL: route inputs ── */}
-      <div style={{ background: panelBg, border: `1px solid ${borderC}`, borderRadius: "14px", overflow: "hidden" }}>
+      <div style={{ background: panelBg, border: `1px solid ${borderC}`, borderRadius: "14px" }}>
 
         {/* Header */}
         <div style={{ padding: "12px 16px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -668,7 +692,7 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
               <div style={{ fontSize: "9px", fontWeight: 700, color: textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "7px" }}>Departamentos en Ruta</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
                 {canonDepts.map(d => {
-                  const s = compositeScore(d, pirataMap[d] ?? 0);
+                  const s = compositeScore(d, pirataMap[normPirataKey(d)] ?? 0);
                   const l = riskLabel(s);
                   return (
                     <span key={d} style={{ fontSize: "10px", padding: "3px 9px", borderRadius: "5px", background: l.bg, border: `1px solid ${l.color}33`, color: l.color, fontWeight: 600 }}>
