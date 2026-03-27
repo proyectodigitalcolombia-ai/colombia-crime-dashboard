@@ -85,6 +85,7 @@
     "leaflet": "^1.9.4",
     "papaparse": "^5.5.3",
     "react-csv": "^2.2.2",
+    "react-leaflet": "^5.0.0",
     "react-simple-maps": "^3.0.0"
   }
 }

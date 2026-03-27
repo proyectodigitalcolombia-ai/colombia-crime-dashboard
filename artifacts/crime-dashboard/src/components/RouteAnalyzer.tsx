@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ComposableMap, Geographies, Geography } from "react-simple-maps";
+import { RouteMapBuilder } from "./RouteMapBuilder";
 import {
   useGetCrimesByDepartment,
   useGetCrimeTypes,
@@ -791,8 +792,11 @@ export function RouteAnalyzer({ dark = true }: Props) {
         </div>
       )}
 
-      {/* ── CUSTOM ROUTE BUILDER ── */}
-      {customRouteMode && !selectedCorridor && (() => {
+      {/* ── CUSTOM ROUTE BUILDER (Leaflet + OSRM) ── */}
+      {customRouteMode && !selectedCorridor && (
+        <RouteMapBuilder dark={dark} userBlockades={userBlockades} pirataMap={pirataMap} />
+      )}
+      {false && (() => {
         const crDepts  = customDepts; // canonical names
         const crScore  = crDepts.length > 0
           ? Math.round(crDepts.reduce((s, d) => s + compositeScore(d, pirataMap[normKey(d)] ?? 0), 0) / crDepts.length)

@@ -3,7 +3,16 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   Legend, ResponsiveContainer, Cell, LineChart, Line,
 } from "recharts";
-import { ComposableMap, Geographies, Geography } from "react-simple-maps";
+import { MapContainer, TileLayer, GeoJSON } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl:       "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl:     "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
 
 const GEO_URL =
   "https://gist.githubusercontent.com/john-guerra/43c7656821069d00dcbc/raw/be6a6e239cd5b5b803c6e7c2ec405b793a9064dd/colombia.geo.json";
@@ -101,9 +110,14 @@ export function ArmedGroupsPanel({ dark }: { dark: boolean }) {
   const [deptData, setDeptData] = useState<DeptPresence[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedGroup, setSelectedGroup] = useState<string>("all");
-  const [activeView, setActiveView] = useState<"overview" | "mapa" | "tendencia">("overview");
+  const [activeView, setActiveView] = useState<"overview" | "mapa" | "tendencia">("mapa");
   const [selectedYear, setSelectedYear] = useState("2025");
   const [hoveredArmedDept, setHoveredArmedDept] = useState<string | null>(null);
+  const [geoJson, setGeoJson] = useState<any>(null);
+
+  useEffect(() => {
+    fetch(GEO_URL).then(r => r.json()).then(setGeoJson).catch(() => {});
+  }, []);
 
   const text = dark ? "#e2e8f0" : "#1e293b";
   const mutedText = dark ? E.textDim : E.textDimLight;
@@ -352,52 +366,67 @@ export function ArmedGroupsPanel({ dark }: { dark: boolean }) {
                 )}
               </div>
             </div>
-            <ComposableMap
-              projection="geoMercator"
-              projectionConfig={{ scale: 1800, center: [-73.5, 4.0] }}
-              style={{ width: "100%", height: "340px", background: dark ? "#0a1220" : "#c0d8ee" }}
-            >
-              <Geographies geography={GEO_URL}>
-                {({ geographies }: { geographies: any[] }) => geographies.map((geo: any) => {
-                  const rawName: string = geo.properties.NOMBRE_DPT || geo.properties.DPTO_CNMBR || geo.properties.name || "";
-                  const normName = normDeptAG(rawName);
-                  const deptInfo = deptData.find(d => normDeptAG(d.department) === normName);
-                  const isHov = hoveredArmedDept === rawName;
-
-                  let fill: string;
-                  if (selectedGroup === "all") {
-                    if (!deptInfo) fill = dark ? "#131e2e" : "#c8d8e8";
-                    else if (deptInfo.maxRisk === "critical") fill = "#cc1000";
-                    else if (deptInfo.maxRisk === "high")     fill = "#c07a00";
-                    else if (deptInfo.maxRisk === "medium")   fill = "#7c3aed";
-                    else fill = "#1a6a50";
-                  } else {
-                    const selGroup = groups.find(g => g.id === selectedGroup);
-                    const grpColor = selGroup?.color ?? E.cyan;
-                    const grpInfo  = deptInfo?.groups.find(g => g.groupId === selectedGroup);
-                    if (!grpInfo)               fill = dark ? "#131e2e" : "#c8d8e8";
-                    else if (grpInfo.level === "alta")  fill = grpColor;
-                    else if (grpInfo.level === "media") fill = grpColor + "88";
-                    else                                fill = grpColor + "33";
-                  }
-
-                  return (
-                    <Geography key={geo.rsmKey} geography={geo}
-                      fill={fill}
-                      stroke={isHov ? "rgba(255,255,255,0.9)" : (dark ? "rgba(40,80,140,0.3)" : "rgba(80,120,180,0.2)")}
-                      strokeWidth={isHov ? 1.8 : 0.5}
-                      onMouseEnter={() => setHoveredArmedDept(rawName)}
-                      onMouseLeave={() => setHoveredArmedDept(null)}
-                      style={{
-                        default: { outline: "none", transition: "filter 0.1s" },
-                        hover:   { outline: "none", cursor: "pointer", filter: "brightness(1.35)" },
-                        pressed: { outline: "none" },
-                      }}
-                    />
-                  );
-                })}
-              </Geographies>
-            </ComposableMap>
+            {geoJson ? (
+              <MapContainer
+                center={[4.5709, -74.2973]}
+                zoom={5}
+                zoomControl={true}
+                scrollWheelZoom={true}
+                style={{ width: "100%", height: "340px", background: dark ? "#0a1220" : "#c0d8ee" }}
+              >
+                <TileLayer
+                  url={dark
+                    ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                    : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"}
+                  attribution={dark ? "&copy; CARTO" : "&copy; OpenStreetMap"}
+                />
+                <GeoJSON
+                  key={`${selectedGroup}-${dark}`}
+                  data={geoJson}
+                  style={(feature: any) => {
+                    const rawName: string = feature?.properties?.NOMBRE_DPT || feature?.properties?.DPTO_CNMBR || feature?.properties?.name || "";
+                    const normName = normDeptAG(rawName);
+                    const deptInfo = deptData.find(d => normDeptAG(d.department) === normName);
+                    let fillColor: string;
+                    if (selectedGroup === "all") {
+                      if (!deptInfo) fillColor = dark ? "#131e2e" : "#c8d8e8";
+                      else if (deptInfo.maxRisk === "critical") fillColor = "#cc1000";
+                      else if (deptInfo.maxRisk === "high")     fillColor = "#c07a00";
+                      else if (deptInfo.maxRisk === "medium")   fillColor = "#7c3aed";
+                      else fillColor = "#1a6a50";
+                    } else {
+                      const selGroup = groups.find(g => g.id === selectedGroup);
+                      const grpColor = selGroup?.color ?? E.cyan;
+                      const grpInfo  = deptInfo?.groups.find(g => g.groupId === selectedGroup);
+                      if (!grpInfo)                      fillColor = dark ? "#131e2e" : "#c8d8e8";
+                      else if (grpInfo.level === "alta") fillColor = grpColor;
+                      else if (grpInfo.level === "media") fillColor = grpColor + "aa";
+                      else                               fillColor = grpColor + "55";
+                    }
+                    return { fillColor, weight: 0.8, color: dark ? "rgba(100,140,200,0.4)" : "rgba(80,120,180,0.3)", fillOpacity: 0.82 };
+                  }}
+                  onEachFeature={(feature: any, layer: any) => {
+                    const rawName: string = feature?.properties?.NOMBRE_DPT || feature?.properties?.DPTO_CNMBR || feature?.properties?.name || "";
+                    const normName = normDeptAG(rawName);
+                    const deptInfo = deptData.find(d => normDeptAG(d.department) === normName);
+                    const tooltipHtml = deptInfo
+                      ? `<div style="font-family:sans-serif;font-size:11px"><strong>${rawName}</strong><br/>${
+                          deptInfo.groups.filter(g => selectedGroup === "all" || g.groupId === selectedGroup)
+                            .map(g => `<span style="color:${g.color}">${g.shortName} · ${LEVEL_LABEL[g.level]}</span>`).join("<br/>")
+                          || "Sin grupos seleccionados"
+                        }</div>`
+                      : `<div style="font-family:sans-serif;font-size:11px"><strong>${rawName}</strong><br/><span style="color:#64748b">Sin presencia confirmada</span></div>`;
+                    layer.bindTooltip(tooltipHtml, { sticky: true, opacity: 0.95 });
+                    layer.on("mouseover", () => { setHoveredArmedDept(rawName); layer.setStyle({ weight: 2, color: "rgba(255,255,255,0.8)" }); });
+                    layer.on("mouseout",  () => { setHoveredArmedDept(null);   layer.setStyle({ weight: 0.8, color: dark ? "rgba(100,140,200,0.4)" : "rgba(80,120,180,0.3)" }); });
+                  }}
+                />
+              </MapContainer>
+            ) : (
+              <div style={{ width: "100%", height: "340px", display: "flex", alignItems: "center", justifyContent: "center", background: dark ? "#0a1220" : "#c0d8ee", color: mutedText, fontSize: "12px" }}>
+                Cargando mapa…
+              </div>
+            )}
 
             {/* Hover tooltip */}
             {hoveredArmedDept && (() => {
