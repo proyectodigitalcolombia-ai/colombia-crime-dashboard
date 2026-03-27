@@ -269,11 +269,13 @@ export function ArmedGroupsPanel({ dark }: { dark: boolean }) {
                   <div style={{ textAlign: "center", minWidth: "80px" }}>
                     <div style={{ fontSize: "10px", color: mutedText, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>Acciones {selectedYear}</div>
                     <div style={{ fontSize: "22px", fontWeight: 800, color: group.color }}>{(group.annualIncidents[selectedYear] ?? 0).toLocaleString("es-CO")}</div>
-                    <div style={{ fontSize: "10px", color: mutedText }}>
-                      {group.annualIncidents[selectedYear] && group.annualIncidents[prevYear]
-                        ? `${group.annualIncidents[selectedYear] > group.annualIncidents[prevYear] ? "▲" : "▼"} ${Math.abs(((group.annualIncidents[selectedYear] - group.annualIncidents[prevYear]) / group.annualIncidents[prevYear]) * 100).toFixed(1)}% vs ${prevYear}`
-                        : ""}
-                    </div>
+                    {group.annualIncidents[selectedYear] && group.annualIncidents[prevYear] ? (() => {
+                      const curr = group.annualIncidents[selectedYear];
+                      const prev = group.annualIncidents[prevYear];
+                      const isUp = curr > prev;
+                      const pct = Math.abs(((curr - prev) / prev) * 100).toFixed(1);
+                      return <div style={{ fontSize: "10px", fontWeight: 600, color: isUp ? "#ef4444" : "#22c55e" }}>{isUp ? "▲" : "▼"} {pct}% vs {prevYear}</div>;
+                    })() : <div style={{ fontSize: "10px", color: mutedText }}>—</div>}
                   </div>
                   {/* Presence count */}
                   <div style={{ textAlign: "center", minWidth: "80px" }}>
