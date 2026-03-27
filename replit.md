@@ -185,15 +185,20 @@ The project is configured to deploy as two Render services from a single GitHub 
 ### Services
 | Service | Render ID | URL | Type |
 |---------|-----------|-----|------|
-| `colombia-crime-api` | `srv-d7256m450q8c7390kbbg` | `https://colombia-crime-api.onrender.com` | Web Service (Node) |
-| `colombia-crime-dashboard` | `srv-d7256p24d50c738kd6j0` | `https://colombia-crime-dashboard.onrender.com` | Static Site |
+| `colombia-crime-api` | `srv-d7256m450q8c7390kbbg` | `https://colombia-crime-api.onrender.com` | Web Service (Node) — serves dashboard + API |
+| `colombia-crime-dashboard` | `srv-d7256p24d50c738kd6j0` | `https://colombia-crime-dashboard.onrender.com` | Static Site (broken — build_failed since 2026-03) |
 | `colombia-crime-db` | — | internal | PostgreSQL |
 
+**Primary production URL**: `https://colombia-crime-api.onrender.com/` (API server serves both dashboard UI and API endpoints)
+
 ### Deploy workflow
-Since the dashboard is a static site on Render, we pre-build locally and push the dist files to GitHub:
-1. Run build: `VITE_API_URL=https://colombia-crime-api.onrender.com BASE_PATH=/ NODE_ENV=production pnpm --filter @workspace/crime-dashboard run build`
-2. Push `artifacts/crime-dashboard/dist/public/` files via GitHub API (using `@replit/connectors-sdk` connectors proxy — max ~1MB per file)
-3. Trigger Render redeploy: `curl -X POST https://api.render.com/v1/services/srv-d7256p24d50c738kd6j0/deploys -H "Authorization: Bearer $RENDER_API_KEY" -d '{"clearCache":"clear"}'`
+The dashboard is served by the API server (Express static middleware). The static site service on Render has persistent build failures unrelated to code. Deploy workflow:
+1. Run build: `BASE_PATH=/ pnpm --filter @workspace/crime-dashboard run build`
+2. Push `artifacts/crime-dashboard/dist/public/` files via GitHub API
+3. The API server auto-deploys from GitHub and picks up new dist files (looks at `../../crime-dashboard/dist/public` relative to its dist dir)
+4. Also push to `_site/` as backup
+
+**app.ts static serving**: `const dashboardDist = path.join(__dirname, "../../crime-dashboard/dist/public")` → Express serves the React SPA with catch-all for client-side routing.
 
 ### Environment variables (Render dashboard)
 - `DATABASE_URL` — auto-linked from Render PostgreSQL  
