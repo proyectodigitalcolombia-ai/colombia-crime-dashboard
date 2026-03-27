@@ -440,9 +440,11 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
   /* ─ Refs so the stable MapClick handler always sees latest state ─ */
   const mapClickModeRef = useRef(mapClickMode);
   const originRef       = useRef(origin);
+  const destRef         = useRef(dest);
   const viasRef         = useRef(vias);
   mapClickModeRef.current = mapClickMode;
   originRef.current       = origin;
+  destRef.current         = dest;
   viasRef.current         = vias;
 
   /* ─ Map click ─────────────────────────────────────────────────────
@@ -566,6 +568,88 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
     setRouteDepts(unique);
     setGeocoding(false);
   };
+
+  /* ─ Recalculate route from an explicit list of WPs ─ */
+  const recalculateRoute = useCallback(async (wps: WP[]) => {
+    if (wps.length < 2) { setRouteResult(null); setRouteDepts([]); setPhase("setup"); return; }
+    setRouting(true); setRouteError(""); setPhase("result");
+    const result = await fetchRoute(wps);
+    setRouting(false);
+    if (!result) { setRouteError("Error al recalcular ruta."); return; }
+    setRouteResult(result);
+    setGeocoding(true);
+    const pts = result.geometry;
+    const step = Math.max(1, Math.floor(pts.length / 8));
+    const samples = pts.filter((_, i) => i % step === 0).slice(0, 10);
+    const raw = await Promise.all(samples.map(([lat, lng]) => getDept(lat, lng)));
+    setRouteDepts([...new Set([...raw].filter(Boolean))]);
+    setGeocoding(false);
+  }, []);
+
+  /* ─ Find which segment a click-on-polyline falls in ─
+     Returns the index in the vias array where the new WP should be inserted.
+     0 = before first via (after origin), vias.length = before dest. */
+  const findViaInsertIndex = useCallback((clickLat: number, clickLng: number, wps: WP[], geometry: [number, number][]) => {
+    if (wps.length < 2 || geometry.length < 2) return 0;
+    // Map each waypoint to its closest geometry-point index
+    const wpGeoIdx = wps.map(wp => {
+      let minD = Infinity, idx = 0;
+      for (let i = 0; i < geometry.length; i++) {
+        const d = (geometry[i][0] - wp.lat) ** 2 + (geometry[i][1] - wp.lng) ** 2;
+        if (d < minD) { minD = d; idx = i; }
+      }
+      return idx;
+    });
+    // Find geometry point closest to the click
+    let minDist = Infinity, clickIdx = 0;
+    for (let i = 0; i < geometry.length; i++) {
+      const d = (geometry[i][0] - clickLat) ** 2 + (geometry[i][1] - clickLng) ** 2;
+      if (d < minDist) { minDist = d; clickIdx = i; }
+    }
+    // Determine which segment (between which two wps) the click falls in
+    for (let s = 0; s < wpGeoIdx.length - 1; s++) {
+      if (clickIdx >= wpGeoIdx[s] && clickIdx <= wpGeoIdx[s + 1]) return s;
+    }
+    return wps.length - 2; // fallback: before dest
+  }, []);
+
+  /* ─ Click on the route line → insert a new via and recalculate ─ */
+  const handlePolylineClick = useCallback((e: { latlng: { lat: number; lng: number } }) => {
+    if (!routeResult || routeResult.isEstimated) return;
+    const { lat, lng } = e.latlng;
+    const name = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    const newVia: WP = { lat, lng, name, type: "via" };
+
+    setVias(prevVias => {
+      setViaTexts(prevTexts => {
+        const insertAt = findViaInsertIndex(lat, lng, [
+          ...(originRef.current ? [originRef.current] : []),
+          ...prevVias,
+          ...(destRef.current ? [destRef.current] : []),
+        ], routeResult.geometry);
+        const newVias = [...prevVias];
+        newVias.splice(insertAt, 0, newVia);
+        const newTexts = [...prevTexts];
+        newTexts.splice(insertAt, 0, name);
+        // schedule recalculate asynchronously with the updated wps
+        const wps: WP[] = [
+          ...(originRef.current ? [originRef.current] : []),
+          ...newVias,
+          ...(destRef.current ? [destRef.current] : []),
+        ];
+        setTimeout(() => recalculateRoute(wps), 0);
+        return newTexts;
+      });
+      const insertAt = findViaInsertIndex(lat, lng, [
+        ...(originRef.current ? [originRef.current] : []),
+        ...prevVias,
+        ...(destRef.current ? [destRef.current] : []),
+      ], routeResult.geometry);
+      const newVias = [...prevVias];
+      newVias.splice(insertAt, 0, newVia);
+      return newVias;
+    });
+  }, [routeResult, findViaInsertIndex, recalculateRoute]);
 
   /* ─ Clear all ─ */
   const clearAll = () => {
@@ -874,6 +958,16 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
                 opacity={routeResult.isEstimated ? 0.75 : 0.95}
                 dashArray={routeResult.isEstimated ? "8, 6" : undefined}
               />
+              {/* Invisible wide hit-area for click-to-reshape (only for real road routes) */}
+              {!routeResult.isEstimated && (
+                <Polyline
+                  positions={routeResult.geometry}
+                  color="transparent"
+                  weight={22}
+                  opacity={0}
+                  eventHandlers={{ click: handlePolylineClick as never }}
+                />
+              )}
             </>
           )}
 
@@ -890,13 +984,25 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
                   dragend: async (e) => {
                     const { lat, lng } = e.target.getLatLng();
                     const name = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-                    if (wp.type === "origin") { setOrigin(prev => prev ? { ...prev, lat, lng, name } : null); setOriginText(name); }
-                    else if (wp.type === "dest") { setDest(prev => prev ? { ...prev, lat, lng, name } : null); setDestText(name); }
+                    // Build updated WP list synchronously before state settles
+                    const updOrigin = wp.type === "origin" ? { ...wp, lat, lng, name } : originRef.current;
+                    const updDest   = wp.type === "dest"   ? { ...wp, lat, lng, name } : destRef.current;
+                    const updVias   = viasRef.current.map((v, idx) =>
+                      idx === viaIdxInArray ? { ...v, lat, lng, name } : v
+                    );
+                    if (wp.type === "origin") { setOrigin(updOrigin); setOriginText(name); }
+                    else if (wp.type === "dest") { setDest(updDest); setDestText(name); }
                     else if (viaIdxInArray >= 0) {
-                      setVias(prev => { const c=[...prev]; if(c[viaIdxInArray]) c[viaIdxInArray]={...c[viaIdxInArray],lat,lng,name}; return c; });
+                      setVias(updVias);
                       setViaTexts(prev => { const c=[...prev]; c[viaIdxInArray]=name; return c; });
                     }
-                    setRouteResult(null); setRouteDepts([]); setPhase("setup");
+                    // Auto-recalculate route with the new positions
+                    const wps: WP[] = [
+                      ...(updOrigin ? [updOrigin] : []),
+                      ...updVias.filter(v => v.lat !== 0 || v.lng !== 0),
+                      ...(updDest ? [updDest] : []),
+                    ];
+                    await recalculateRoute(wps);
                   }
                 }}
               />
@@ -907,7 +1013,7 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
 
       {/* ── Drag hint ── */}
       <div style={{ fontSize: "9px", color: textMuted, textAlign: "center" }}>
-        Clic en el mapa → agrega puntos de ruta · Arrastre un marcador para reposicionarlo · Rueda del mouse para zoom
+        Clic en el mapa → agrega puntos de ruta · <strong style={{ color: E.cyan, opacity: 0.8 }}>Clic en la línea de ruta → inserta desvío y recalcula</strong> · Arrastra un pin → recalcula automáticamente · Rueda del mouse para zoom
       </div>
 
       {/* ── ROUTE SUMMARY CARDS ── */}
