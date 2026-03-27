@@ -92,4 +92,17 @@ router.patch("/auth/config", async (req, res) => {
   }
 });
 
+/* ── Middleware reutilizable para rutas protegidas ── */
+export function requireAuth(req: any, res: any, next: any) {
+  const token = extractToken(req);
+  if (!token) { res.status(401).json({ error: "No autenticado" }); return; }
+  try {
+    const payload = jwt.verify(token, JWT_SECRET) as { userId: number };
+    req.userId = payload.userId;
+    next();
+  } catch {
+    res.status(401).json({ error: "Token inválido o expirado" });
+  }
+}
+
 export default router;

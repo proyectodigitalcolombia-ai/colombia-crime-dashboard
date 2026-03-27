@@ -40,6 +40,7 @@ import { ColombiaMap } from "@/components/ColombiaMap";
 import { RouteAnalyzer } from "@/components/RouteAnalyzer";
 import { ReportGenerator } from "@/components/ReportGenerator";
 import { DataAlertBanner } from "@/components/DataAlertBanner";
+import { ArmedGroupsPanel } from "@/components/ArmedGroupsPanel";
 import { useAuth } from "@/context/AuthContext";
 
 /* ───────── EXECUTIVE PALETTE ───────── */
@@ -231,7 +232,7 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const { user, logout } = useAuth();
   const [isDark, setIsDark] = useState(true);
-  const [activeTab, setActiveTab] = useState<"estadisticas" | "ruta" | "informe">("estadisticas");
+  const [activeTab, setActiveTab] = useState<"estadisticas" | "ruta" | "informe" | "grupos">("estadisticas");
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -569,6 +570,7 @@ export default function Dashboard() {
         <div style={{ display: "flex", gap: "4px", marginBottom: "22px", borderBottom: `1px solid ${isDark ? E.border : "rgba(0,0,0,0.07)"}`, paddingBottom: "0" }} className="print:hidden">
           {([
             { id: "estadisticas", label: "📊  Estadísticas Delictivas" },
+            { id: "grupos",       label: "⚠️  Grupos Armados" },
             { id: "ruta",         label: "🚛  Análisis de Ruta — Piratería Terrestre" },
             { id: "informe",      label: "📄  Informe Gerencial PDF" },
           ] as const).map(tab => (
@@ -599,6 +601,11 @@ export default function Dashboard() {
 
         {/* ── GLOBAL ALERT BANNERS ── */}
         <DataAlertBanner dark={isDark} />
+
+        {/* ── GRUPOS ARMADOS TAB ── */}
+        {activeTab === "grupos" && (
+          <ArmedGroupsPanel dark={isDark} />
+        )}
 
         {/* ── ROUTE ANALYZER TAB ── */}
         {activeTab === "ruta" && (
