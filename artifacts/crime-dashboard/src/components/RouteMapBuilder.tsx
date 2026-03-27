@@ -290,11 +290,11 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
 
   const [phase, setPhase] = useState<"setup" | "result">("setup");
 
-  /* ─ All waypoints in order ─ */
+  /* ─ All waypoints in order (only ones with valid coords) ─ */
   const allWPs = (): WP[] => {
     const arr: WP[] = [];
     if (origin) arr.push(origin);
-    vias.forEach(v => arr.push(v));
+    vias.filter(v => v.lat !== 0 || v.lng !== 0).forEach(v => arr.push(v));
     if (dest) arr.push(dest);
     return arr;
   };
