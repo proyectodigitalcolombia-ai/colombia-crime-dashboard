@@ -3,6 +3,14 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   Legend, ResponsiveContainer, Cell, LineChart, Line,
 } from "recharts";
+import { ComposableMap, Geographies, Geography } from "react-simple-maps";
+
+const GEO_URL =
+  "https://gist.githubusercontent.com/john-guerra/43c7656821069d00dcbc/raw/be6a6e239cd5b5b803c6e7c2ec405b793a9064dd/colombia.geo.json";
+
+function normDeptAG(raw: string): string {
+  return raw.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[,.]/g, "").toLowerCase().trim();
+}
 
 /* ── Types ──────────────────────────────────────────────────────── */
 interface GroupPresence { department: string; level: "alta" | "media" | "baja" }
@@ -95,6 +103,7 @@ export function ArmedGroupsPanel({ dark }: { dark: boolean }) {
   const [selectedGroup, setSelectedGroup] = useState<string>("all");
   const [activeView, setActiveView] = useState<"overview" | "mapa" | "tendencia">("overview");
   const [selectedYear, setSelectedYear] = useState("2025");
+  const [hoveredArmedDept, setHoveredArmedDept] = useState<string | null>(null);
 
   const text = dark ? "#e2e8f0" : "#1e293b";
   const mutedText = dark ? E.textDim : E.textDimLight;
@@ -318,6 +327,103 @@ export function ArmedGroupsPanel({ dark }: { dark: boolean }) {
       {/* ── DEPT PRESENCE VIEW ── */}
       {activeView === "mapa" && (
         <div>
+
+          {/* ── Colombia SVG Map ── */}
+          <div style={{ position: "relative", background: panelBg, border: `1px solid ${borderColor}`, borderRadius: "12px", overflow: "hidden", marginBottom: "16px" }}>
+            <div style={{ padding: "10px 16px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: mutedText }}>Mapa de Presencia — Colombia 2026</span>
+              {/* Legend */}
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", fontSize: "9px", color: mutedText, alignItems: "center" }}>
+                {selectedGroup === "all" ? (
+                  <>
+                    {[["#cc1000","CRÍTICO"],["#c07a00","ALTO"],["#7c3aed","MEDIO"],["#1a6a50","BAJO"]] .map(([c,l]) => (
+                      <div key={l} style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                        <span style={{ width: 9, height: 9, borderRadius: "2px", background: c as string, display: "inline-block", flexShrink: 0 }} />{l as string}
+                      </div>
+                    ))}
+                  </>
+                ) : (
+                  groups.filter(g => g.id === selectedGroup).flatMap(g => [
+                    <div key="alta" style={{ display: "flex", alignItems: "center", gap: "4px" }}><span style={{ width: 9, height: 9, borderRadius: "2px", background: g.color, display: "inline-block" }} />ALTA</div>,
+                    <div key="media" style={{ display: "flex", alignItems: "center", gap: "4px" }}><span style={{ width: 9, height: 9, borderRadius: "2px", background: g.color + "88", display: "inline-block" }} />MEDIA</div>,
+                    <div key="baja" style={{ display: "flex", alignItems: "center", gap: "4px" }}><span style={{ width: 9, height: 9, borderRadius: "2px", background: g.color + "33", display: "inline-block" }} />BAJA</div>,
+                    <div key="none" style={{ display: "flex", alignItems: "center", gap: "4px" }}><span style={{ width: 9, height: 9, borderRadius: "2px", background: dark ? "#131e2e" : "#c8d8e8", display: "inline-block" }} />SIN PRESENCIA</div>,
+                  ])
+                )}
+              </div>
+            </div>
+            <ComposableMap
+              projection="geoMercator"
+              projectionConfig={{ scale: 1800, center: [-73.5, 4.0] }}
+              style={{ width: "100%", height: "340px", background: dark ? "#0a1220" : "#c0d8ee" }}
+            >
+              <Geographies geography={GEO_URL}>
+                {({ geographies }: { geographies: any[] }) => geographies.map((geo: any) => {
+                  const rawName: string = geo.properties.NOMBRE_DPT || geo.properties.DPTO_CNMBR || geo.properties.name || "";
+                  const normName = normDeptAG(rawName);
+                  const deptInfo = deptData.find(d => normDeptAG(d.department) === normName);
+                  const isHov = hoveredArmedDept === rawName;
+
+                  let fill: string;
+                  if (selectedGroup === "all") {
+                    if (!deptInfo) fill = dark ? "#131e2e" : "#c8d8e8";
+                    else if (deptInfo.maxRisk === "critical") fill = "#cc1000";
+                    else if (deptInfo.maxRisk === "high")     fill = "#c07a00";
+                    else if (deptInfo.maxRisk === "medium")   fill = "#7c3aed";
+                    else fill = "#1a6a50";
+                  } else {
+                    const selGroup = groups.find(g => g.id === selectedGroup);
+                    const grpColor = selGroup?.color ?? E.cyan;
+                    const grpInfo  = deptInfo?.groups.find(g => g.groupId === selectedGroup);
+                    if (!grpInfo)               fill = dark ? "#131e2e" : "#c8d8e8";
+                    else if (grpInfo.level === "alta")  fill = grpColor;
+                    else if (grpInfo.level === "media") fill = grpColor + "88";
+                    else                                fill = grpColor + "33";
+                  }
+
+                  return (
+                    <Geography key={geo.rsmKey} geography={geo}
+                      fill={fill}
+                      stroke={isHov ? "rgba(255,255,255,0.9)" : (dark ? "rgba(40,80,140,0.3)" : "rgba(80,120,180,0.2)")}
+                      strokeWidth={isHov ? 1.8 : 0.5}
+                      onMouseEnter={() => setHoveredArmedDept(rawName)}
+                      onMouseLeave={() => setHoveredArmedDept(null)}
+                      style={{
+                        default: { outline: "none", transition: "filter 0.1s" },
+                        hover:   { outline: "none", cursor: "pointer", filter: "brightness(1.35)" },
+                        pressed: { outline: "none" },
+                      }}
+                    />
+                  );
+                })}
+              </Geographies>
+            </ComposableMap>
+
+            {/* Hover tooltip */}
+            {hoveredArmedDept && (() => {
+              const normName = normDeptAG(hoveredArmedDept);
+              const deptInfo = deptData.find(d => normDeptAG(d.department) === normName);
+              return (
+                <div style={{ position: "absolute", bottom: "12px", left: "12px", background: dark ? "rgba(10,16,30,0.95)" : "rgba(255,255,255,0.97)", border: `1px solid ${dark ? "rgba(0,212,255,0.3)" : "rgba(3,105,161,0.2)"}`, borderRadius: "8px", padding: "8px 12px", fontSize: "11px", backdropFilter: "blur(10px)", pointerEvents: "none", maxWidth: "280px" }}>
+                  <div style={{ fontWeight: 700, color: text, marginBottom: "5px" }}>{hoveredArmedDept}</div>
+                  {deptInfo ? (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                      {deptInfo.groups
+                        .filter(g => selectedGroup === "all" || g.groupId === selectedGroup)
+                        .map(g => (
+                          <span key={g.groupId} style={{ fontSize: "10px", padding: "2px 6px", borderRadius: "3px", background: `${g.color}22`, border: `1px solid ${g.color}44`, color: g.color }}>
+                            {g.shortName} · {LEVEL_LABEL[g.level]}
+                          </span>
+                        ))}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: "10px", color: mutedText }}>Sin presencia confirmada</div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+
           {/* Group filter */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "14px" }}>
             <button onClick={() => setSelectedGroup("all")} style={selectedGroup === "all" ? subBtnActive : subBtnInactive}>

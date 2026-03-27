@@ -321,6 +321,8 @@ export function RouteAnalyzer({ dark = true }: Props) {
   const [urlLoading,       setUrlLoading]        = useState(false);
   const [urlResult,        setUrlResult]         = useState<{ count: number; message: string } | null>(null);
   const [urlError,         setUrlError]          = useState("");
+  const [customRouteMode,  setCustomRouteMode]   = useState(false);
+  const [customDepts,      setCustomDepts]       = useState<string[]>([]);
 
   const { data: weatherMap = {} } = useWeather(selectedCorridor?.departments ?? []);
   const { conditions: officialClosures, meta: rcMeta, isLoading: rcLoading } =
@@ -434,6 +436,13 @@ export function RouteAnalyzer({ dark = true }: Props) {
     const score = compositeScore(dept, count);
     if (score < 20) return "#1a6a50"; if (score < 45) return "#c07a00";
     if (score < 70) return "#c04000"; return "#cc1000";
+  }
+
+  /* ── Canonical dept lookup for custom route builder ── */
+  const ALL_DEPT_KEYS = Object.keys(ARMED_GROUPS);
+  function findCanonicalDept(rawGeo: string): string {
+    const n = normGeo(rawGeo);
+    return ALL_DEPT_KEYS.find(k => normKey(k) === n) ?? rawGeo;
   }
 
   const generatePDF = useCallback(() => {
@@ -626,6 +635,13 @@ export function RouteAnalyzer({ dark = true }: Props) {
               </button>
             </>
           )}
+          {!selectedCorridor && (
+            <button
+              onClick={() => { setCustomRouteMode(p => !p); setCustomDepts([]); }}
+              style={{ fontSize: "11px", fontWeight: 700, color: E.cyan, background: customRouteMode ? "rgba(0,212,255,0.18)" : "rgba(0,212,255,0.07)", border: `1px solid ${customRouteMode ? "rgba(0,212,255,0.4)" : "rgba(0,212,255,0.2)"}`, borderRadius: "6px", padding: "5px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}>
+              <MapPin style={{ width: 11, height: 11 }} /> {customRouteMode ? "Cancelar Ruta" : "Trazar Ruta Manual"}
+            </button>
+          )}
           <button onClick={() => { setShowForm(true); setFormData(EMPTY_FORM(selectedCorridor?.id ?? "")); }} style={{ fontSize: "11px", fontWeight: 700, color: E.pink, background: "rgba(236,72,153,0.1)", border: "1px solid rgba(236,72,153,0.25)", borderRadius: "6px", padding: "5px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}>
             <Plus style={{ width: 11, height: 11 }} /> Registrar Bloqueo
           </button>
@@ -775,8 +791,177 @@ export function RouteAnalyzer({ dark = true }: Props) {
         </div>
       )}
 
+      {/* ── CUSTOM ROUTE BUILDER ── */}
+      {customRouteMode && !selectedCorridor && (() => {
+        const crDepts  = customDepts; // canonical names
+        const crScore  = crDepts.length > 0
+          ? Math.round(crDepts.reduce((s, d) => s + compositeScore(d, pirataMap[normKey(d)] ?? 0), 0) / crDepts.length)
+          : 0;
+        const crLabel  = compositeLabel(crScore);
+        const crPirata = crDepts.reduce((s, d) => s + (pirataMap[normKey(d)] ?? 0), 0);
+        const crArmed  = Math.max(0, ...crDepts.map(d => ARMED_GROUPS[d]?.level ?? 0));
+        const crNight  = Math.max(0, ...crDepts.map(d => NIGHT_RISK[d] ?? 60));
+        const crBlocksBD = userBlockades.filter(b =>
+          crDepts.some(d => normKey(d) === normKey(b.department ?? "")) && b.status === "activo"
+        );
+        function toggleDept(rawGeo: string) {
+          const canonical = findCanonicalDept(rawGeo);
+          setCustomDepts(prev => {
+            const idx = prev.findIndex(d => normKey(d) === normKey(canonical));
+            return idx >= 0 ? prev.filter((_, i) => i !== idx) : [...prev, canonical];
+          });
+        }
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+
+            {/* Instruction banner */}
+            <div style={{ background: dark ? "rgba(0,212,255,0.06)" : "rgba(3,105,161,0.05)", border: `1px solid rgba(0,212,255,0.18)`, borderRadius: "10px", padding: "10px 14px", fontSize: "11px", color: textMuted, lineHeight: 1.5 }}>
+              🗺️ <strong style={{ color: textMain }}>Trazador de Ruta Manual</strong> — Haga clic en los departamentos en el orden que recorrerá la ruta. Clic nuevamente para quitar un departamento.
+              {crDepts.length > 0 && (
+                <button onClick={() => setCustomDepts([])} style={{ marginLeft: "10px", fontSize: "10px", color: E.red, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: "5px", padding: "2px 8px", cursor: "pointer" }}>
+                  Limpiar ruta
+                </button>
+              )}
+            </div>
+
+            {/* Route breadcrumb strip */}
+            {crDepts.length > 0 && (
+              <div style={{ background: panelBg, border: `1px solid ${borderC}`, borderRadius: "10px", padding: "10px 14px", display: "flex", alignItems: "center", gap: "5px", flexWrap: "wrap" }}>
+                <MapPin style={{ width: 11, height: 11, color: E.cyan, flexShrink: 0 }} />
+                {crDepts.map((d, i) => {
+                  const s = compositeScore(d, pirataMap[normKey(d)] ?? 0);
+                  const l = compositeLabel(s);
+                  return (
+                    <div key={d} style={{ display: "flex", alignItems: "center", gap: "3px" }}>
+                      <span style={{ fontSize: "9px", fontWeight: 800, color: "#fff", background: i === 0 ? E.emerald : i === crDepts.length - 1 ? E.cyan : l.color, borderRadius: "50%", width: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{i + 1}</span>
+                      <span style={{ fontSize: "10px", fontWeight: 600, color: textMain, padding: "2px 6px", background: `${l.color}18`, border: `1px solid ${l.color}33`, borderRadius: "4px" }}>{d}</span>
+                      {i < crDepts.length - 1 && <ChevronRight style={{ width: 9, height: 9, color: textMuted }} />}
+                    </div>
+                  );
+                })}
+                <span style={{ marginLeft: "auto", fontSize: "9px", color: textMuted }}>{crDepts.length} departamento{crDepts.length !== 1 ? "s" : ""} en ruta</span>
+              </div>
+            )}
+
+            {/* Interactive map */}
+            <div style={{ background: panelBg, border: `1px solid ${borderC}`, borderRadius: "12px", overflow: "hidden", position: "relative" }}>
+              <div style={{ padding: "8px 14px 0", fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: textMuted }}>
+                Mapa Interactivo — haga clic para agregar departamentos a la ruta
+              </div>
+              <ComposableMap projection="geoMercator" projectionConfig={{ scale: 1800, center: [-73.5, 4.0] }} style={{ width: "100%", height: "380px", background: dark ? "#0a1220" : "#c0d8ee" }}>
+                <Geographies geography={GEO_URL}>
+                  {({ geographies }: { geographies: any[] }) => geographies.map((geo: any) => {
+                    const rawName: string = geo.properties.NOMBRE_DPT || geo.properties.DPTO_CNMBR || geo.properties.name || "";
+                    const canonical = findCanonicalDept(rawName);
+                    const idx = crDepts.findIndex(d => normKey(d) === normKey(canonical));
+                    const onRoute = idx >= 0;
+                    const score = compositeScore(canonical, pirataMap[normKey(canonical)] ?? 0);
+                    let fill: string;
+                    if (onRoute) fill = E.cyan;
+                    else { fill = getMapFill(rawName, false); }
+                    return (
+                      <Geography key={geo.rsmKey} geography={geo}
+                        fill={fill}
+                        stroke={onRoute ? "rgba(255,255,255,0.9)" : (dark ? "rgba(40,80,140,0.25)" : "rgba(80,120,180,0.2)")}
+                        strokeWidth={onRoute ? 1.8 : 0.45}
+                        onClick={() => toggleDept(rawName)}
+                        onMouseEnter={e => setHovered({ name: rawName, pirataCount: pirataMap[normKey(rawName)] ?? 0, score, ex: (e as any).clientX, ey: (e as any).clientY })}
+                        onMouseLeave={() => setHovered(null)}
+                        style={{
+                          default: { outline: "none" },
+                          hover:   { outline: "none", cursor: "crosshair", filter: "brightness(1.4)" },
+                          pressed: { outline: "none", filter: "brightness(0.85)" },
+                        }}
+                      />
+                    );
+                  })}
+                </Geographies>
+              </ComposableMap>
+              {/* Order badges overlay - show numbered labels */}
+              {hovered && (
+                <div style={{ position: "absolute", top: "50px", right: "14px", background: dark ? "rgba(10,16,30,0.95)" : "rgba(255,255,255,0.97)", border: `1px solid ${borderC}`, borderRadius: "7px", padding: "7px 10px", fontSize: "11px", pointerEvents: "none" }}>
+                  <div style={{ fontWeight: 700, color: textMain, marginBottom: "3px" }}>{hovered.name}</div>
+                  <div style={{ fontSize: "10px", color: compositeLabel(hovered.score).color, fontWeight: 600 }}>
+                    Riesgo: {compositeLabel(hovered.score).label} · {hovered.score}/100
+                  </div>
+                  <div style={{ fontSize: "10px", color: textMuted }}>
+                    Piratería: {hovered.pirataCount} casos · Grupos: {armedLabel(ARMED_GROUPS[hovered.name]?.level ?? 0).label}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Risk analysis - only when 2+ depts selected */}
+            {crDepts.length >= 2 && (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "10px" }}>
+                <div style={{ background: panelBg, border: `1px solid ${crLabel.color}44`, borderRadius: "10px", padding: "12px 14px" }}>
+                  <div style={{ fontSize: "9px", fontWeight: 700, color: textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "6px" }}>Riesgo Compuesto</div>
+                  <div style={{ fontSize: "22px", fontWeight: 800, color: crLabel.color, lineHeight: 1 }}>{crScore}<span style={{ fontSize: "11px", fontWeight: 500, color: textMuted }}>/100</span></div>
+                  <div style={{ fontSize: "10px", fontWeight: 700, color: crLabel.color, marginTop: "3px" }}>{crLabel.label}</div>
+                </div>
+                <div style={{ background: panelBg, border: `1px solid rgba(239,68,68,0.25)`, borderRadius: "10px", padding: "12px 14px" }}>
+                  <div style={{ fontSize: "9px", fontWeight: 700, color: textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "6px" }}>Piratería Terrestre</div>
+                  <div style={{ fontSize: "22px", fontWeight: 800, color: E.red, lineHeight: 1 }}>{crPirata}</div>
+                  <div style={{ fontSize: "10px", color: textMuted, marginTop: "3px" }}>casos en ruta 2026</div>
+                </div>
+                <div style={{ background: panelBg, border: `1px solid rgba(245,158,11,0.25)`, borderRadius: "10px", padding: "12px 14px" }}>
+                  <div style={{ fontSize: "9px", fontWeight: 700, color: textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "6px" }}>Grupos Armados</div>
+                  <div style={{ fontSize: "22px", fontWeight: 800, color: armedLabel(crArmed).color, lineHeight: 1 }}>{armedLabel(crArmed).label}</div>
+                  <div style={{ fontSize: "10px", color: textMuted, marginTop: "3px" }}>presencia más alta en ruta</div>
+                </div>
+                <div style={{ background: panelBg, border: `1px solid rgba(0,212,255,0.2)`, borderRadius: "10px", padding: "12px 14px" }}>
+                  <div style={{ fontSize: "9px", fontWeight: 700, color: textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "6px" }}>Riesgo Nocturno</div>
+                  <div style={{ fontSize: "22px", fontWeight: 800, color: nightLabel(crNight).color, lineHeight: 1 }}>{crNight}%</div>
+                  <div style={{ fontSize: "10px", color: textMuted, marginTop: "3px" }}>incidencia nocturna máx.</div>
+                </div>
+              </div>
+            )}
+
+            {/* Active blockades for custom route */}
+            {crDepts.length >= 2 && crBlocksBD.length > 0 && (
+              <div style={{ background: panelBg, border: "1px solid rgba(239,68,68,0.3)", borderRadius: "10px", padding: "12px 14px" }}>
+                <div style={{ fontSize: "10px", fontWeight: 700, color: E.red, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "8px" }}>
+                  🚨 {crBlocksBD.length} Bloqueo{crBlocksBD.length > 1 ? "s" : ""} Activo{crBlocksBD.length > 1 ? "s" : ""} en esta Ruta
+                </div>
+                {crBlocksBD.map(b => (
+                  <div key={b.id} style={{ display: "flex", gap: "8px", alignItems: "flex-start", marginBottom: "6px", paddingBottom: "6px", borderBottom: `1px solid ${borderC}` }}>
+                    <span style={{ fontSize: "9px", fontWeight: 700, color: E.red, background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: "3px", padding: "2px 6px", whiteSpace: "nowrap" }}>ACTIVO</span>
+                    <div>
+                      <div style={{ fontSize: "11px", fontWeight: 600, color: textMain }}>{b.department} — {b.location}</div>
+                      <div style={{ fontSize: "10px", color: textMuted }}>{CAUSE_LABELS[b.cause ?? ""] ?? b.cause} · {b.date}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Recommendations */}
+            {crDepts.length >= 2 && (() => {
+              const recs: string[] = [];
+              if (crBlocksBD.length > 0) recs.push(`🚨 HAY ${crBlocksBD.length} BLOQUEO(S) ACTIVO(S) EN ESTA RUTA — verificar antes de salir`);
+              if (crNight >= 75) recs.push("⛔ Evitar tránsito entre 10 PM y 5 AM — alta incidencia nocturna en ruta");
+              if (crNight >= 60 && crNight < 75) recs.push("⚠ Reducir velocidad y mantener comunicación constante en horario nocturno");
+              if (crArmed >= 3) recs.push("🚨 Coordinar con la Policía Nacional antes de transitar — presencia alta de grupos armados");
+              if (crArmed === 2) recs.push("📋 Registrar el despacho en la Policía de Carreteras (DIJIN) antes de salir");
+              if (crPirata >= 30) recs.push("🛡 Considerar escolta de seguridad privada para cargas de valor alto");
+              if (crPirata >= 10) recs.push("📡 Activar GPS con reporte en tiempo real y monitoreo desde centro de control");
+              if (recs.length === 0) recs.push("✅ Ruta de bajo riesgo compuesto. Mantener protocolos estándar de seguridad");
+              return (
+                <div style={{ background: panelBg, border: `1px solid ${borderC}`, borderRadius: "10px", padding: "12px 14px" }}>
+                  <div style={{ fontSize: "10px", fontWeight: 700, color: textMuted, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "8px" }}>📋 Recomendaciones para esta Ruta</div>
+                  {recs.map((r, i) => (
+                    <div key={i} style={{ fontSize: "11px", color: textMain, lineHeight: 1.6, padding: "3px 0", borderBottom: i < recs.length - 1 ? `1px solid ${borderC}` : "none" }}>{r}</div>
+                  ))}
+                </div>
+              );
+            })()}
+
+          </div>
+        );
+      })()}
+
       {/* ── CORRIDOR GRID ── */}
-      {!selectedCorridor && (
+      {!customRouteMode && !selectedCorridor && (
         <div style={{ background: panelBg, border: `1px solid ${borderC}`, borderRadius: "12px", padding: "14px 16px" }}>
           <div style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: textMuted, marginBottom: "10px" }}>Seleccione un Corredor Vial</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(255px, 1fr))", gap: "7px" }}>
