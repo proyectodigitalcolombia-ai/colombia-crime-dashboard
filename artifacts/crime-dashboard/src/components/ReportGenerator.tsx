@@ -356,12 +356,14 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
       pageFooter();
 
       let y = 30;
-      doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(60, 60, 80);
+      doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(pri.r, pri.g, pri.b);
+      doc.text("APRECIACIÓN DE SITUACIÓN DE SEGURIDAD", margin, y); y += 7;
+      doc.setFont("helvetica", "normal"); doc.setTextColor(60, 60, 80);
       const introParts = doc.splitTextToSize(
-        `Este informe presenta el análisis de estadísticas delictivas de Colombia para el año ${year}, elaborado con datos de la Policía Nacional. La información apoya a ${config.companyName} en la toma de decisiones estratégicas de seguridad logística.`,
+        `La presente Apreciación de Situación de Seguridad corresponde al análisis estadístico del comportamiento delictivo en Colombia durante el período ${year}, con base en los registros oficiales de la Policía Nacional de Colombia — Sistema AICRI (Análisis de Información Criminal). El análisis está orientado a brindar elementos de juicio para la toma de decisiones estratégicas en materia de seguridad logística y transporte terrestre de carga por parte de ${config.companyName}. Se han considerado las variables de incidencia delictiva por departamento, tipología del delito y tendencia mensual, correlacionadas con los principales corredores de movilidad de interés operacional. Fuente oficial: Policía Nacional de Colombia / INDEPAZ / FIP.`,
         W - margin * 2
       );
-      doc.text(introParts, margin, y); y += introParts.length * 5 + 6;
+      doc.text(introParts, margin, y); y += introParts.length * 5 + 8;
 
       /* KPI boxes 2x2 */
       const kpis = [
@@ -425,8 +427,11 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
       y = 30;
 
       doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(60, 60, 80);
-      doc.text("Los departamentos se ordenan de mayor a menor incidencia delictiva total registrada.", margin, y);
-      y += 8;
+      const deptIntro = doc.splitTextToSize(
+        `A continuación se presenta el ranking departamental de incidencia delictiva para el período ${year}, ordenado de mayor a menor concentración de eventos registrados por la Policía Nacional. Esta información constituye un elemento esencial para la evaluación del riesgo compuesto en los principales corredores de movilidad del país y la priorización de esquemas de seguridad diferenciados por región de operación.`,
+        W - margin * 2
+      );
+      doc.text(deptIntro, margin, y); y += deptIntro.length * 5 + 4;
 
       const maxDeptCount = topDepts[0]?.[1] ?? 1;
       const barAreaW = 55;
@@ -488,8 +493,11 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
       /* Donut-style distribution visual — simple pie slices via text */
       y = sectionHeading("4. Tendencia Mensual de Delitos", y);
       doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(80, 80, 100);
-      doc.text(`Evolución mensual durante ${year}. Se muestran los totales registrados por mes.`, margin, y);
-      y += 6;
+      const trendIntro = doc.splitTextToSize(
+        `Evolución mensual de la actividad delictiva durante ${year}. El análisis de la tendencia permite identificar períodos de mayor concentración de eventos y correlacionarlos con variables estacionales, campañas electorales o escaladas del conflicto armado interno que inciden en el ambiente operacional de seguridad logística.`,
+        W - margin * 2
+      );
+      doc.text(trendIntro, margin, y); y += trendIntro.length * 4.5 + 3;
 
       /* Bar chart for monthly trend */
       const trendData = monthlyTrend.filter(m => m.count > 0);
@@ -627,8 +635,8 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
         /* Interpretation */
         const absDiff = Math.abs(totalCrimes - prevTotalCrimes);
         const interp = increased
-          ? `En ${year} se registraron ${absDiff.toLocaleString("es-CO")} delitos más que en ${year - 1}, representando un incremento del ${Math.abs(pctChange).toFixed(1)}%. Se recomienda reforzar los protocolos de seguridad.`
-          : `En ${year} se registraron ${absDiff.toLocaleString("es-CO")} delitos menos que en ${year - 1}, una reducción del ${Math.abs(pctChange).toFixed(1)}%. Las estrategias de seguridad han mostrado efectividad.`;
+          ? `El análisis comparativo del período ${year} frente a ${year - 1} evidencia un incremento de ${absDiff.toLocaleString("es-CO")} eventos delictivos, representando una variación positiva del ${Math.abs(pctChange).toFixed(1)}%. Este comportamiento deberá ser especialmente considerado en la revisión de los planes de contingencia y en la actualización de la matriz de riesgo en ruta. Se recomienda reforzar los esquemas de seguridad motorizados y el monitoreo en tiempo real en los corredores con mayor concentración de incidentes.`
+          : `El análisis comparativo del período ${year} frente a ${year - 1} evidencia una reducción de ${absDiff.toLocaleString("es-CO")} eventos delictivos, representando una variación del -${Math.abs(pctChange).toFixed(1)}%. No obstante, la reducción en delitos de alto impacto social puede estar asociada al incremento de acciones de carácter terrorista por parte de grupos armados ilegales, aspecto que deberá ser especialmente considerado en las previsiones del ambiente operacional de seguridad logística.`;
         doc.setFontSize(8.5); doc.setFont("helvetica", "italic"); doc.setTextColor(60, 70, 90);
         const interpLines = doc.splitTextToSize(interp, W - margin * 2);
         doc.text(interpLines, margin, y);
@@ -680,14 +688,14 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
       y = sectionHeading("Conclusiones y Recomendaciones", y);
       const peakMo = monthlyTrend.reduce((a, b) => a.count >= b.count ? a : b, monthlyTrend[0]);
       const conclusions = [
-        `El período ${year} registra ${totalCrimes.toLocaleString("es-CO")} delitos en Colombia, con ${topDepts.length} departamentos en el sistema.`,
-        `${topDepts[0]?.[0] ?? "—"} concentra el mayor volumen con ${topDepts[0]?.[1]?.toLocaleString("es-CO") ?? "—"} casos (${topDepts[0] ? ((topDepts[0][1] / totalCrimes) * 100).toFixed(1) : 0}% del total nacional).`,
-        `${crimeTypeSummary[0]?.[0] ?? "—"} es el delito predominante. Se recomienda reforzar protocolos de seguridad en instalaciones y vehículos.`,
-        peakMo?.count > 0 ? `El mes de mayor incidencia fue ${MONTHS_FULL[peakMo.month - 1]} con ${peakMo.count.toLocaleString("es-CO")} casos registrados.` : null,
+        `Situación general: El período ${year} registra un total de ${totalCrimes.toLocaleString("es-CO")} eventos delictivos en Colombia, con datos disponibles para ${topDepts.length} departamentos. El análisis determina que la mayor concentración de incidencia se mantiene en los principales centros urbanos y corredores de conectividad logística interregional.`,
+        `Departamento de mayor incidencia: ${topDepts[0]?.[0] ?? "—"} concentra ${topDepts[0]?.[1]?.toLocaleString("es-CO") ?? "—"} casos, representando el ${topDepts[0] ? ((topDepts[0][1] / totalCrimes) * 100).toFixed(1) : 0}% del total nacional. Los planes de seguridad con operaciones en este departamento deberán considerar un nivel de riesgo compuesto elevado y contar con esquemas de escolta o monitoreo reforzado.`,
+        `Delito de mayor impacto logístico: "${crimeTypeSummary[0]?.[0] ?? "—"}" es el tipo delictivo predominante con ${crimeTypeSummary[0]?.[1]?.toLocaleString("es-CO") ?? "—"} casos. Se recomienda actualizar los procedimientos operativos de seguridad en instalaciones, vehículos y zonas de cargue/descargue conforme a esta tipología.`,
+        peakMo?.count > 0 ? `Período de mayor concentración: El mes de ${MONTHS_FULL[peakMo.month - 1]} registró el pico más alto del período con ${peakMo.count.toLocaleString("es-CO")} eventos. Este comportamiento estacional deberá ser considerado en la planificación de recursos de seguridad para períodos equivalentes en el siguiente año.` : null,
         activeBlockades.length > 0
-          ? `ALERTA: Hay ${activeBlockades.length} bloqueo(s) activo(s). Validar rutas alternativas antes de programar despachos.`
-          : "No se registran bloqueos viales activos. Condiciones normales de circulación en corredores monitoreados.",
-        "Se recomienda realizar seguimiento semanal de este informe y ajustar los planes de despacho según los corredores con mayor riesgo compuesto.",
+          ? `ALERTA OPERACIONAL: Se registran ${activeBlockades.length} bloqueo(s) vial(es) activo(s) al momento de la generación del presente informe. Es imperativo validar rutas alternativas y coordinar con la central de monitoreo antes de programar cualquier despacho en los corredores afectados.`
+          : "Estado de corredores: No se registran bloqueos viales activos al momento de este informe. Las condiciones de circulación en los corredores monitoreados son normales. Se mantiene la recomendación de monitoreo permanente ante la posibilidad de paros armados por parte de grupos armados ilegales.",
+        "Recomendación estratégica: Se recomienda la revisión semanal del presente informe, la actualización permanente de la matriz de riesgo en ruta, y la implementación de un esquema de monitoreo 24/7 en la Central de Tráfico, con ajuste de los planes de despacho según la evolución del ambiente operacional de seguridad en los corredores de interés.",
       ].filter(Boolean) as string[];
 
       conclusions.forEach((c, i) => {
