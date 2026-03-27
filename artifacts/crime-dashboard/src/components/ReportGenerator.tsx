@@ -187,6 +187,31 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
       function setFill(hex: string) { const c = hexToRgb(hex); doc.setFillColor(c.r, c.g, c.b); }
       function setDraw(hex: string) { const c = hexToRgb(hex); doc.setDrawColor(c.r, c.g, c.b); }
 
+      /**
+       * Renders a paragraph with full justification (left+right aligned).
+       * The last line is left-aligned as per typographic convention.
+       * @returns the new y position after the paragraph
+       */
+      function justifyPara(text: string, x: number, y: number, maxW: number, lineH: number, gap = 3): number {
+        const lines: string[] = doc.splitTextToSize(text, maxW);
+        lines.forEach((line: string, i: number) => {
+          const isLast = i === lines.length - 1;
+          const words = line.trim().split(/\s+/);
+          if (isLast || words.length <= 1) {
+            doc.text(line, x, y + i * lineH);
+            return;
+          }
+          const totalWordW = words.reduce((s: number, w: string) => s + doc.getTextWidth(w), 0);
+          const spaceW = (maxW - totalWordW) / (words.length - 1);
+          let cx = x;
+          words.forEach((word: string) => {
+            doc.text(word, cx, y + i * lineH);
+            cx += doc.getTextWidth(word) + spaceW;
+          });
+        });
+        return y + lines.length * lineH + gap;
+      }
+
       function pageHeader(title: string, pageNum: number) {
         /* top bar */
         doc.setFillColor(pri.r, pri.g, pri.b);
@@ -388,11 +413,10 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
       { const tl = doc.splitTextToSize("1.  Situación General.", W - margin * 2); doc.text(tl, margin, y); y += tl.length * 5.5; }
       doc.setFont("helvetica", "normal"); doc.setTextColor(50, 50, 70);
 
-      const situGeneral = doc.splitTextToSize(
+      y = justifyPara(
         `El ambiente socio-económico y de seguridad en Colombia durante el período ${year} registra ${totalCrimes.toLocaleString("es-CO")} eventos delictivos de acuerdo con los datos estadísticos de la Policía Nacional — Sistema AICRI. El análisis de esta información, elaborado para ${config.companyName}, tiene como propósito brindar elementos de juicio para la toma de decisiones estratégicas en materia de seguridad logística y transporte terrestre de carga. Los factores determinantes del ambiente operacional de seguridad en el período incluyen: la actividad de los Grupos Armados Organizados (GAO) en corredores estratégicos de movilidad, la piratería terrestre en accesos a los principales centros urbanos y puertos, y el comportamiento de los delitos de alto impacto social en los departamentos de mayor incidencia.`,
-        W - margin * 2 - indent
+        margin + indent, y, W - margin * 2 - indent, 5, 4
       );
-      doc.text(situGeneral, margin + indent, y); y += situGeneral.length * 5 + 3;
 
       /* KPI boxes 2x2 */
       const kpis = [
@@ -458,11 +482,10 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
       doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(pri.r, pri.g, pri.b);
       { const tl = doc.splitTextToSize("2.  Ambiente operacional de la seguridad — Incidencia por departamento.", W - margin * 2); doc.text(tl, margin, y); y += tl.length * 5.5; }
       doc.setFont("helvetica", "normal"); doc.setTextColor(50, 50, 70);
-      const deptIntro = doc.splitTextToSize(
+      y = justifyPara(
         `El siguiente análisis departamental de incidencia delictiva para el período ${year} constituye un elemento esencial para la evaluación del riesgo compuesto en los principales corredores de movilidad del país. La concentración de eventos delictivos por departamento permite priorizar esquemas de seguridad diferenciados y determinar los niveles de protección requeridos para las operaciones logísticas y de transporte terrestre de carga según la región de destino u origen.`,
-        W - margin * 2 - indent
+        margin + indent, y, W - margin * 2 - indent, 5, 4
       );
-      doc.text(deptIntro, margin + indent, y); y += deptIntro.length * 5 + 4;
 
       const maxDeptCount = topDepts[0]?.[1] ?? 1;
       /* Columns: #, DEPARTAMENTO, TOTAL CASOS, % NAL. — total = 170mm */
@@ -510,11 +533,10 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
       doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(pri.r, pri.g, pri.b);
       { const tl = doc.splitTextToSize("3.  Modalidades delictivas — Delitos de alto impacto para el transporte terrestre de carga.", W - margin * 2); doc.text(tl, margin, y); y += tl.length * 5.5; }
       doc.setFont("helvetica", "normal"); doc.setTextColor(50, 50, 70);
-      const typeIntro = doc.splitTextToSize(
+      y = justifyPara(
         `En general, se observa para el período ${year} un comportamiento diferenciado por modalidad delictiva. Entre los delitos de mayor impacto directo para las operaciones logísticas y de transporte terrestre, la piratería terrestre y el hurto de vehículos constituyen los de mayor criticidad operacional, seguidos por la extorsión a conductores en tramos de alta incidencia de grupos armados ilegales. Los datos estadísticos siguientes deberán ser correlacionados con el análisis de presencia de GAO por departamento para determinar el riesgo compuesto en cada corredor de movilidad.`,
-        W - margin * 2 - indent
+        margin + indent, y, W - margin * 2 - indent, 5, 4
       );
-      doc.text(typeIntro, margin + indent, y); y += typeIntro.length * 5 + 4;
 
       const typeCols = [10, 98, 30, 32]; /* sum = 170 */
       y = drawTable(
@@ -532,11 +554,10 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
       /* Donut-style distribution visual — simple pie slices via text */
       y = sectionHeading("3.1  Tendencia mensual — Factores estacionales y del conflicto", y);
       doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(50, 50, 70);
-      const trendIntro = doc.splitTextToSize(
+      y = justifyPara(
         `El análisis de la tendencia mensual permite identificar períodos de mayor concentración de eventos y correlacionarlos con variables estacionales (temporadas de cosecha, festivos, períodos vacacionales), campañas electorales o escaladas del accionar de los grupos armados ilegales que inciden directamente en el ambiente operacional de seguridad logística y de transporte terrestre de carga.`,
-        W - margin * 2
+        margin + indent, y, W - margin * 2 - indent, 5, 4
       );
-      doc.text(trendIntro, margin + indent, y); y += trendIntro.length * 4.5 + 3;
 
       /* Bar chart for monthly trend */
       const trendData = monthlyTrend.filter(m => m.count > 0);
@@ -677,8 +698,7 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
           ? `El análisis comparativo del período ${year} frente a ${year - 1} evidencia un incremento de ${absDiff.toLocaleString("es-CO")} eventos delictivos, representando una variación positiva del ${Math.abs(pctChange).toFixed(1)}%. Este comportamiento deberá ser especialmente considerado en la revisión de los planes de contingencia y en la actualización de la matriz de riesgo en ruta. Se recomienda reforzar los esquemas de seguridad motorizados y el monitoreo en tiempo real en los corredores con mayor concentración de incidentes.`
           : `El análisis comparativo del período ${year} frente a ${year - 1} evidencia una reducción de ${absDiff.toLocaleString("es-CO")} eventos delictivos, representando una variación del -${Math.abs(pctChange).toFixed(1)}%. No obstante, la reducción en delitos de alto impacto social puede estar asociada al incremento de acciones de carácter terrorista por parte de grupos armados ilegales, aspecto que deberá ser especialmente considerado en las previsiones del ambiente operacional de seguridad logística.`;
         doc.setFontSize(8.5); doc.setFont("helvetica", "italic"); doc.setTextColor(60, 70, 90);
-        const interpLines = doc.splitTextToSize(interp, W - margin * 2);
-        doc.text(interpLines, margin, y);
+        y = justifyPara(interp, margin + indent, y, W - margin * 2 - indent, 5, 3);
       } else {
         doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.setTextColor(120, 130, 150);
         doc.text(`No hay datos disponibles para el año ${year - 1} para realizar la comparación.`, margin, y);
@@ -762,23 +782,22 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
           /* Body text */
           doc.setFont("helvetica", "normal"); doc.setTextColor(50, 50, 70);
           const bodyText = rest.join(": ");
-          const bodyLines = doc.splitTextToSize(bodyText, W - margin * 2 - indent - titleW);
-          if (bodyLines.length === 1) {
-            doc.text(bodyLines[0], margin + indent + titleW, y + 3);
+          const firstLineW = W - margin * 2 - indent - titleW;
+          const firstBodyLines = doc.splitTextToSize(bodyText, firstLineW);
+          if (firstBodyLines.length === 1) {
+            doc.text(firstBodyLines[0], margin + indent + titleW, y + 3);
             y += 7;
           } else {
-            const firstLine = doc.splitTextToSize(bodyText, W - margin * 2 - indent - titleW)[0];
-            doc.text(firstLine, margin + indent + titleW, y + 3);
-            const remainingLines = doc.splitTextToSize(bodyText.slice(firstLine.length).trim(), W - margin * 2 - indent);
-            doc.text(remainingLines, margin + indent, y + 8);
-            y += 8 + remainingLines.length * 4.5 + 2;
+            /* First fragment after bold title — left-aligned to match title end */
+            doc.text(firstBodyLines[0], margin + indent + titleW, y + 3);
+            /* Remaining body — full width, justified */
+            const remaining = bodyText.slice(firstBodyLines[0].length).trim();
+            y = justifyPara(remaining, margin + indent, y + 8, W - margin * 2 - indent, 4.5, 2);
           }
         } else {
           doc.setFontSize(8.5); doc.setFont("helvetica", isAlert ? "bold" : "normal");
           doc.setTextColor(isAlert ? 150 : 50, isAlert ? 20 : 50, isAlert ? 20 : 70);
-          const lines = doc.splitTextToSize(c, W - margin * 2 - indent);
-          doc.text(lines, margin + indent, y + 3);
-          y += lines.length * 5 + 3;
+          y = justifyPara(c, margin + indent, y + 3, W - margin * 2 - indent, 4.5, 3);
         }
       });
 
