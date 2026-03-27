@@ -250,6 +250,30 @@ function MapRefCapture({ mapRef }: { mapRef: React.MutableRefObject<L.Map | null
   return null;
 }
 
+/* Intercepts mousedown at the map container level (capture phase, fires BEFORE
+   Leaflet's drag handler) and disables map panning when the event originates
+   from a draggable marker icon. Re-enables on mouseup anywhere on the document. */
+function PreventMapDragOnMarker() {
+  const map = useMap();
+  useEffect(() => {
+    const container = map.getContainer();
+    const onMouseDown = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest(".leaflet-marker-icon, .leaflet-marker-shadow")) {
+        map.dragging.disable();
+        const onMouseUp = () => {
+          map.dragging.enable();
+          document.removeEventListener("mouseup", onMouseUp);
+        };
+        document.addEventListener("mouseup", onMouseUp);
+      }
+    };
+    container.addEventListener("mousedown", onMouseDown, { capture: true });
+    return () => container.removeEventListener("mousedown", onMouseDown, true);
+  }, [map]);
+  return null;
+}
+
 /* ─── Click handler — uses a stable handler object via useMemo so the
        Leaflet event listener is registered only once. The callback ref is
        updated synchronously on every render to always reflect the latest state. ─── */
@@ -1118,6 +1142,7 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
           zoomControl
         >
           <MapRefCapture mapRef={leafletMapRef} />
+          <PreventMapDragOnMarker />
           <TileLayer key={activeLayer.id} url={activeLayer.url} attribution={activeLayer.attr} />
           <MapClick onAdd={handleMapClick} />
           {flyTarget && <FlyTo lat={flyTarget.lat} lng={flyTarget.lng} />}
@@ -1158,12 +1183,9 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
                 icon={pinIcon(wp.type, i, false)}
                 draggable
                 eventHandlers={{
-                  dragstart: () => {
-                    // Lock map pan so it doesn't compete with the marker drag
-                    leafletMapRef.current?.dragging.disable();
-                  },
                   dragend: async (e) => {
-                    // Re-enable map pan immediately after drag finishes
+                    // PreventMapDragOnMarker already re-enables dragging on mouseup;
+                    // this is a safety net in case mouseup fired outside the document.
                     leafletMapRef.current?.dragging.enable();
                     const { lat, lng } = e.target.getLatLng();
                     const name = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
