@@ -321,7 +321,9 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
     return arr;
   };
 
-  const canGenerate = origin && dest;
+  // Can generate if we have origin + at least one other point (via or dest)
+  const validVias = vias.filter(v => v.lat !== 0 || v.lng !== 0);
+  const canGenerate = !!origin && (!!dest || validVias.length >= 1);
 
   /* ─ Refs so the stable MapClick handler always sees latest state ─ */
   const mapClickModeRef = useRef(mapClickMode);
@@ -372,20 +374,21 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
       return;
     }
 
-    /* ── Auto mode: no button pressed ────────────────────────────── */
+    /* ── Auto mode: no button pressed ────────────────────────────────
+       1st click  → origin
+       All subsequent clicks → add via points (unlimited waypoints)
+       When "Generar Ruta" is pressed, the LAST valid via becomes dest.
+    ─────────────────────────────────────────────────────────────────── */
     if (!originRef.current) {
       setOrigin({ lat, lng, name: short, type: "origin" });
       setOriginText(short);
       setRouteResult(null); setRouteDepts([]); setPhase("setup");
     } else {
-      setDest(prev => {
-        if (!prev) {
-          setDestText(short);
-          setRouteResult(null); setRouteDepts([]); setPhase("setup");
-          return { lat, lng, name: short, type: "dest" };
-        }
-        return prev;
-      });
+      // Add as a new via waypoint
+      const wp: WP = { lat, lng, name: short, type: "via" };
+      setVias(prev => [...prev, wp]);
+      setViaTexts(prev => [...prev, short]);
+      setRouteResult(null); setRouteDepts([]); setPhase("setup");
     }
   }, []); // stable — reads only refs
 
@@ -415,7 +418,25 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
 
   /* ─ Generate route ─ */
   const generateRoute = async () => {
-    const wps = allWPs();
+    let effectiveDest = dest;
+
+    // If no explicit destination, promote the last valid via to destination
+    if (!effectiveDest && validVias.length >= 1) {
+      const lastVia = validVias[validVias.length - 1];
+      effectiveDest = { ...lastVia, type: "dest" };
+      setDest(effectiveDest);
+      setDestText(lastVia.name);
+      setVias(prev => prev.filter(v => v !== lastVia));
+      setViaTexts(prev => prev.filter((_, i) => vias[i] !== lastVia));
+    }
+
+    const wps: WP[] = [];
+    if (origin) wps.push(origin);
+    vias.filter(v => v.lat !== 0 || v.lng !== 0).forEach(v => {
+      if (v !== effectiveDest) wps.push(v);
+    });
+    if (effectiveDest) wps.push(effectiveDest);
+
     if (wps.length < 2) return;
     setRouting(true); setRouteError(""); setPhase("result");
     const result = await fetchRoute(wps);
@@ -554,7 +575,7 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
           <div style={{ display: "flex", alignItems: "flex-end", gap: "8px" }}>
             <div style={{ flex: 1 }}>
               <SearchInput
-                label="Destino" icon="🔴" value={destText} color="#ff4757"
+                label={`Destino${!dest && validVias.length > 0 ? " (auto = último punto)" : ""}`} icon="🔴" value={destText} color="#ff4757"
                 onChange={setDestText} placeholder="Ciudad, municipio o dirección..."
                 onSelect={r => selectNom(r, "dest")} onClear={() => { setDest(null); setDestText(""); setRouteResult(null); setPhase("setup"); }}
                 dark={dark} locked={!!dest}
@@ -577,13 +598,13 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
           {/* Controls row */}
           <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "2px" }}>
             <button
-              onClick={() => { setVias(v=>[...v,{lat:0,lng:0,name:"",type:"via"}]); setViaTexts(t=>[...t,""]); setMapClickMode("via"); }}
+              onClick={() => { setVias(v=>[...v,{lat:0,lng:0,name:"",type:"via"}]); setViaTexts(t=>[...t,""]); }}
               style={{
                 fontSize: "10px", color: E.amber, background: "rgba(245,158,11,0.08)",
                 border: "1px solid rgba(245,158,11,0.25)", borderRadius: "6px",
                 padding: "5px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: "5px",
               }}>
-              ＋ Agregar parada
+              ＋ Agregar ciudad intermedia
             </button>
 
             <button
@@ -606,19 +627,37 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
         </div>
       </div>
 
-      {/* ── MAP CLICK MODE BANNER ── */}
-      {mapClickMode && (
+      {/* ── MAP STATE BANNER ── */}
+      {mapClickMode ? (
         <div style={{
           background: "rgba(0,212,255,0.08)", border: "1px solid rgba(0,212,255,0.3)",
           borderRadius: "10px", padding: "10px 14px", fontSize: "11px", fontWeight: 600,
-          color: E.cyan, display: "flex", alignItems: "center", gap: "10px", animation: "none",
+          color: E.cyan, display: "flex", alignItems: "center", gap: "10px",
         }}>
-          <span style={{ fontSize: "18px" }}>👆</span>
+          <span style={{ fontSize: "18px" }}>📍</span>
           {modeLabel[mapClickMode]}
           <button onClick={() => setMapClickMode(null)}
             style={{ marginLeft: "auto", fontSize: "10px", color: textMuted, background: "transparent", border: "none", cursor: "pointer" }}>
             Cancelar
           </button>
+        </div>
+      ) : (
+        <div style={{
+          background: origin ? "rgba(16,185,129,0.07)" : "rgba(0,212,255,0.05)",
+          border: `1px solid ${origin ? "rgba(16,185,129,0.25)" : "rgba(0,212,255,0.15)"}`,
+          borderRadius: "10px", padding: "8px 14px", fontSize: "11px",
+          color: origin ? E.emerald : E.cyan, display: "flex", alignItems: "center", gap: "8px",
+        }}>
+          <span>👆</span>
+          {!origin
+            ? "Clic en el mapa → marcará el ORIGEN (A)"
+            : `Clic en el mapa → agrega PARADA ${validVias.length + 1} · El último punto marcado será el DESTINO (B)`
+          }
+          {origin && (
+            <span style={{ marginLeft: "auto", fontSize: "10px", color: textMuted }}>
+              {validVias.length + (dest ? 1 : 0)} punto{validVias.length + (dest ? 1 : 0) !== 1 ? "s" : ""} agregado{validVias.length + (dest ? 1 : 0) !== 1 ? "s" : ""}
+            </span>
+          )}
         </div>
       )}
 
@@ -702,7 +741,7 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
 
       {/* ── Drag hint ── */}
       <div style={{ fontSize: "9px", color: textMuted, textAlign: "center" }}>
-        Arrastre los marcadores para ajustar la ruta · Rueda del mouse para zoom · Ruta calculada con OpenStreetMap / OSRM
+        Clic en el mapa → agrega puntos de ruta · Arrastre un marcador para reposicionarlo · Rueda del mouse para zoom
       </div>
 
       {/* ── ROUTE SUMMARY CARDS ── */}
@@ -768,10 +807,14 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
       )}
 
       {/* ── Empty state ── */}
-      {phase === "setup" && !origin && !dest && (
-        <div style={{ textAlign: "center", padding: "20px", fontSize: "11px", color: textMuted, lineHeight: 1.8 }}>
-          👆 Haga clic en el mapa para marcar el <strong style={{ color: E.emerald }}>origen</strong> · Segundo clic para el <strong style={{ color: "#ff4757" }}>destino</strong><br/>
-          O escriba en los campos de búsqueda para usar nombres de ciudades
+      {phase === "setup" && !origin && !dest && validVias.length === 0 && (
+        <div style={{ textAlign: "center", padding: "24px 20px", fontSize: "11px", color: textMuted, lineHeight: 2 }}>
+          <div style={{ fontSize: "28px", marginBottom: "8px" }}>🗺️</div>
+          <strong style={{ color: textMain, fontSize: "12px" }}>Cómo trazar su ruta</strong><br/>
+          <span>1. Haga clic en el mapa para marcar el <strong style={{ color: E.emerald }}>INICIO (A)</strong></span><br/>
+          <span>2. Siga haciendo clic para agregar todos los <strong style={{ color: E.amber }}>PUNTOS INTERMEDIOS</strong> que necesite</span><br/>
+          <span>3. El último punto que agregue será el <strong style={{ color: "#ff4757" }}>DESTINO (B)</strong> al generar la ruta</span><br/>
+          <span style={{ fontSize: "10px" }}>También puede escribir nombres de ciudades en los campos de búsqueda</span>
         </div>
       )}
     </div>
