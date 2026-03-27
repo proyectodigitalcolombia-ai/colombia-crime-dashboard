@@ -113,24 +113,68 @@ async function getDept(lat: number, lng: number): Promise<string> {
   } catch { return ""; }
 }
 
-/* ─── OSRM ─── */
-interface OSRMResult { geometry: [number,number][]; distance: number; duration: number }
-async function fetchRoute(wps: { lat: number; lng: number }[]): Promise<OSRMResult | null> {
+/* ─── Haversine util ─── */
+function haversineDist(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+function interpolateSegment(lat1: number, lng1: number, lat2: number, lng2: number, steps = 8): [number,number][] {
+  const pts: [number,number][] = [];
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    pts.push([lat1 + (lat2-lat1)*t, lng1 + (lng2-lng1)*t]);
+  }
+  return pts;
+}
+function buildFallbackRoute(wps: { lat: number; lng: number }[]): RouteResult {
+  let totalDist = 0;
+  const geometry: [number,number][] = [];
+  for (let i = 0; i < wps.length; i++) {
+    if (i > 0) totalDist += haversineDist(wps[i-1].lat, wps[i-1].lng, wps[i].lat, wps[i].lng);
+    if (i < wps.length - 1) {
+      const seg = interpolateSegment(wps[i].lat, wps[i].lng, wps[i+1].lat, wps[i+1].lng);
+      geometry.push(...(i === 0 ? seg : seg.slice(1)));
+    }
+  }
+  const avgSpeedMs = 60000 / 3600;
+  return { geometry, distance: totalDist, duration: totalDist / avgSpeedMs, isEstimated: true };
+}
+
+/* ─── Route result type ─── */
+interface RouteResult { geometry: [number,number][]; distance: number; duration: number; isEstimated?: boolean }
+
+/* ─── OSRM with fallback ─── */
+async function fetchRoute(wps: { lat: number; lng: number }[]): Promise<RouteResult | null> {
   if (wps.length < 2) return null;
+
   const c = wps.map(w => `${w.lng},${w.lat}`).join(";");
   const url = `https://router.project-osrm.org/route/v1/driving/${c}?geometries=geojson&overview=full`;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
+
   try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const data = await res.json();
-    const route = data.routes?.[0];
-    if (!route) return null;
-    return {
-      geometry: route.geometry.coordinates.map(([lng, lat]: number[]) => [lat, lng] as [number,number]),
-      distance: route.distance,
-      duration: route.duration,
-    };
-  } catch { return null; }
+    const res = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(timer);
+    if (res.ok) {
+      const data = await res.json();
+      const route = data.routes?.[0];
+      if (route?.geometry?.coordinates?.length) {
+        return {
+          geometry: route.geometry.coordinates.map(([lng, lat]: number[]) => [lat, lng] as [number,number]),
+          distance: route.distance,
+          duration: route.duration,
+          isEstimated: false,
+        };
+      }
+    }
+  } catch {
+    clearTimeout(timer);
+  }
+
+  return buildFallbackRoute(wps);
 }
 
 /* ─── Waypoint type ─── */
@@ -304,7 +348,7 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
   const [mapClickMode, setMapClickMode] = useState<"origin" | "dest" | "via" | null>(null);
   const [flyTarget, setFlyTarget] = useState<{lat:number;lng:number}|null>(null);
 
-  const [routeResult, setRouteResult] = useState<OSRMResult | null>(null);
+  const [routeResult, setRouteResult] = useState<RouteResult | null>(null);
   const [routeDepts,  setRouteDepts]  = useState<string[]>([]);
   const [routing,     setRouting]     = useState(false);
   const [geocoding,   setGeocoding]   = useState(false);
@@ -441,7 +485,7 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
     setRouting(true); setRouteError(""); setPhase("result");
     const result = await fetchRoute(wps);
     setRouting(false);
-    if (!result) { setRouteError("No se pudo calcular la ruta. Verifique conexión a OSRM."); return; }
+    if (!result) { setRouteError("Error al calcular ruta. Intente nuevamente."); return; }
     setRouteResult(result);
 
     /* Geocode sample points along the route for risk */
@@ -704,10 +748,16 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
           {/* Route polyline */}
           {routeResult && routeResult.geometry.length > 1 && (
             <>
-              {/* Shadow line */}
-              <Polyline positions={routeResult.geometry} color="rgba(0,0,0,0.4)" weight={8} opacity={0.5} />
-              {/* Main colored route */}
-              <Polyline positions={routeResult.geometry} color={routeColor} weight={5} opacity={0.95} />
+              {!routeResult.isEstimated && (
+                <Polyline positions={routeResult.geometry} color="rgba(0,0,0,0.4)" weight={8} opacity={0.5} />
+              )}
+              <Polyline
+                positions={routeResult.geometry}
+                color={routeColor}
+                weight={routeResult.isEstimated ? 3 : 5}
+                opacity={routeResult.isEstimated ? 0.75 : 0.95}
+                dashArray={routeResult.isEstimated ? "8, 6" : undefined}
+              />
             </>
           )}
 
@@ -747,10 +797,16 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
       {/* ── ROUTE SUMMARY CARDS ── */}
       {phase === "result" && routeResult && (
         <>
+          {routeResult.isEstimated && (
+            <div style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: "8px", padding: "8px 12px", fontSize: "10px", color: E.amber, display: "flex", gap: "6px", alignItems: "flex-start" }}>
+              <span>⚠</span>
+              <span><strong>Ruta estimada (línea directa)</strong> — Servidor de rutas no disponible. La línea trazada muestra la trayectoria aproximada y el análisis de riesgo sigue siendo válido.</span>
+            </div>
+          )}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px,1fr))", gap: "10px" }}>
             {[
-              { label: "Distancia", value: fmtDist(routeResult.distance), sub: "por carretera", color: E.cyan, border: "rgba(0,212,255,0.25)" },
-              { label: "Tiempo Est.", value: fmtTime(routeResult.duration), sub: "conducción normal", color: E.violet, border: "rgba(139,92,246,0.25)" },
+              { label: "Distancia", value: fmtDist(routeResult.distance), sub: routeResult.isEstimated ? "línea directa (estimada)" : "por carretera", color: E.cyan, border: "rgba(0,212,255,0.25)" },
+              { label: "Tiempo Est.", value: fmtTime(routeResult.duration), sub: routeResult.isEstimated ? "estimado a 60 km/h" : "conducción normal", color: E.violet, border: "rgba(139,92,246,0.25)" },
               { label: "Riesgo Compuesto", value: canonDepts.length ? `${avgScore}/100` : "—", sub: canonDepts.length ? rl.label : "Analizando…", color: rl.color, border: `${rl.color}44` },
               { label: "Paradas", value: String(vias.length), sub: vias.length === 0 ? "directo" : vias.length === 1 ? "1 parada" : `${vias.length} paradas`, color: E.amber, border: "rgba(245,158,11,0.25)" },
             ].map(c => (
