@@ -303,67 +303,96 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
       doc.setGState(new (doc as any).GState({ opacity: 1 }));
 
       /* ── Cover text — always WHITE on dark navy ── */
-      /* System badge above title */
-      doc.setFontSize(7.5); doc.setFont("helvetica", "normal");
+
+      /* CONFIDENCIAL stamp — top right corner */
+      doc.setFillColor(180, 20, 20);
+      doc.setGState(new (doc as any).GState({ opacity: 0.85 }));
+      doc.roundedRect(W - margin - 36, 10, 36, 10, 1.5, 1.5, "F");
+      doc.setGState(new (doc as any).GState({ opacity: 1 }));
+      doc.setFontSize(6.5); doc.setFont("helvetica", "bold"); doc.setTextColor(255, 255, 255);
+      doc.text("CONFIDENCIAL", W - margin - 18, 17, { align: "center" });
+
+      /* Document type badge */
+      doc.setFontSize(7); doc.setFont("helvetica", "normal");
       doc.setTextColor(pri.r, pri.g, pri.b);
-      doc.setGState(new (doc as any).GState({ opacity: 0.9 }));
-      doc.text("SISTEMA INTEGRADO DE SEGURIDAD LOGÍSTICA", W / 2, 83, { align: "center" });
+      doc.setGState(new (doc as any).GState({ opacity: 0.85 }));
+      doc.text("APRECIACIÓN DE SITUACIÓN DE SEGURIDAD", W / 2, 83, { align: "center" });
       doc.setGState(new (doc as any).GState({ opacity: 1 }));
 
-      /* Main title */
-      doc.setFontSize(32); doc.setFont("helvetica", "bold");
+      /* Main document title */
+      doc.setFontSize(13); doc.setFont("helvetica", "bold");
       doc.setTextColor(255, 255, 255);
-      doc.text("INFORME GERENCIAL", W / 2, 104, { align: "center" });
-      doc.text("DE SEGURIDAD VIAL", W / 2, 119, { align: "center" });
+      doc.setGState(new (doc as any).GState({ opacity: 0.65 }));
+      doc.text("EL AMBIENTE OPERACIONAL DE LA SEGURIDAD", W / 2, 96, { align: "center" });
+      doc.setGState(new (doc as any).GState({ opacity: 1 }));
 
-      /* Cyan divider line */
+      doc.setFontSize(26); doc.setFont("helvetica", "bold");
+      doc.setTextColor(255, 255, 255);
+      doc.text("INFORME GERENCIAL", W / 2, 112, { align: "center" });
+
+      doc.setFontSize(13); doc.setFont("helvetica", "bold");
+      doc.setGState(new (doc as any).GState({ opacity: 0.75 }));
+      doc.text("Y SU IMPACTO EN LAS OPERACIONES LOGÍSTICAS", W / 2, 123, { align: "center" });
+      doc.text("Y DE TRANSPORTE TERRESTRE DE CARGA", W / 2, 131, { align: "center" });
+      doc.setGState(new (doc as any).GState({ opacity: 1 }));
+
+      /* Cyan divider */
       doc.setDrawColor(pri.r, pri.g, pri.b); doc.setLineWidth(0.8);
-      doc.line(45, 127, W - 45, 127);
+      doc.line(35, 138, W - 35, 138);
 
-      /* Year chip */
-      doc.setFontSize(20); doc.setFont("helvetica", "bold");
+      /* Year + country */
+      doc.setFontSize(18); doc.setFont("helvetica", "bold");
       doc.setTextColor(pri.r, pri.g, pri.b);
-      doc.text(`Colombia · ${year}`, W / 2, 142, { align: "center" });
+      doc.text(`Colombia · Período ${year}`, W / 2, 151, { align: "center" });
 
-      /* Company name block */
-      doc.setFontSize(15); doc.setFont("helvetica", "bold");
+      /* Company name */
+      doc.setFontSize(13); doc.setFont("helvetica", "bold");
       doc.setTextColor(255, 255, 255);
-      doc.text(config.companyName, W / 2, 170, { align: "center" });
-      doc.setFontSize(10); doc.setFont("helvetica", "normal");
+      doc.text(config.companyName.toUpperCase(), W / 2, 172, { align: "center" });
+      doc.setFontSize(9); doc.setFont("helvetica", "normal");
       doc.setTextColor(pri.r, pri.g, pri.b);
       doc.setGState(new (doc as any).GState({ opacity: 0.9 }));
-      doc.text(config.companySubtitle, W / 2, 179, { align: "center" });
+      doc.text(config.companySubtitle, W / 2, 180, { align: "center" });
       doc.setGState(new (doc as any).GState({ opacity: 1 }));
 
-      /* Bottom cyan strip — date + analyst */
+      /* Bottom strip */
       doc.setTextColor(navyR, navyG, navyB);
-      doc.setFontSize(10); doc.setFont("helvetica", "bold");
-      doc.text(dateStr.toUpperCase(), W / 2, H - 32, { align: "center" });
-      doc.setFontSize(8.5); doc.setFont("helvetica", "normal");
-      doc.text(`${config.analystName}  ·  ${config.analystEmail}  ·  ${config.analystPhone}`, W / 2, H - 23, { align: "center" });
-      doc.setFontSize(7.5);
-      doc.text("Fuente: Policía Nacional de Colombia / AICRI", W / 2, H - 15, { align: "center" });
+      doc.setFontSize(9); doc.setFont("helvetica", "bold");
+      doc.text(dateStr.toUpperCase(), W / 2, H - 33, { align: "center" });
+      doc.setFontSize(8); doc.setFont("helvetica", "normal");
+      doc.text(`${config.analystName}  ·  ${config.analystEmail}  ·  ${config.analystPhone}`, W / 2, H - 24, { align: "center" });
+      doc.setFontSize(7);
+      doc.text("Fuente: Policía Nacional de Colombia — AICRI  ·  INDEPAZ  ·  FIP  ·  CERAC", W / 2, H - 16, { align: "center" });
       doc.setFontSize(6.5);
-      doc.setGState(new (doc as any).GState({ opacity: 0.7 }));
-      doc.text(config.footerDisclaimer, W / 2, H - 7, { align: "center" });
+      doc.setGState(new (doc as any).GState({ opacity: 0.75 }));
+      doc.text("CLASIFICACIÓN: CONFIDENCIAL — USO EXCLUSIVO INTERNO", W / 2, H - 8, { align: "center" });
       doc.setGState(new (doc as any).GState({ opacity: 1 }));
 
       /* ══════════════════════════════════════
          PAGE 2 — RESUMEN EJECUTIVO + KPIs
          ══════════════════════════════════════ */
       doc.addPage();
-      pageHeader("1. Resumen Ejecutivo", 2);
+      pageHeader("APRECIACIÓN DE SITUACIÓN — AMBIENTE OPERACIONAL", 2);
       pageFooter();
 
       let y = 30;
+
+      /* ── APRECIACION heading ── */
+      doc.setFontSize(11); doc.setFont("helvetica", "bold"); doc.setTextColor(30, 30, 50);
+      doc.text("APRECIACIÓN DE SITUACIÓN", W / 2, y, { align: "center" }); y += 8;
+      doc.setDrawColor(pri.r, pri.g, pri.b); doc.setLineWidth(0.6);
+      doc.line(margin + 20, y, W - margin - 20, y); y += 7;
+
+      /* 1. Situación General */
       doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(pri.r, pri.g, pri.b);
-      doc.text("APRECIACIÓN DE SITUACIÓN DE SEGURIDAD", margin, y); y += 7;
-      doc.setFont("helvetica", "normal"); doc.setTextColor(60, 60, 80);
-      const introParts = doc.splitTextToSize(
-        `La presente Apreciación de Situación de Seguridad corresponde al análisis estadístico del comportamiento delictivo en Colombia durante el período ${year}, con base en los registros oficiales de la Policía Nacional de Colombia — Sistema AICRI (Análisis de Información Criminal). El análisis está orientado a brindar elementos de juicio para la toma de decisiones estratégicas en materia de seguridad logística y transporte terrestre de carga por parte de ${config.companyName}. Se han considerado las variables de incidencia delictiva por departamento, tipología del delito y tendencia mensual, correlacionadas con los principales corredores de movilidad de interés operacional. Fuente oficial: Policía Nacional de Colombia / INDEPAZ / FIP.`,
-        W - margin * 2
+      doc.text("1.  Situación General.", margin, y); y += 5;
+      doc.setFont("helvetica", "normal"); doc.setTextColor(50, 50, 70);
+
+      const situGeneral = doc.splitTextToSize(
+        `El ambiente socio-económico y de seguridad en Colombia durante el período ${year} registra ${totalCrimes.toLocaleString("es-CO")} eventos delictivos de acuerdo con los datos estadísticos de la Policía Nacional — Sistema AICRI. El análisis de esta información, elaborado para ${config.companyName}, tiene como propósito brindar elementos de juicio para la toma de decisiones estratégicas en materia de seguridad logística y transporte terrestre de carga. Los factores determinantes del ambiente operacional de seguridad en el período incluyen: la actividad de los Grupos Armados Organizados (GAO) en corredores estratégicos de movilidad, la piratería terrestre en accesos a los principales centros urbanos y puertos, y el comportamiento de los delitos de alto impacto social en los departamentos de mayor incidencia.`,
+        W - margin * 2 - 4
       );
-      doc.text(introParts, margin, y); y += introParts.length * 5 + 8;
+      doc.text(situGeneral, margin + 4, y); y += situGeneral.length * 5 + 3;
 
       /* KPI boxes 2x2 */
       const kpis = [
@@ -399,7 +428,7 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
       y += 2 * (kpiH + 6) + 10;
 
       /* Quick stats row */
-      y = sectionHeading("Datos clave del período", y);
+      y = sectionHeading("1.1  Indicadores de Incidencia del Período", y);
       const quickStats = [
         ["Departamentos con datos", `${topDepts.length} de 32`],
         ["Tipos de delito analizados", String(crimeTypeSummary.length)],
@@ -422,16 +451,18 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
          PAGE 3 — RANKING DEPARTAMENTAL
          ══════════════════════════════════════ */
       doc.addPage();
-      pageHeader("2. Ranking Departamental de Incidencia Delictiva", 3);
+      pageHeader("2. Ambiente Operacional — Incidencia Departamental", 3);
       pageFooter();
       y = 30;
 
-      doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(60, 60, 80);
+      doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(pri.r, pri.g, pri.b);
+      doc.text("2.  Ambiente operacional de la seguridad — Incidencia por departamento.", margin, y); y += 5;
+      doc.setFont("helvetica", "normal"); doc.setTextColor(50, 50, 70);
       const deptIntro = doc.splitTextToSize(
-        `A continuación se presenta el ranking departamental de incidencia delictiva para el período ${year}, ordenado de mayor a menor concentración de eventos registrados por la Policía Nacional. Esta información constituye un elemento esencial para la evaluación del riesgo compuesto en los principales corredores de movilidad del país y la priorización de esquemas de seguridad diferenciados por región de operación.`,
-        W - margin * 2
+        `El siguiente análisis departamental de incidencia delictiva para el período ${year} constituye un elemento esencial para la evaluación del riesgo compuesto en los principales corredores de movilidad del país. La concentración de eventos delictivos por departamento permite priorizar esquemas de seguridad diferenciados y determinar los niveles de protección requeridos para las operaciones logísticas y de transporte terrestre de carga según la región de destino u origen.`,
+        W - margin * 2 - 4
       );
-      doc.text(deptIntro, margin, y); y += deptIntro.length * 5 + 4;
+      doc.text(deptIntro, margin + 4, y); y += deptIntro.length * 5 + 4;
 
       const maxDeptCount = topDepts[0]?.[1] ?? 1;
       const barAreaW = 55;
@@ -449,7 +480,7 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
       );
 
       /* Mini horizontal bar chart */
-      y = sectionHeading("Comparativo visual — Top 10 departamentos", y);
+      y = sectionHeading("2.1  Comparativo visual — Top 10 departamentos", y);
       const barMaxW = W - margin * 2 - 45;
       const barH = 5.5;
       topDepts.slice(0, 10).forEach(([dept, count], i) => {
@@ -473,9 +504,18 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
          PAGE 4 — TIPOS DE DELITO + TENDENCIA
          ══════════════════════════════════════ */
       doc.addPage();
-      pageHeader("3. Distribución por Tipo de Delito", 4);
+      pageHeader("3. Modalidades Delictivas — Delitos de Alto Impacto", 4);
       pageFooter();
       y = 30;
+
+      doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(pri.r, pri.g, pri.b);
+      doc.text("3.  Modalidades delictivas — Delitos de alto impacto para el transporte terrestre de carga.", margin, y); y += 5;
+      doc.setFont("helvetica", "normal"); doc.setTextColor(50, 50, 70);
+      const typeIntro = doc.splitTextToSize(
+        `En general, se observa para el período ${year} un comportamiento diferenciado por modalidad delictiva. Entre los delitos de mayor impacto directo para las operaciones logísticas y de transporte terrestre, la piratería terrestre y el hurto de vehículos constituyen los de mayor criticidad operacional, seguidos por la extorsión a conductores en tramos de alta incidencia de grupos armados ilegales. Los datos estadísticos siguientes deberán ser correlacionados con el análisis de presencia de GAO por departamento para determinar el riesgo compuesto en cada corredor de movilidad.`,
+        W - margin * 2 - 4
+      );
+      doc.text(typeIntro, margin + 4, y); y += typeIntro.length * 5 + 4;
 
       const typeCols = [10, 90, 30, 32];
       y = drawTable(
@@ -491,13 +531,13 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
       y += 4;
 
       /* Donut-style distribution visual — simple pie slices via text */
-      y = sectionHeading("4. Tendencia Mensual de Delitos", y);
-      doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(80, 80, 100);
+      y = sectionHeading("3.1  Tendencia mensual — Factores estacionales y del conflicto", y);
+      doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(50, 50, 70);
       const trendIntro = doc.splitTextToSize(
-        `Evolución mensual de la actividad delictiva durante ${year}. El análisis de la tendencia permite identificar períodos de mayor concentración de eventos y correlacionarlos con variables estacionales, campañas electorales o escaladas del conflicto armado interno que inciden en el ambiente operacional de seguridad logística.`,
+        `El análisis de la tendencia mensual permite identificar períodos de mayor concentración de eventos y correlacionarlos con variables estacionales (temporadas de cosecha, festivos, períodos vacacionales), campañas electorales o escaladas del accionar de los grupos armados ilegales que inciden directamente en el ambiente operacional de seguridad logística y de transporte terrestre de carga.`,
         W - margin * 2
       );
-      doc.text(trendIntro, margin, y); y += trendIntro.length * 4.5 + 3;
+      doc.text(trendIntro, margin + 4, y); y += trendIntro.length * 4.5 + 3;
 
       /* Bar chart for monthly trend */
       const trendData = monthlyTrend.filter(m => m.count > 0);
@@ -536,7 +576,7 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
          PAGE 5 — COMPARATIVO INTERANUAL
          ══════════════════════════════════════ */
       doc.addPage();
-      pageHeader(`5. Comparativo Interanual: ${year - 1} vs ${year}`, 5);
+      pageHeader(`4. Análisis Comparativo del Ambiente Operacional: ${year - 1} vs ${year}`, 5);
       pageFooter();
       y = 30;
 
@@ -569,7 +609,7 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
         y += 30;
 
         /* Dual bar chart per month */
-        y = sectionHeading("Evolución mensual comparativa", y);
+        y = sectionHeading("4.1  Variación del ambiente operacional — Evolución mensual comparativa", y);
         const dualChartW = W - margin * 2;
         const dualChartH = 45;
         const maxVal = Math.max(...monthlyTrend.map(m => m.count), ...prevMonthlyTrend.map(m => m.count), 1);
@@ -616,7 +656,7 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
         y += 12;
 
         /* Month-by-month detail table */
-        y = sectionHeading("Detalle mensual", y);
+        y = sectionHeading("4.2  Detalle mensual", y);
         const compCols = [16, 28, 28, 28, 30, 32];
         y = drawTable(
           ["MES", `DELITOS ${year - 1}`, `DELITOS ${year}`, "DIFERENCIA", "VARIACIÓN", "TENDENCIA"],
@@ -649,7 +689,7 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
          PAGE 6 — BLOQUEOS + CONCLUSIONES
          ══════════════════════════════════════ */
       doc.addPage();
-      pageHeader("6. Bloqueos Viales y Conclusiones", 6);
+      pageHeader("5. Bloqueos Viales — CONCLUSIONES Y LINEAMIENTOS ESTRATÉGICOS", 6);
       pageFooter();
       y = 30;
 
@@ -685,7 +725,14 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
       }
 
       /* Conclusiones */
-      y = sectionHeading("Conclusiones y Recomendaciones", y);
+      /* ── CONCLUSIONES heading — centered, bold, matching document style ── */
+      doc.setFontSize(11); doc.setFont("helvetica", "bold"); doc.setTextColor(30, 30, 50);
+      doc.text("CONCLUSIONES.", W / 2, y, { align: "center" }); y += 6;
+      doc.setDrawColor(pri.r, pri.g, pri.b); doc.setLineWidth(0.5);
+      doc.line(margin + 20, y, W - margin - 20, y); y += 5;
+      doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(pri.r, pri.g, pri.b);
+      doc.text("Lineamientos estratégicos de gestión de seguridad logística:", margin, y); y += 6;
+      doc.setFont("helvetica", "normal"); doc.setTextColor(50, 50, 70);
       const peakMo = monthlyTrend.reduce((a, b) => a.count >= b.count ? a : b, monthlyTrend[0]);
       const conclusions = [
         `Situación general: El período ${year} registra un total de ${totalCrimes.toLocaleString("es-CO")} eventos delictivos en Colombia, con datos disponibles para ${topDepts.length} departamentos. El análisis determina que la mayor concentración de incidencia se mantiene en los principales centros urbanos y corredores de conectividad logística interregional.`,
@@ -700,25 +747,55 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
 
       conclusions.forEach((c, i) => {
         const isAlert = c.startsWith("ALERTA");
-        doc.setFillColor(isAlert ? 255 : pri.r, isAlert ? 220 : pri.g, isAlert ? 220 : pri.b);
-        doc.circle(margin + 1.5, y + 2, 1.5, "F");
-        doc.setFontSize(8.5); doc.setFont("helvetica", isAlert ? "bold" : "normal");
-        doc.setTextColor(isAlert ? 150 : 30, isAlert ? 20 : 30, isAlert ? 20 : 50);
-        const lines = doc.splitTextToSize(c, W - margin * 2 - 8);
-        doc.text(lines, margin + 5, y + 3);
-        y += lines.length * 5 + 3;
+        const [title, ...rest] = c.split(": ");
+        const hasTitle = rest.length > 0;
+
+        /* Bullet dot */
+        doc.setFillColor(isAlert ? 200 : pri.r, isAlert ? 20 : pri.g, isAlert ? 20 : pri.b);
+        doc.circle(margin + 1.5, y + 2.5, 1.5, "F");
+
+        /* Bold title part */
+        if (hasTitle) {
+          doc.setFontSize(8.5); doc.setFont("helvetica", "bold");
+          doc.setTextColor(isAlert ? 150 : 30, isAlert ? 20 : 30, isAlert ? 20 : 50);
+          doc.text(`${title}:`, margin + 5, y + 3);
+          const titleW = doc.getTextWidth(`${title}: `);
+          /* Body text */
+          doc.setFont("helvetica", "normal"); doc.setTextColor(50, 50, 70);
+          const bodyText = rest.join(": ");
+          const bodyLines = doc.splitTextToSize(bodyText, W - margin * 2 - 5 - titleW);
+          if (bodyLines.length === 1) {
+            doc.text(bodyLines[0], margin + 5 + titleW, y + 3);
+            y += 7;
+          } else {
+            const firstLine = doc.splitTextToSize(bodyText, W - margin * 2 - 5 - titleW)[0];
+            doc.text(firstLine, margin + 5 + titleW, y + 3);
+            const remainingLines = doc.splitTextToSize(bodyText.slice(firstLine.length).trim(), W - margin * 2 - 5);
+            doc.text(remainingLines, margin + 5, y + 8);
+            y += 8 + remainingLines.length * 4.5 + 2;
+          }
+        } else {
+          doc.setFontSize(8.5); doc.setFont("helvetica", isAlert ? "bold" : "normal");
+          doc.setTextColor(isAlert ? 150 : 50, isAlert ? 20 : 50, isAlert ? 20 : 70);
+          const lines = doc.splitTextToSize(c, W - margin * 2 - 6);
+          doc.text(lines, margin + 5, y + 3);
+          y += lines.length * 5 + 3;
+        }
       });
 
-      /* Signature block */
-      y += 8;
-      doc.setDrawColor(220, 220, 230); doc.setLineWidth(0.4);
-      doc.line(margin, y, margin + 60, y);
-      doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.setTextColor(40, 40, 60);
-      doc.text(config.analystName, margin, y + 5);
+      /* Signature block — document style */
+      y += 10;
+      doc.setFontSize(8); doc.setFont("helvetica", "italic"); doc.setTextColor(80, 90, 110);
+      doc.text("Elaborado por:", margin, y); y += 6;
+      doc.setDrawColor(pri.r, pri.g, pri.b); doc.setLineWidth(0.4);
+      doc.line(margin, y, margin + 72, y); y += 5;
+      doc.setFont("helvetica", "bold"); doc.setTextColor(30, 30, 50); doc.setFontSize(9);
+      doc.text(config.analystName, margin, y);
       doc.setFont("helvetica", "normal"); doc.setTextColor(100, 110, 130); doc.setFontSize(7.5);
-      doc.text(config.analystEmail, margin, y + 10);
-      doc.text(config.analystPhone, margin, y + 15);
-      doc.text(dateStr, margin, y + 20);
+      doc.text(`${config.analystEmail}  ·  ${config.analystPhone}`, margin, y + 5);
+      doc.text(dateStr, margin, y + 10);
+      doc.setFontSize(7); doc.setFont("helvetica", "italic");
+      doc.text("Fuente: Policía Nacional de Colombia — AICRI  /  INDEPAZ  /  FIP  /  CERAC", margin, y + 16);
 
       /* Save */
       const filename = `informe_seguridad_${config.companyName.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase()}_${year}.pdf`;
