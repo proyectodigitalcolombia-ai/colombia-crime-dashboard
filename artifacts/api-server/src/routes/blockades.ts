@@ -2,26 +2,47 @@ import { Router, type IRouter } from "express";
 import { db, blockadeTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { parse as parseHtml } from "node-html-parser";
 
-/* Anthropic client — uses Replit AI proxy in dev, real key in production */
-function buildAnthropicClient() {
-  if (process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL) {
-    // Replit dev environment: proxy handles auth
-    return new Anthropic({
-      baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
-      apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY ?? "_DUMMY_",
-    });
-  }
-  // Production: requires a real ANTHROPIC_API_KEY env var
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) {
-    console.warn("[blockades] ANTHROPIC_API_KEY not set — AI features will return 503");
-  }
-  return new Anthropic({ apiKey: key ?? "" });
+/* ── Unified AI helper ────────────────────────────────────────────────────────
+   Priority:
+   1. Replit dev proxy (AI_INTEGRATIONS_ANTHROPIC_BASE_URL set) → Anthropic
+   2. Production → Gemini 1.5 Flash via GEMINI_API_KEY (free tier, no credit card)
+   3. Neither → aiAvailable = false, endpoints return 503
+   ──────────────────────────────────────────────────────────────────────────── */
+let _anthropic: Anthropic | null = null;
+let _gemini: GoogleGenerativeAI | null = null;
+
+if (process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL) {
+  _anthropic = new Anthropic({
+    baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
+    apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY ?? "_DUMMY_",
+  });
+} else if (process.env.GEMINI_API_KEY) {
+  _gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+} else {
+  console.warn("[blockades] No AI key configured — AI features disabled. Set GEMINI_API_KEY (free) or ANTHROPIC_API_KEY.");
 }
-const anthropic = buildAnthropicClient();
-const aiAvailable = !!(process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL || process.env.ANTHROPIC_API_KEY);
+
+const aiAvailable = !!(_anthropic || _gemini);
+
+async function askAI(prompt: string): Promise<string> {
+  if (_anthropic) {
+    const msg = await _anthropic.messages.create({
+      model: "claude-haiku-4-5",
+      max_tokens: 4096,
+      messages: [{ role: "user", content: prompt }],
+    });
+    return msg.content[0]?.type === "text" ? msg.content[0].text : "[]";
+  }
+  if (_gemini) {
+    const model = _gemini.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const result = await model.generateContent(prompt);
+    return result.response.text();
+  }
+  throw new Error("No AI backend available");
+}
 
 const router: IRouter = Router();
 
@@ -100,7 +121,7 @@ router.patch("/blockades/:id/status", async (req, res) => {
 /* POST /api/blockades/from-url — IA extrae bloqueos de una URL de noticias */
 router.post("/blockades/from-url", async (req, res) => {
   if (!aiAvailable) {
-    return res.status(503).json({ error: "La función de análisis con IA no está disponible en este servidor. Configure ANTHROPIC_API_KEY para habilitarla." });
+    return res.status(503).json({ error: "La función de análisis con IA no está disponible. Configure GEMINI_API_KEY (gratuito) en el servidor." });
   }
   try {
     const { url } = req.body;
@@ -130,12 +151,7 @@ router.post("/blockades/from-url", async (req, res) => {
     const today = new Date().toISOString().split("T")[0];
     const hostname = (() => { try { return new URL(url).hostname; } catch { return url; } })();
 
-    const message = await anthropic.messages.create({
-      model: "claude-haiku-4-5",
-      max_tokens: 4096,
-      messages: [{
-        role: "user",
-        content: `Eres un analista de seguridad vial de Colombia. Analiza este texto de una noticia o reporte y extrae TODOS los bloqueos viales, cierres de carretera, paros armados, o novedades que afecten la movilidad en Colombia.
+    const aiText = await askAI(`Eres un analista de seguridad vial de Colombia. Analiza este texto de una noticia o reporte y extrae TODOS los bloqueos viales, cierres de carretera, paros armados, o novedades que afecten la movilidad en Colombia.
 
 TEXTO FUENTE (${hostname}):
 ${text}
@@ -150,11 +166,7 @@ Responde SOLO con un JSON array. Si no hay bloqueos, responde []. Cada objeto de
 - "notes": resumen del incidente máx 180 caracteres
 - "newsTitle": título o resumen de la fuente
 
-Responde SOLO con el JSON array, sin texto adicional antes ni después.`,
-      }],
-    });
-
-    const aiText = message.content[0]?.type === "text" ? message.content[0].text : "[]";
+Responde SOLO con el JSON array, sin texto adicional antes ni después.`);
     let blockades: any[] = [];
     try {
       const m = aiText.match(/\[[\s\S]*\]/);
@@ -191,7 +203,7 @@ Responde SOLO con el JSON array, sin texto adicional antes ni después.`,
 /* POST /api/analyze/pdf — IA analiza documento gubernamental (text o base64) */
 router.post("/analyze/pdf", async (req, res) => {
   if (!aiAvailable) {
-    return res.status(503).json({ error: "La función de análisis con IA no está disponible en este servidor. Configure ANTHROPIC_API_KEY para habilitarla." });
+    return res.status(503).json({ error: "La función de análisis con IA no está disponible. Configure GEMINI_API_KEY (gratuito) en el servidor." });
   }
   try {
     let text: string = req.body?.text ?? "";
@@ -211,12 +223,7 @@ router.post("/analyze/pdf", async (req, res) => {
 
     if (!text?.trim() || text.trim().length < 100) return res.status(400).json({ error: "Texto del documento muy corto o vacío" });
 
-    const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 8192,
-      messages: [{
-        role: "user",
-        content: `Eres un analista senior de inteligencia de seguridad corporativa para Colombia. Analiza el siguiente documento gubernamental o de fuente oficial y genera un resumen de inteligencia en estilo "Apreciación de Situación" para una empresa de logística y transporte terrestre de carga colombiana.
+    const aiText = await askAI(`Eres un analista senior de inteligencia de seguridad corporativa para Colombia. Analiza el siguiente documento gubernamental o de fuente oficial y genera un resumen de inteligencia en estilo "Apreciación de Situación" para una empresa de logística y transporte terrestre de carga colombiana.
 
 DOCUMENTO:
 ${text.slice(0, 14000)}
@@ -235,11 +242,7 @@ Responde SOLO con un JSON con la siguiente estructura (todos los campos en espa�
   "recomendacionOperacional": "Párrafo de recomendación específica para operaciones de transporte de carga"
 }
 
-Responde SOLO con el JSON, sin texto antes ni después.`,
-      }],
-    });
-
-    const aiText = message.content[0]?.type === "text" ? message.content[0].text : "{}";
+Responde SOLO con el JSON, sin texto antes ni después.`);
     let analysis: any = {};
     try {
       const m = aiText.match(/\{[\s\S]*\}/);
