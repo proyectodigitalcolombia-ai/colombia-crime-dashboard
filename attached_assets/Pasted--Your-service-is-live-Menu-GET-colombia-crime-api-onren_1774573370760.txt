@@ -1,0 +1,137 @@
+==> Your service is live 🎉
+Menu
+[GET]
+colombia-crime-api.onrender.com/ clientIP="35.197.118.178" requestID="a7d090ba-36b4-4e13" responseTimeMS=7 responseBytes=1376 userAgent="Go-http-client/2.0"
+==> 
+==> ///////////////////////////////////////////////////////////
+==> 
+==> Available at your primary URL https://colombia-crime-api.onrender.com
+==> 
+==> ///////////////////////////////////////////////////////////
+{"level":30,"time":1774572962123,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":4,"method":"GET","url":"/"},"res":{"statusCode":200},"responseTime":3,"msg":"request completed"}
+{"level":30,"time":1774572962934,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":5,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":2,"msg":"request completed"}
+{"level":30,"time":1774572965910,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-775b6dc5bd-w6jpt","req":{"id":306,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774572967933,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":6,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774572970910,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-775b6dc5bd-w6jpt","req":{"id":307,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774572972932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":7,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774572975911,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-775b6dc5bd-w6jpt","req":{"id":308,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774572977932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":8,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774572980915,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-775b6dc5bd-w6jpt","req":{"id":309,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":5,"msg":"request completed"}
+{"level":30,"time":1774572982933,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":9,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774572985910,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-775b6dc5bd-w6jpt","req":{"id":310,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774572987932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":10,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774572987933,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":11,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774572990910,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-775b6dc5bd-w6jpt","req":{"id":311,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774572992932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":12,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774572995911,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-775b6dc5bd-w6jpt","req":{"id":312,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774572997932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":13,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573000910,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-775b6dc5bd-w6jpt","req":{"id":313,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573002934,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":14,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573005911,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-775b6dc5bd-w6jpt","req":{"id":314,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573007932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":15,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774573010910,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-775b6dc5bd-w6jpt","req":{"id":315,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774573015910,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-775b6dc5bd-w6jpt","req":{"id":316,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573017931,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":17,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774573017932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":18,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+/opt/render/project/src/artifacts/api-server:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/api-server@0.0.0 start: `node --enable-source-maps ./dist/index.mjs`
+Command failed with signal "SIGTERM"
+{"level":30,"time":1774573022932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":19,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573027932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":20,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573032932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":21,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573037932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":22,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573042932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":23,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573047932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":24,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573047939,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":25,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":5,"msg":"request completed"}
+{"level":30,"time":1774573052932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":26,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573057932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":27,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774573062933,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":28,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573067932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":29,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573072933,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":30,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774573077931,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":31,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774573077932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":32,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774573082932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":33,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573087932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":34,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774573092932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":35,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573097932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":36,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573102932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":37,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573107932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":38,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774573107934,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":39,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573112932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":40,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774573117932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":41,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573122932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":42,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573127932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":43,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573132935,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":44,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573137932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":45,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774573137933,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":46,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774573142931,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":47,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774573147932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":48,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573152932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":49,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573157932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":50,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573162932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":51,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573167931,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":52,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774573167932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":53,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774573172932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":54,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573177933,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":55,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573182933,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":56,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573187931,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":57,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774573192932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":58,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573197932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":59,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774573197933,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":60,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774573202934,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":61,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573207933,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":62,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":2,"msg":"request completed"}
+{"level":30,"time":1774573212933,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":63,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573217932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":64,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573222932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":65,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573227932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":66,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573227933,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":67,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+[POST]
+colombia-crime-api.onrender.com/api/auth/login clientIP="186.116.2.164" requestID="66dd3113-c5f7-4c93" responseTimeMS=8 responseBytes=442 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+{"level":30,"time":1774573229595,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":68,"method":"POST","url":"/api/auth/login"},"res":{"statusCode":404},"responseTime":5,"msg":"request completed"}
+[GET]
+colombia-crime-api.onrender.com/ clientIP="186.116.2.164" requestID="ba0966b8-05fa-4fea" responseTimeMS=3 responseBytes=1376 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+{"level":30,"time":1774573231559,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":69,"method":"GET","url":"/"},"res":{"statusCode":200},"responseTime":2,"msg":"request completed"}
+{"level":30,"time":1774573231836,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":70,"method":"GET","url":"/assets/app.js"},"res":{"statusCode":200},"responseTime":45,"msg":"request completed"}
+[GET]
+colombia-crime-api.onrender.com/favicon.svg clientIP="186.116.2.164" requestID="bbc1c6c1-37fb-401b" responseTimeMS=4 responseBytes=486 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+[GET]
+colombia-crime-api.onrender.com/assets/index.css clientIP="186.116.2.164" requestID="9fe1da31-d7a4-416c" responseTimeMS=5 responseBytes=16720 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+[GET]
+colombia-crime-api.onrender.com/assets/app.js clientIP="186.116.2.164" requestID="2179c20a-bfd0-41e2" responseTimeMS=652 responseBytes=543017 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+{"level":30,"time":1774573232119,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":71,"method":"GET","url":"/favicon.svg"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573232127,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":72,"method":"GET","url":"/assets/index.css"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573232932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":73,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774573237932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":74,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573242932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":75,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573247932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":76,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573252932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":77,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+[POST]
+colombia-crime-api.onrender.com/api/auth/login clientIP="186.116.2.164" requestID="665532f2-51b8-44a3" responseTimeMS=3 responseBytes=442 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+{"level":30,"time":1774573256750,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":78,"method":"POST","url":"/api/auth/login"},"res":{"statusCode":404},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573257932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":79,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573257933,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":80,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+[AutoRefresh] Verificando si hay nuevo archivo AICRI en policia.gov.co…
+==> Detected service running on port 10000
+[AutoRefresh] Huella inicial guardada — tamaño: desconocido, fecha: N/A
+==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+{"level":30,"time":1774573262932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":81,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774573267932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":82,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573272931,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":83,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774573277932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":84,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774573282932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":85,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573287932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":86,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573287932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":87,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774573292932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":88,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573297932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":89,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573302932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":90,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573307932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":91,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573312932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":92,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573317931,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":93,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774573317932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":94,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774573322932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":95,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573327931,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":96,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774573332932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":97,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573337932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":98,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774573342932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":99,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573347932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":100,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774573347932,"pid":82,"hostname":"srv-d7256m450q8c7390kbbg-5f65677467-hsxnf","req":{"id":101,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}

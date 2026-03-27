@@ -49,7 +49,13 @@ async function apiFetch(path: string, options: RequestInit = {}) {
     ...(options.headers as Record<string, string>),
   };
   if (token) headers["Authorization"] = `Bearer ${token}`;
-  return fetch(`${API}${path}`, { ...options, headers });
+  const url = `${API}${path}`;
+  const resp = await fetch(url, { ...options, headers });
+  const ct = resp.headers.get("content-type") ?? "";
+  if (ct.includes("text/html")) {
+    console.error(`[Auth] ROUTING ERROR: ${url} returned HTML (status ${resp.status}). API not reachable from browser.`);
+  }
+  return resp;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -75,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await r.json();
     if (!r.ok) throw new Error(data.error ?? "Error al iniciar sesión");
     storeToken(data.token);
+    setAuthTokenGetter(() => data.token);
     setUser(data.user);
   }, []);
 
