@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
-  MapContainer, TileLayer, Marker, Polyline, useMapEvents, useMap,
+  MapContainer, TileLayer, Marker, Polyline, Popup, useMapEvents, useMap,
 } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -352,6 +352,90 @@ function SearchInput({ label, icon, value, color, onChange, onSelect, onClear, p
   );
 }
 
+/* ════════ STATIC DATASETS ════════ */
+
+/* Centroides departamentales para marcadores de cierres */
+const DEPT_CENTROIDS: Record<string, [number, number]> = {
+  "Antioquia": [6.7009, -75.5128], "Atlántico": [10.6966, -74.8741], "Bolívar": [8.6704, -74.0328],
+  "Boyacá": [5.4546, -73.3626], "Caldas": [5.2985, -75.2479], "Caquetá": [0.8699, -73.8419],
+  "Cauca": [2.5359, -76.5956], "Cesar": [9.3373, -73.6536], "Chocó": [5.6940, -76.6583],
+  "Córdoba": [8.3371, -75.4827], "Cundinamarca": [4.5709, -74.2973], "Huila": [2.5359, -75.5277],
+  "La Guajira": [11.3548, -72.5205], "Magdalena": [10.3930, -74.3983], "Meta": [3.9960, -73.5493],
+  "Nariño": [1.2892, -77.3579], "Norte de Santander": [7.9463, -72.8988], "Quindío": [4.5361, -75.6728],
+  "Risaralda": [5.3158, -75.9929], "Santander": [6.6437, -73.6536], "Sucre": [9.0417, -75.0202],
+  "Tolima": [3.7988, -75.1932], "Valle del Cauca": [3.8008, -76.6413], "Arauca": [6.9497, -71.6421],
+  "Casanare": [5.3369, -72.3943], "Putumayo": [0.4359, -76.6400], "Amazonas": [-2.5933, -72.1944],
+  "Guainía": [2.5854, -68.5247], "Guaviare": [2.1067, -72.9480], "Vaupés": [0.8554, -70.8118],
+  "Vichada": [4.4234, -69.2877], "San Andrés": [12.5567, -81.7185], "Bogotá D.C.": [4.7109, -74.0721],
+};
+
+interface Peaje { name: string; lat: number; lng: number; dept: string; via: string; tarifa: string }
+const PEAJES: Peaje[] = [
+  { name: "Marahuaco", lat: 10.5745, lng: -75.4507, dept: "Bolívar", via: "Troncal del Caribe", tarifa: "Cat II: $11.600 | Cat IV: $18.300 | Cat VI: $38.200" },
+  { name: "Caiquero", lat: 5.0654, lng: -74.4144, dept: "Cundinamarca", via: "Ruta Bogotá-Honda", tarifa: "Cat II: $10.900 | Cat IV: $17.300 | Cat VI: $36.100" },
+  { name: "Pubenza", lat: 4.4033, lng: -74.7315, dept: "Cundinamarca", via: "Ruta Bogotá-Girardot", tarifa: "Cat II: $10.900 | Cat IV: $17.300 | Cat VI: $36.100" },
+  { name: "Arcabuco", lat: 5.7950, lng: -73.4776, dept: "Boyacá", via: "Ruta Bogotá-Tunja", tarifa: "Cat II: $11.200 | Cat IV: $17.800 | Cat VI: $37.400" },
+  { name: "Oiba", lat: 6.1783, lng: -73.3332, dept: "Santander", via: "Ruta Bucaramanga", tarifa: "Cat II: $10.900 | Cat IV: $17.300 | Cat VI: $36.100" },
+  { name: "La Cabaña", lat: 4.9700, lng: -75.1800, dept: "Caldas", via: "Ruta Medellín-Bogotá", tarifa: "Cat II: $11.600 | Cat IV: $18.500 | Cat VI: $38.900" },
+  { name: "Camoa", lat: 4.1200, lng: -73.6300, dept: "Meta", via: "Ruta Bogotá-Villavicencio", tarifa: "Cat II: $12.100 | Cat IV: $19.200 | Cat VI: $40.100" },
+  { name: "Pipiral", lat: 4.3500, lng: -73.9200, dept: "Meta", via: "Ruta Bogotá-Villavicencio", tarifa: "Cat II: $12.100 | Cat IV: $19.200 | Cat VI: $40.100" },
+  { name: "El Triunfo", lat: 3.7200, lng: -76.2100, dept: "Valle del Cauca", via: "Ruta Cali-Buenaventura", tarifa: "Cat II: $10.900 | Cat IV: $17.300 | Cat VI: $36.100" },
+  { name: "La Paila", lat: 4.3550, lng: -75.9700, dept: "Valle del Cauca", via: "Panamericana Cali-Pereira", tarifa: "Cat II: $11.200 | Cat IV: $17.800 | Cat VI: $37.400" },
+  { name: "Mulalo", lat: 4.6800, lng: -75.7300, dept: "Valle del Cauca", via: "Panamericana Cali-Bogotá", tarifa: "Cat II: $11.200 | Cat IV: $17.800 | Cat VI: $37.400" },
+  { name: "La Virginia", lat: 4.9000, lng: -75.8700, dept: "Risaralda", via: "Ruta Pereira-Medellín", tarifa: "Cat II: $10.600 | Cat IV: $16.900 | Cat VI: $35.200" },
+  { name: "Irra", lat: 5.2100, lng: -75.5600, dept: "Caldas", via: "Autopista Medellín-Cali", tarifa: "Cat II: $11.600 | Cat IV: $18.500 | Cat VI: $38.900" },
+  { name: "Palogrande", lat: 5.8600, lng: -75.5900, dept: "Antioquia", via: "Autopista Medellín Sur", tarifa: "Cat II: $11.600 | Cat IV: $18.500 | Cat VI: $38.900" },
+  { name: "Primavera", lat: 6.2800, lng: -75.5400, dept: "Antioquia", via: "Autopista Medellín Norte", tarifa: "Cat II: $11.600 | Cat IV: $18.500 | Cat VI: $38.900" },
+  { name: "Hatillo", lat: 6.4100, lng: -75.3700, dept: "Antioquia", via: "Autopista Medellín-Bogotá", tarifa: "Cat II: $11.600 | Cat IV: $18.500 | Cat VI: $38.900" },
+  { name: "Ciénaga de Oro", lat: 8.8700, lng: -75.6200, dept: "Córdoba", via: "Troncal del Caribe", tarifa: "Cat II: $10.900 | Cat IV: $17.300 | Cat VI: $36.100" },
+  { name: "Caucasia", lat: 7.9800, lng: -75.1900, dept: "Antioquia", via: "Troncal del Caribe", tarifa: "Cat II: $10.900 | Cat IV: $17.300 | Cat VI: $36.100" },
+  { name: "San Roque", lat: 6.4800, lng: -74.8500, dept: "Antioquia", via: "Ruta del Sol", tarifa: "Cat II: $11.600 | Cat IV: $18.500 | Cat VI: $38.900" },
+  { name: "El Korán", lat: 9.2800, lng: -74.7700, dept: "Bolívar", via: "Ruta del Sol", tarifa: "Cat II: $11.600 | Cat IV: $18.500 | Cat VI: $38.900" },
+  { name: "Pelaya", lat: 9.0100, lng: -73.6700, dept: "Cesar", via: "Ruta del Sol Norte", tarifa: "Cat II: $11.600 | Cat IV: $18.500 | Cat VI: $38.900" },
+  { name: "Bosconia", lat: 9.9700, lng: -73.9000, dept: "Cesar", via: "Troncal del Caribe Este", tarifa: "Cat II: $10.900 | Cat IV: $17.300 | Cat VI: $36.100" },
+  { name: "San Alberto", lat: 7.7700, lng: -73.3900, dept: "Cesar", via: "Ruta Bucaramanga-Cúcuta", tarifa: "Cat II: $10.900 | Cat IV: $17.300 | Cat VI: $36.100" },
+  { name: "Pescadero", lat: 6.8800, lng: -73.0500, dept: "Santander", via: "Troncal Central Norte", tarifa: "Cat II: $11.600 | Cat IV: $18.500 | Cat VI: $38.900" },
+  { name: "Lebrija", lat: 7.1200, lng: -73.2200, dept: "Santander", via: "Ruta Bucaramanga-Cúcuta", tarifa: "Cat II: $10.900 | Cat IV: $17.300 | Cat VI: $36.100" },
+  { name: "Pamplona", lat: 7.3700, lng: -72.6500, dept: "Norte de Santander", via: "Ruta Cúcuta", tarifa: "Cat II: $10.900 | Cat IV: $17.300 | Cat VI: $36.100" },
+  { name: "Pitalito", lat: 1.8600, lng: -76.0500, dept: "Huila", via: "Ruta Pasto-Bogotá", tarifa: "Cat II: $10.900 | Cat IV: $17.300 | Cat VI: $36.100" },
+  { name: "San Francisco", lat: 1.6100, lng: -76.9000, dept: "Putumayo", via: "Ruta Pasto-Mocoa", tarifa: "Cat II: $10.900 | Cat IV: $17.300 | Cat VI: $36.100" },
+  { name: "Chachagüí", lat: 1.3600, lng: -77.2800, dept: "Nariño", via: "Panamericana Pasto", tarifa: "Cat II: $10.900 | Cat IV: $17.300 | Cat VI: $36.100" },
+  { name: "Rumichaca", lat: 0.8100, lng: -77.6600, dept: "Nariño", via: "Panamericana Sur", tarifa: "Cat II: $10.900 | Cat IV: $17.300 | Cat VI: $36.100" },
+  { name: "El Rosal", lat: 4.8700, lng: -74.2700, dept: "Cundinamarca", via: "Ruta Bogotá-Medellín", tarifa: "Cat II: $10.900 | Cat IV: $17.300 | Cat VI: $36.100" },
+  { name: "Tobia Grande", lat: 5.1100, lng: -74.3600, dept: "Cundinamarca", via: "Ruta Bogotá-Medellín", tarifa: "Cat II: $10.900 | Cat IV: $17.300 | Cat VI: $36.100" },
+  { name: "Puerto Salgar", lat: 5.5400, lng: -74.6500, dept: "Cundinamarca", via: "Troncal del Magdalena", tarifa: "Cat II: $10.900 | Cat IV: $17.300 | Cat VI: $36.100" },
+  { name: "Tobiagrande", lat: 5.0200, lng: -74.3900, dept: "Cundinamarca", via: "Ruta Bogotá-Medellín", tarifa: "Cat II: $10.900 | Cat IV: $17.300 | Cat VI: $36.100" },
+  { name: "La Tribuna", lat: 4.5000, lng: -74.4800, dept: "Cundinamarca", via: "Ruta Bogotá-Girardot", tarifa: "Cat II: $10.900 | Cat IV: $17.300 | Cat VI: $36.100" },
+];
+
+interface Bascula { name: string; lat: number; lng: number; dept: string; via: string; dir: string }
+const BASCULAS: Bascula[] = [
+  { name: "Básc. Bosa", lat: 4.5800, lng: -74.1900, dept: "Bogotá D.C.", via: "Autopista Sur", dir: "Ambos sentidos" },
+  { name: "Básc. Fontibón", lat: 4.6800, lng: -74.1400, dept: "Bogotá D.C.", via: "Autopista Medellín", dir: "Ambos sentidos" },
+  { name: "Básc. Briceño", lat: 5.0200, lng: -74.0600, dept: "Cundinamarca", via: "Autopista Norte", dir: "Ambos sentidos" },
+  { name: "Básc. Tocaima", lat: 4.4600, lng: -74.6500, dept: "Cundinamarca", via: "Ruta Bogotá-Girardot", dir: "Ambos sentidos" },
+  { name: "Básc. Honda", lat: 5.2100, lng: -74.7500, dept: "Tolima", via: "Troncal Magdalena", dir: "Ambos sentidos" },
+  { name: "Básc. La Dorada", lat: 5.4500, lng: -74.6600, dept: "Caldas", via: "Troncal Magdalena", dir: "Ambos sentidos" },
+  { name: "Básc. Puerto Triunfo", lat: 5.8800, lng: -74.7100, dept: "Antioquia", via: "Autopista Medellín-Bogotá", dir: "Ambos sentidos" },
+  { name: "Básc. Caucasia", lat: 7.9700, lng: -75.1900, dept: "Antioquia", via: "Troncal Caribe", dir: "Ambos sentidos" },
+  { name: "Básc. Planeta Rica", lat: 8.4100, lng: -75.5900, dept: "Córdoba", via: "Troncal Caribe", dir: "Ambos sentidos" },
+  { name: "Básc. Bello", lat: 6.3400, lng: -75.5600, dept: "Antioquia", via: "Autopista Medellín Norte", dir: "Ambos sentidos" },
+  { name: "Básc. Itagüí", lat: 6.1700, lng: -75.6100, dept: "Antioquia", via: "Autopista Medellín Sur", dir: "Ambos sentidos" },
+  { name: "Básc. Rionegro", lat: 6.1500, lng: -75.3700, dept: "Antioquia", via: "Vía Llanogrande", dir: "Ambos sentidos" },
+  { name: "Básc. Palmira", lat: 3.5500, lng: -76.3000, dept: "Valle del Cauca", via: "Panamericana Sur", dir: "Ambos sentidos" },
+  { name: "Básc. Yumbo", lat: 3.5900, lng: -76.5100, dept: "Valle del Cauca", via: "Cali-Buenaventura", dir: "Ambos sentidos" },
+  { name: "Básc. Jamundí", lat: 3.2600, lng: -76.5400, dept: "Valle del Cauca", via: "Panamericana Sur", dir: "Ambos sentidos" },
+  { name: "Básc. Pereira Sur", lat: 4.8100, lng: -75.6800, dept: "Risaralda", via: "Autopista del Café", dir: "Ambos sentidos" },
+  { name: "Básc. Manizales", lat: 5.0600, lng: -75.5100, dept: "Caldas", via: "Autopista del Café", dir: "Ambos sentidos" },
+  { name: "Básc. Bucaramanga", lat: 7.0900, lng: -73.1300, dept: "Santander", via: "Troncal Central", dir: "Ambos sentidos" },
+  { name: "Básc. Cúcuta", lat: 7.8700, lng: -72.5000, dept: "Norte de Santander", via: "Ruta 55", dir: "Ambos sentidos" },
+  { name: "Básc. Barranquilla", lat: 11.0000, lng: -74.8600, dept: "Atlántico", via: "Troncal Caribe", dir: "Ambos sentidos" },
+  { name: "Básc. Cartagena", lat: 10.3900, lng: -75.5100, dept: "Bolívar", via: "Ruta del Caribe", dir: "Ambos sentidos" },
+  { name: "Básc. Pasto", lat: 1.2100, lng: -77.2800, dept: "Nariño", via: "Panamericana Sur", dir: "Ambos sentidos" },
+  { name: "Básc. Villavicencio", lat: 4.1400, lng: -73.6400, dept: "Meta", via: "Ruta Bogotá-Llanos", dir: "Ambos sentidos" },
+  { name: "Básc. Neiva", lat: 2.9300, lng: -75.2800, dept: "Huila", via: "Ruta Sur", dir: "Ambos sentidos" },
+];
+
 /* ════════ MAIN COMPONENT ════════ */
 interface Props { dark?: boolean; userBlockades?: Blockade[]; pirataMap?: Record<string, number> }
 
@@ -423,6 +507,41 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
   const [routeError,  setRouteError]  = useState("");
 
   const [phase, setPhase] = useState<"setup" | "result">("setup");
+
+  /* ─ Overlay layer toggles ─ */
+  const [showPeajes,      setShowPeajes]      = useState(false);
+  const [showBasculas,    setShowBasculas]    = useState(false);
+  const [showBlockadesOnMap, setShowBlockadesOnMap] = useState(true);
+
+  /* ─ Custom overlay icons ─ */
+  const peajeIcon = useMemo(() => L.divIcon({
+    className: "",
+    html: `<div style="background:#f59e0b;border:2px solid #92400e;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;box-shadow:0 2px 6px rgba(0,0,0,0.5);cursor:pointer">💲</div>`,
+    iconSize: [22, 22], iconAnchor: [11, 11], popupAnchor: [0, -14],
+  }), []);
+  const basculaIcon = useMemo(() => L.divIcon({
+    className: "",
+    html: `<div style="background:#8b5cf6;border:2px solid #4c1d95;border-radius:4px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;box-shadow:0 2px 6px rgba(0,0,0,0.5);cursor:pointer">⚖</div>`,
+    iconSize: [22, 22], iconAnchor: [11, 11], popupAnchor: [0, -14],
+  }), []);
+  const blockadeIcon = useMemo(() => L.divIcon({
+    className: "",
+    html: `<div style="background:#ef4444;border:2px solid #7f1d1d;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 2px 8px rgba(239,68,68,0.6);animation:pulse 1.5s infinite;cursor:pointer">🚨</div>`,
+    iconSize: [26, 26], iconAnchor: [13, 13], popupAnchor: [0, -16],
+  }), []);
+
+  /* ─ Blockades on this route (uses routeDepts to avoid ordering deps) ─ */
+  const routeBlockades = useMemo(() => {
+    if (!showBlockadesOnMap || routeDepts.length === 0) return [];
+    const canon = routeDepts.map(d => canonicalize(d)).filter(d => d in ARMED);
+    if (canon.length === 0) return [];
+    return userBlockades.filter(b => {
+      if (b.status !== "activo" && b.status !== "intermitente") return false;
+      const bd = canonicalize(b.department ?? "");
+      return canon.some(d => d.toLowerCase().includes(bd.toLowerCase().slice(0,5)) || bd.toLowerCase().includes(d.toLowerCase().slice(0,5)));
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showBlockadesOnMap, userBlockades, routeDepts.join(",")]);
 
   /* ─ All waypoints in order (only ones with valid coords) ─ */
   const allWPs = (): WP[] => {
@@ -885,12 +1004,14 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
         {/* ── Layer selector (bottom-left overlay) ── */}
         <div style={{
           position: "absolute", bottom: 10, left: 10, zIndex: 1000,
-          display: "flex", flexDirection: "column", gap: "4px",
-          background: dark ? "rgba(7,12,21,0.88)" : "rgba(255,255,255,0.92)",
+          display: "flex", flexDirection: "column", gap: "3px",
+          background: dark ? "rgba(7,12,21,0.90)" : "rgba(255,255,255,0.93)",
           border: `1px solid ${borderC}`, borderRadius: "10px", padding: "6px 8px",
           backdropFilter: "blur(6px)", boxShadow: "0 4px 16px rgba(0,0,0,0.35)",
+          maxHeight: "380px", overflowY: "auto",
         }}>
-          <div style={{ fontSize: "8px", fontWeight: 700, color: textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "2px" }}>Capa</div>
+          {/* Base tiles */}
+          <div style={{ fontSize: "8px", fontWeight: 700, color: textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "2px" }}>Fondo</div>
           {MAP_LAYERS.map(layer => (
             <button
               key={layer.id}
@@ -898,9 +1019,7 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
               title={layer.label}
               style={{
                 display: "flex", alignItems: "center", gap: "5px", cursor: "pointer",
-                background: mapLayerId === layer.id
-                  ? (dark ? "rgba(0,212,255,0.15)" : "rgba(0,100,200,0.1)")
-                  : "transparent",
+                background: mapLayerId === layer.id ? (dark ? "rgba(0,212,255,0.15)" : "rgba(0,100,200,0.1)") : "transparent",
                 border: mapLayerId === layer.id ? `1px solid ${E.cyan}` : "1px solid transparent",
                 borderRadius: "6px", padding: "3px 7px",
                 fontSize: "10px", fontWeight: mapLayerId === layer.id ? 700 : 400,
@@ -908,10 +1027,58 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
                 transition: "all 0.15s", whiteSpace: "nowrap",
               }}
             >
-              <span>{layer.icon}</span>
-              <span>{layer.label}</span>
+              <span>{layer.icon}</span><span>{layer.label}</span>
             </button>
           ))}
+
+          {/* Divider */}
+          <div style={{ height: "1px", background: borderC, margin: "3px 0" }} />
+
+          {/* Overlay layers */}
+          <div style={{ fontSize: "8px", fontWeight: 700, color: textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "2px" }}>Capas</div>
+          {[
+            { id: "peajes",   label: "Peajes", icon: "💲", active: showPeajes,      set: setShowPeajes,      color: E.amber },
+            { id: "basculas", label: "Básculas", icon: "⚖", active: showBasculas,   set: setShowBasculas,   color: "#8b5cf6" },
+            { id: "cierres",  label: "Cierres", icon: "🚨", active: showBlockadesOnMap, set: setShowBlockadesOnMap, color: E.red },
+          ].map(ov => (
+            <button
+              key={ov.id}
+              onClick={() => ov.set(!ov.active)}
+              style={{
+                display: "flex", alignItems: "center", gap: "5px", cursor: "pointer",
+                background: ov.active ? `${ov.color}22` : "transparent",
+                border: ov.active ? `1px solid ${ov.color}` : "1px solid transparent",
+                borderRadius: "6px", padding: "3px 7px",
+                fontSize: "10px", fontWeight: ov.active ? 700 : 400,
+                color: ov.active ? ov.color : textMuted,
+                transition: "all 0.15s", whiteSpace: "nowrap",
+              }}
+            >
+              <span>{ov.icon}</span><span>{ov.label}</span>
+            </button>
+          ))}
+
+          {/* Divider */}
+          <div style={{ height: "1px", background: borderC, margin: "3px 0" }} />
+
+          {/* MNVCC link */}
+          <a
+            href="https://sig.policia.gov.co/MNVCC/"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Mapa Nacional de Vigilancia Comunitaria por Cuadrantes — Policía Nacional"
+            style={{
+              display: "flex", alignItems: "center", gap: "5px", textDecoration: "none",
+              background: "transparent", border: "1px solid transparent",
+              borderRadius: "6px", padding: "3px 7px",
+              fontSize: "10px", color: textMuted, whiteSpace: "nowrap",
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = "rgba(0,212,255,0.08)"; e.currentTarget.style.color = E.cyan; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = textMuted; }}
+          >
+            <span>🚔</span><span>Cuadrantes ↗</span>
+          </a>
         </div>
 
         {/* Map legend */}
@@ -1006,6 +1173,68 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
                   }
                 }}
               />
+            );
+          })}
+
+          {/* ── Peajes overlay ── */}
+          {showPeajes && PEAJES.map(p => (
+            <Marker key={`p-${p.name}`} position={[p.lat, p.lng]} icon={peajeIcon}>
+              <Popup>
+                <div style={{ minWidth: "180px" }}>
+                  <div style={{ fontWeight: 700, fontSize: "13px", marginBottom: "4px" }}>💲 {p.name}</div>
+                  <div style={{ fontSize: "11px", color: "#555", marginBottom: "2px" }}>📍 {p.dept}</div>
+                  <div style={{ fontSize: "11px", color: "#555", marginBottom: "6px" }}>🛣 {p.via}</div>
+                  <div style={{ fontSize: "10px", background: "#fef3c7", borderRadius: "4px", padding: "4px 6px", lineHeight: 1.6 }}>
+                    <strong>Tarifas aprox. 2024</strong><br />{p.tarifa.split(" | ").map(t => <span key={t} style={{ display:"block" }}>{t}</span>)}
+                  </div>
+                  <div style={{ fontSize: "9px", color: "#999", marginTop: "4px" }}>Fuente: INVIAS (ref. tarifaria)</div>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+
+          {/* ── Básculas overlay ── */}
+          {showBasculas && BASCULAS.map(b => (
+            <Marker key={`bas-${b.name}`} position={[b.lat, b.lng]} icon={basculaIcon}>
+              <Popup>
+                <div style={{ minWidth: "170px" }}>
+                  <div style={{ fontWeight: 700, fontSize: "13px", marginBottom: "4px" }}>⚖ {b.name}</div>
+                  <div style={{ fontSize: "11px", color: "#555", marginBottom: "2px" }}>📍 {b.dept}</div>
+                  <div style={{ fontSize: "11px", color: "#555", marginBottom: "2px" }}>🛣 {b.via}</div>
+                  <div style={{ fontSize: "11px", background: "#ede9fe", borderRadius: "4px", padding: "3px 6px" }}>
+                    <strong>Sentido:</strong> {b.dir}
+                  </div>
+                  <div style={{ fontSize: "9px", color: "#999", marginTop: "4px" }}>Estación INVIAS de pesaje</div>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+
+          {/* ── Cierres activos sobre la ruta ── */}
+          {routeBlockades.map((bl, idx) => {
+            const center = DEPT_CENTROIDS[bl.department ?? ""] ?? null;
+            if (!center) return null;
+            return (
+              <Marker key={`bl-${idx}`} position={center} icon={blockadeIcon}>
+                <Popup>
+                  <div style={{ minWidth: "200px" }}>
+                    <div style={{ fontWeight: 700, fontSize: "13px", color: "#dc2626", marginBottom: "4px" }}>
+                      🚨 CIERRE ACTIVO
+                    </div>
+                    <div style={{ fontSize: "11px", marginBottom: "2px" }}><strong>Dpto:</strong> {bl.department}</div>
+                    <div style={{ fontSize: "11px", marginBottom: "2px" }}><strong>Corredor:</strong> {bl.corridorId}</div>
+                    <div style={{ fontSize: "11px", marginBottom: "2px" }}><strong>Ubicación:</strong> {bl.location}</div>
+                    <div style={{ fontSize: "11px", marginBottom: "4px" }}>
+                      <strong>Estado:</strong>{" "}
+                      <span style={{ color: bl.status === "activo" ? "#dc2626" : "#d97706" }}>
+                        {bl.status === "activo" ? "🔴 Activo" : "🟡 Intermitente"}
+                      </span>
+                    </div>
+                    {bl.cause && <div style={{ fontSize: "10px", background: "#fee2e2", borderRadius: "4px", padding: "3px 6px" }}><strong>Causa:</strong> {bl.cause?.replace("_", " ")}</div>}
+                    <div style={{ fontSize: "9px", color: "#999", marginTop: "4px" }}>Fecha: {bl.date}</div>
+                  </div>
+                </Popup>
+              </Marker>
             );
           })}
         </MapContainer>
