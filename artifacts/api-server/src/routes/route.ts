@@ -31,9 +31,9 @@ function parseBRouterFeature(feat: any) {
 /**
  * GET /api/route?coords=lng,lat;lng,lat;...
  * Uses BRouter for real road-following routes (works from cloud IPs).
- * Strategy:
- *   1. Try full multi-waypoint route at once.
- *   2. If that fails, route segment by segment and concatenate.
+ * Returns 502 if any segment cannot be routed via roads — 
+ * so the client falls back to haversine and shows a dashed "estimated" line
+ * instead of a misleading solid straight line.
  */
 router.get("/route", async (req, res) => {
   const { coords } = req.query;
@@ -46,7 +46,7 @@ router.get("/route", async (req, res) => {
     return res.status(400).json({ error: "At least 2 points required" });
   }
 
-  // ── Attempt 1: full route ──
+  // ── Attempt 1: full multi-waypoint route ──
   const fullLonlats = points.join("|");
   const fullData = await brouterFetch(fullLonlats);
   const fullFeat = fullData?.features?.[0];
@@ -55,15 +55,19 @@ router.get("/route", async (req, res) => {
     const { coords: c, distance, duration } = parseBRouterFeature(fullFeat);
     return res.json({
       provider: "brouter",
-      geojson: { type: "FeatureCollection", features: [{ type: "Feature", geometry: { type: "LineString", coordinates: c }, properties: { "track-length": String(distance), "total-time": String(duration) } }] },
+      geojson: {
+        type: "FeatureCollection",
+        features: [{
+          type: "Feature",
+          geometry: { type: "LineString", coordinates: c },
+          properties: { "track-length": String(distance), "total-time": String(duration) },
+        }],
+      },
     });
   }
 
-  // ── Attempt 2: route segment by segment ──
-  let allCoords: [number, number, number][] = [];
-  let totalDist = 0;
-  let totalTime = 0;
-  let anySuccess = false;
+  // ── Attempt 2: segment-by-segment — ONLY if every segment succeeds ──
+  const segResults: Array<{ coords: [number, number, number][]; distance: number; duration: number }> = [];
 
   for (let i = 0; i < points.length - 1; i++) {
     const segLonlats = `${points[i]}|${points[i + 1]}`;
@@ -71,35 +75,23 @@ router.get("/route", async (req, res) => {
     const segFeat = segData?.features?.[0];
 
     if (segFeat?.geometry?.coordinates?.length) {
-      const { coords: segCoords, distance: segDist, duration: segTime } = parseBRouterFeature(segFeat);
-      // Skip duplicate junction point between segments
-      const toAdd = i === 0 ? segCoords : segCoords.slice(1);
-      allCoords = [...allCoords, ...toAdd];
-      totalDist += segDist;
-      totalTime += segTime;
-      anySuccess = true;
+      segResults.push(parseBRouterFeature(segFeat));
     } else {
-      // Interpolate straight-line fallback for this segment
-      const [aLng, aLat] = points[i].split(",").map(Number);
-      const [bLng, bLat] = points[i + 1].split(",").map(Number);
-      const steps = 8;
-      for (let s = i === 0 ? 0 : 1; s <= steps; s++) {
-        const t = s / steps;
-        allCoords.push([aLng + (bLng - aLng) * t, aLat + (bLat - aLat) * t, 0]);
-      }
-      // Estimate distance using haversine for this segment
-      const R = 6371000;
-      const dLat = (bLat - aLat) * Math.PI / 180;
-      const dLon = (bLng - aLng) * Math.PI / 180;
-      const a = Math.sin(dLat / 2) ** 2 + Math.cos(aLat * Math.PI / 180) * Math.cos(bLat * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
-      const segDist = 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      totalDist += segDist;
-      totalTime += segDist / (60000 / 3600);
+      // One segment couldn't be road-routed — tell the client to use haversine
+      return res.status(502).json({ error: "No road route available for one or more segments" });
     }
   }
 
-  if (!anySuccess && allCoords.length < 2) {
-    return res.status(502).json({ error: "No route data available" });
+  // All segments succeeded — concatenate
+  let allCoords: [number, number, number][] = [];
+  let totalDist = 0;
+  let totalTime = 0;
+
+  for (let i = 0; i < segResults.length; i++) {
+    const { coords: segCoords, distance: segDist, duration: segTime } = segResults[i];
+    allCoords = [...allCoords, ...(i === 0 ? segCoords : segCoords.slice(1))];
+    totalDist += segDist;
+    totalTime += segTime;
   }
 
   return res.json({

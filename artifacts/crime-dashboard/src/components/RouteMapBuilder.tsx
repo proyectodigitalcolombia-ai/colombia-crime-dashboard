@@ -355,16 +355,54 @@ function SearchInput({ label, icon, value, color, onChange, onSelect, onClear, p
 /* ════════ MAIN COMPONENT ════════ */
 interface Props { dark?: boolean; userBlockades?: Blockade[]; pirataMap?: Record<string, number> }
 
+const MAP_LAYERS = [
+  {
+    id: "oscuro",
+    label: "Oscuro",
+    icon: "🌑",
+    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    attr: "&copy; <a href='https://carto.com'>CARTO</a>",
+  },
+  {
+    id: "satelite",
+    label: "Satélite",
+    icon: "🛰️",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    attr: "&copy; Esri, Maxar, Earthstar Geographics",
+  },
+  {
+    id: "calles",
+    label: "Calles",
+    icon: "🗺️",
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attr: "&copy; <a href='https://openstreetmap.org'>OpenStreetMap</a>",
+  },
+  {
+    id: "topografico",
+    label: "Topográfico",
+    icon: "⛰️",
+    url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+    attr: "&copy; OpenTopoMap",
+  },
+  {
+    id: "claro",
+    label: "Claro",
+    icon: "☀️",
+    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    attr: "&copy; <a href='https://carto.com'>CARTO</a>",
+  },
+] as const;
+type MapLayerId = typeof MAP_LAYERS[number]["id"];
+
 export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {} }: Props) {
   const textMain  = dark ? "#e2eaf4" : "#1a2a3a";
   const textMuted = dark ? E.textDim : "#64748b";
   const borderC   = dark ? E.border  : "rgba(0,0,0,0.07)";
   const panelBg   = dark ? E.panel   : "#ffffff";
   const cardBg    = dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)";
-  const tileUrl   = dark
-    ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-    : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
-  const tileAttr  = dark ? "&copy; CARTO" : "&copy; OpenStreetMap";
+
+  const [mapLayerId, setMapLayerId] = useState<MapLayerId>("oscuro");
+  const activeLayer = MAP_LAYERS.find(l => l.id === mapLayerId) ?? MAP_LAYERS[0];
 
   /* ─ State ─ */
   const [origin, setOrigin] = useState<WP | null>(null);
@@ -759,6 +797,39 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
 
       {/* ── MAP ── */}
       <div style={{ borderRadius: "14px", overflow: "hidden", border: `1px solid ${borderC}`, height: "440px", position: "relative" }}>
+
+        {/* ── Layer selector (bottom-left overlay) ── */}
+        <div style={{
+          position: "absolute", bottom: 10, left: 10, zIndex: 1000,
+          display: "flex", flexDirection: "column", gap: "4px",
+          background: dark ? "rgba(7,12,21,0.88)" : "rgba(255,255,255,0.92)",
+          border: `1px solid ${borderC}`, borderRadius: "10px", padding: "6px 8px",
+          backdropFilter: "blur(6px)", boxShadow: "0 4px 16px rgba(0,0,0,0.35)",
+        }}>
+          <div style={{ fontSize: "8px", fontWeight: 700, color: textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "2px" }}>Capa</div>
+          {MAP_LAYERS.map(layer => (
+            <button
+              key={layer.id}
+              onClick={() => setMapLayerId(layer.id)}
+              title={layer.label}
+              style={{
+                display: "flex", alignItems: "center", gap: "5px", cursor: "pointer",
+                background: mapLayerId === layer.id
+                  ? (dark ? "rgba(0,212,255,0.15)" : "rgba(0,100,200,0.1)")
+                  : "transparent",
+                border: mapLayerId === layer.id ? `1px solid ${E.cyan}` : "1px solid transparent",
+                borderRadius: "6px", padding: "3px 7px",
+                fontSize: "10px", fontWeight: mapLayerId === layer.id ? 700 : 400,
+                color: mapLayerId === layer.id ? E.cyan : textMuted,
+                transition: "all 0.15s", whiteSpace: "nowrap",
+              }}
+            >
+              <span>{layer.icon}</span>
+              <span>{layer.label}</span>
+            </button>
+          ))}
+        </div>
+
         {/* Map legend */}
         {phase === "result" && routeResult && (
           <div style={{
@@ -786,7 +857,7 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
           style={{ width: "100%", height: "100%" }}
           zoomControl
         >
-          <TileLayer url={tileUrl} attribution={tileAttr} />
+          <TileLayer key={activeLayer.id} url={activeLayer.url} attribution={activeLayer.attr} />
           <MapClick onAdd={handleMapClick} />
           {flyTarget && <FlyTo lat={flyTarget.lat} lng={flyTarget.lng} />}
 
