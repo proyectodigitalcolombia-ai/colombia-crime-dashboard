@@ -242,6 +242,14 @@ function FlyTo({ lat, lng }: { lat: number; lng: number }) {
   return null;
 }
 
+/* Captures the Leaflet map instance into a ref so parent component can
+   disable/enable map dragging while a marker drag is in progress. */
+function MapRefCapture({ mapRef }: { mapRef: React.MutableRefObject<L.Map | null> }) {
+  const map = useMap();
+  mapRef.current = map;
+  return null;
+}
+
 /* ─── Click handler — uses a stable handler object via useMemo so the
        Leaflet event listener is registered only once. The callback ref is
        updated synchronously on every render to always reflect the latest state. ─── */
@@ -561,6 +569,7 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
   const originRef       = useRef(origin);
   const destRef         = useRef(dest);
   const viasRef         = useRef(vias);
+  const leafletMapRef   = useRef<L.Map | null>(null); // captured by MapRefCapture
   mapClickModeRef.current = mapClickMode;
   originRef.current       = origin;
   destRef.current         = dest;
@@ -1108,6 +1117,7 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
           style={{ width: "100%", height: "100%" }}
           zoomControl
         >
+          <MapRefCapture mapRef={leafletMapRef} />
           <TileLayer key={activeLayer.id} url={activeLayer.url} attribution={activeLayer.attr} />
           <MapClick onAdd={handleMapClick} />
           {flyTarget && <FlyTo lat={flyTarget.lat} lng={flyTarget.lng} />}
@@ -1148,7 +1158,13 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
                 icon={pinIcon(wp.type, i, false)}
                 draggable
                 eventHandlers={{
+                  dragstart: () => {
+                    // Lock map pan so it doesn't compete with the marker drag
+                    leafletMapRef.current?.dragging.disable();
+                  },
                   dragend: async (e) => {
+                    // Re-enable map pan immediately after drag finishes
+                    leafletMapRef.current?.dragging.enable();
                     const { lat, lng } = e.target.getLatLng();
                     const name = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
                     // Build updated WP list synchronously before state settles
