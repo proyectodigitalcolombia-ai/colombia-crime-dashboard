@@ -385,7 +385,7 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
 
       /* 1. Situación General */
       doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(pri.r, pri.g, pri.b);
-      doc.text("1.  Situación General.", margin, y); y += 5;
+      { const tl = doc.splitTextToSize("1.  Situación General.", W - margin * 2); doc.text(tl, margin, y); y += tl.length * 5.5; }
       doc.setFont("helvetica", "normal"); doc.setTextColor(50, 50, 70);
 
       const situGeneral = doc.splitTextToSize(
@@ -456,7 +456,7 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
       y = 30;
 
       doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(pri.r, pri.g, pri.b);
-      doc.text("2.  Ambiente operacional de la seguridad — Incidencia por departamento.", margin, y); y += 5;
+      { const tl = doc.splitTextToSize("2.  Ambiente operacional de la seguridad — Incidencia por departamento.", W - margin * 2); doc.text(tl, margin, y); y += tl.length * 5.5; }
       doc.setFont("helvetica", "normal"); doc.setTextColor(50, 50, 70);
       const deptIntro = doc.splitTextToSize(
         `El siguiente análisis departamental de incidencia delictiva para el período ${year} constituye un elemento esencial para la evaluación del riesgo compuesto en los principales corredores de movilidad del país. La concentración de eventos delictivos por departamento permite priorizar esquemas de seguridad diferenciados y determinar los niveles de protección requeridos para las operaciones logísticas y de transporte terrestre de carga según la región de destino u origen.`,
@@ -509,7 +509,7 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
       y = 30;
 
       doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(pri.r, pri.g, pri.b);
-      doc.text("3.  Modalidades delictivas — Delitos de alto impacto para el transporte terrestre de carga.", margin, y); y += 5;
+      { const tl = doc.splitTextToSize("3.  Modalidades delictivas — Delitos de alto impacto para el transporte terrestre de carga.", W - margin * 2); doc.text(tl, margin, y); y += tl.length * 5.5; }
       doc.setFont("helvetica", "normal"); doc.setTextColor(50, 50, 70);
       const typeIntro = doc.splitTextToSize(
         `En general, se observa para el período ${year} un comportamiento diferenciado por modalidad delictiva. Entre los delitos de mayor impacto directo para las operaciones logísticas y de transporte terrestre, la piratería terrestre y el hurto de vehículos constituyen los de mayor criticidad operacional, seguidos por la extorsión a conductores en tramos de alta incidencia de grupos armados ilegales. Los datos estadísticos siguientes deberán ser correlacionados con el análisis de presencia de GAO por departamento para determinar el riesgo compuesto en cada corredor de movilidad.`,
