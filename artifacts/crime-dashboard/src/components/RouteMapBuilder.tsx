@@ -250,28 +250,83 @@ function MapRefCapture({ mapRef }: { mapRef: React.MutableRefObject<L.Map | null
   return null;
 }
 
-/* Intercepts mousedown at the map container level (capture phase, fires BEFORE
-   Leaflet's drag handler) and disables map panning when the event originates
-   from a draggable marker icon. Re-enables on mouseup anywhere on the document. */
-function PreventMapDragOnMarker() {
+/* Unified drag-behavior component that handles two scenarios in capture phase:
+   1. Marker drag  → freeze map pan; re-enable on mouseup
+   2. Route-line drag → freeze map pan + show ghost pin while dragging;
+      on mouseup call onInteract() to insert a via at the release position. */
+function MapDragBehavior({
+  routeResult,
+  onInteract,
+}: {
+  routeResult: RouteResult | null;
+  onInteract: (lat: number, lng: number) => void;
+}) {
   const map = useMap();
+  const [ghostPos, setGhostPos] = useState<[number, number] | null>(null);
+
+  const routeResultRef = useRef(routeResult);
+  routeResultRef.current = routeResult;
+  const onInteractRef = useRef(onInteract);
+  onInteractRef.current = onInteract;
+
+  const ghostIcon = useMemo(() => L.divIcon({
+    className: "",
+    html: `<div style="width:20px;height:20px;border-radius:50%;background:rgba(0,212,255,0.35);border:2px dashed #00d4ff;box-shadow:0 0 10px rgba(0,212,255,0.7);"></div>`,
+    iconSize: [20, 20], iconAnchor: [10, 10],
+  }), []);
+
   useEffect(() => {
     const container = map.getContainer();
+
     const onMouseDown = (e: MouseEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (target?.closest(".leaflet-marker-icon, .leaflet-marker-shadow")) {
-        map.dragging.disable();
-        const onMouseUp = () => {
-          map.dragging.enable();
-          document.removeEventListener("mouseup", onMouseUp);
-        };
-        document.addEventListener("mouseup", onMouseUp);
+      const t = e.target;
+      const isMarker = !!(t as HTMLElement)?.closest?.(".leaflet-marker-icon, .leaflet-marker-shadow");
+      const isRoute = !routeResultRef.current?.isEstimated
+        && t instanceof SVGElement
+        && !!(t as SVGElement)?.closest?.(".leaflet-interactive");
+
+      if (!isMarker && !isRoute) return;
+
+      map.dragging.disable();
+
+      if (isMarker) {
+        // Marker: just disable pan, let Leaflet's own marker-drag system run
+        const onUp = () => { map.dragging.enable(); document.removeEventListener("mouseup", onUp); };
+        document.addEventListener("mouseup", onUp);
+        return;
       }
+
+      // Route line: show ghost while dragging, insert via on mouseup
+      const startLL = map.mouseEventToLatLng(e);
+      let moved = false;
+
+      const onMove = (me: MouseEvent) => {
+        moved = true;
+        const p = map.mouseEventToLatLng(me);
+        setGhostPos([p.lat, p.lng]);
+      };
+
+      const onUp = (me: MouseEvent) => {
+        map.dragging.enable();
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        setGhostPos(null);
+        const endLL = map.mouseEventToLatLng(me);
+        const insertLL = moved && endLL.distanceTo(startLL) > 50 ? endLL : startLL;
+        onInteractRef.current(insertLL.lat, insertLL.lng);
+      };
+
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
     };
+
     container.addEventListener("mousedown", onMouseDown, { capture: true });
     return () => container.removeEventListener("mousedown", onMouseDown, true);
   }, [map]);
-  return null;
+
+  return ghostPos ? (
+    <Marker position={ghostPos} icon={ghostIcon} interactive={false} />
+  ) : null;
 }
 
 /* ─── Click handler — uses a stable handler object via useMemo so the
@@ -803,6 +858,11 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
     });
   }, [routeResult, findViaInsertIndex, recalculateRoute]);
 
+  /* Wrapper so MapDragBehavior can call handlePolylineClick with (lat, lng) */
+  const handleLineInteract = useCallback((lat: number, lng: number) => {
+    handlePolylineClick({ latlng: { lat, lng } });
+  }, [handlePolylineClick]);
+
   /* ─ Clear all ─ */
   const clearAll = () => {
     setOrigin(null); setDest(null); setVias([]);
@@ -1142,7 +1202,7 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
           zoomControl
         >
           <MapRefCapture mapRef={leafletMapRef} />
-          <PreventMapDragOnMarker />
+          <MapDragBehavior routeResult={routeResult} onInteract={handleLineInteract} />
           <TileLayer key={activeLayer.id} url={activeLayer.url} attribution={activeLayer.attr} />
           <MapClick onAdd={handleMapClick} />
           {flyTarget && <FlyTo lat={flyTarget.lat} lng={flyTarget.lng} />}
@@ -1160,14 +1220,13 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
                 opacity={routeResult.isEstimated ? 0.75 : 0.95}
                 dashArray={routeResult.isEstimated ? "8, 6" : undefined}
               />
-              {/* Invisible wide hit-area for click-to-reshape (only for real road routes) */}
+              {/* Invisible wide hit-area for drag/click-to-reshape (MapDragBehavior handles events) */}
               {!routeResult.isEstimated && (
                 <Polyline
                   positions={routeResult.geometry}
                   color="transparent"
                   weight={22}
                   opacity={0}
-                  eventHandlers={{ click: handlePolylineClick as never }}
                 />
               )}
             </>
