@@ -66,6 +66,11 @@ function canonicalize(raw: string) {
     k.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().startsWith(norm.slice(0,6))
   ) ?? "";
 }
+const BOGOTA_PIRATA_ALIASES = new Set(["bogota dc","bogota d.c.","bogota","santa fe de bogota"]);
+function normPirataKey(s: string): string {
+  const n = s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[,.]/g,"").toLowerCase().trim();
+  return BOGOTA_PIRATA_ALIASES.has(n) ? "bogota dc" : n;
+}
 function fmtDist(m: number) {
   return m >= 1000 ? `${(m/1000).toFixed(1)} km` : `${Math.round(m)} m`;
 }
@@ -187,6 +192,8 @@ function SearchInput({ label, icon, value, color, onChange, onSelect, onClear, p
   const borderC = dark ? E.border : "rgba(0,0,0,0.07)";
   const inputBg = dark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)";
   const dropBg = dark ? "#111827" : "#ffffff";
+
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
   const handle = (v: string) => {
     onChange(v);
@@ -380,12 +387,12 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
     .filter(d => d in ARMED);
 
   const avgScore = canonDepts.length
-    ? Math.round(canonDepts.reduce((s,d) => s + compositeScore(d, pirataMap[d] ?? 0), 0) / canonDepts.length)
+    ? Math.round(canonDepts.reduce((s,d) => s + compositeScore(d, pirataMap[normPirataKey(d)] ?? 0), 0) / canonDepts.length)
     : 0;
   const rl = riskLabel(avgScore);
   const maxArmed = canonDepts.length ? Math.max(...canonDepts.map(d => ARMED[d]?.level ?? 0)) : 0;
   const maxNight = canonDepts.length ? Math.max(...canonDepts.map(d => NIGHT_RISK[d] ?? 60)) : 0;
-  const totalPirata = canonDepts.reduce((s,d) => s + (pirataMap[d] ?? 0), 0);
+  const totalPirata = canonDepts.reduce((s,d) => s + (pirataMap[normPirataKey(d)] ?? 0), 0);
   const activeBlocks = userBlockades.filter(b =>
     canonDepts.some(d => d.toLowerCase().includes((b.department ?? "").toLowerCase().slice(0,5))) && b.status === "activo"
   );
@@ -604,26 +611,24 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
             </>
           )}
 
-          {/* Markers */}
-          {allWPs().filter(w => w.lat !== 0).map((wp, i, arr) => {
-            const isLast = i === arr.length - 1 && arr.length > 1;
-            const t: WPType = i === 0 ? "origin" : isLast ? "dest" : "via";
+          {/* Markers — role from wp.type, not position */}
+          {allWPs().map((wp, i) => {
+            const viaIdxInArray = vias.indexOf(wp);
             return (
               <Marker
                 key={`${wp.lat}-${wp.lng}-${i}`}
                 position={[wp.lat, wp.lng]}
-                icon={pinIcon(t, i, false)}
+                icon={pinIcon(wp.type, i, false)}
                 draggable
                 eventHandlers={{
                   dragend: async (e) => {
                     const { lat, lng } = e.target.getLatLng();
                     const name = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-                    if (i === 0) { setOrigin(prev => prev ? { ...prev, lat, lng, name } : null); setOriginText(name); }
-                    else if (isLast) { setDest(prev => prev ? { ...prev, lat, lng, name } : null); setDestText(name); }
-                    else {
-                      const vi = i - 1;
-                      setVias(prev => { const c=[...prev]; if(c[vi]) c[vi]={...c[vi],lat,lng,name}; return c; });
-                      setViaTexts(prev => { const c=[...prev]; c[vi]=name; return c; });
+                    if (wp.type === "origin") { setOrigin(prev => prev ? { ...prev, lat, lng, name } : null); setOriginText(name); }
+                    else if (wp.type === "dest") { setDest(prev => prev ? { ...prev, lat, lng, name } : null); setDestText(name); }
+                    else if (viaIdxInArray >= 0) {
+                      setVias(prev => { const c=[...prev]; if(c[viaIdxInArray]) c[viaIdxInArray]={...c[viaIdxInArray],lat,lng,name}; return c; });
+                      setViaTexts(prev => { const c=[...prev]; c[viaIdxInArray]=name; return c; });
                     }
                     setRouteResult(null); setRouteDepts([]); setPhase("setup");
                   }
