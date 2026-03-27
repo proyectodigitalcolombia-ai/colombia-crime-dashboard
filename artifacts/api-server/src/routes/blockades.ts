@@ -4,10 +4,24 @@ import { eq, desc } from "drizzle-orm";
 import Anthropic from "@anthropic-ai/sdk";
 import { parse as parseHtml } from "node-html-parser";
 
-const anthropic = new Anthropic({
-  baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
-  apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY ?? "dummy",
-});
+/* Anthropic client — uses Replit AI proxy in dev, real key in production */
+function buildAnthropicClient() {
+  if (process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL) {
+    // Replit dev environment: proxy handles auth
+    return new Anthropic({
+      baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
+      apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY ?? "_DUMMY_",
+    });
+  }
+  // Production: requires a real ANTHROPIC_API_KEY env var
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) {
+    console.warn("[blockades] ANTHROPIC_API_KEY not set — AI features will return 503");
+  }
+  return new Anthropic({ apiKey: key ?? "" });
+}
+const anthropic = buildAnthropicClient();
+const aiAvailable = !!(process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL || process.env.ANTHROPIC_API_KEY);
 
 const router: IRouter = Router();
 
@@ -85,6 +99,9 @@ router.patch("/blockades/:id/status", async (req, res) => {
 
 /* POST /api/blockades/from-url — IA extrae bloqueos de una URL de noticias */
 router.post("/blockades/from-url", async (req, res) => {
+  if (!aiAvailable) {
+    return res.status(503).json({ error: "La función de análisis con IA no está disponible en este servidor. Configure ANTHROPIC_API_KEY para habilitarla." });
+  }
   try {
     const { url } = req.body;
     if (!url?.trim()) return res.status(400).json({ error: "URL requerida" });
@@ -173,6 +190,9 @@ Responde SOLO con el JSON array, sin texto adicional antes ni después.`,
 
 /* POST /api/analyze/pdf — IA analiza documento gubernamental (text o base64) */
 router.post("/analyze/pdf", async (req, res) => {
+  if (!aiAvailable) {
+    return res.status(503).json({ error: "La función de análisis con IA no está disponible en este servidor. Configure ANTHROPIC_API_KEY para habilitarla." });
+  }
   try {
     let text: string = req.body?.text ?? "";
 
