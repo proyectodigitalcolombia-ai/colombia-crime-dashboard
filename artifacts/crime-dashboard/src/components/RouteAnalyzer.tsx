@@ -447,7 +447,7 @@ export function RouteAnalyzer({ dark = true }: Props) {
       doc.roundedRect(margin, y, W - margin * 2, 9, 2, 2, "F");
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(9); doc.setFont("helvetica", "bold");
-      doc.text(`⚠  ${activeBlks2.length} BLOQUEO(S) ACTIVO(S) REGISTRADO(S) EN ESTE CORREDOR`, margin + 3, y + 6);
+      doc.text(`[!]  ${activeBlks2.length} BLOQUEO(S) ACTIVO(S) REGISTRADO(S) EN ESTE CORREDOR`, margin + 3, y + 6);
       y += 14;
     }
 

@@ -465,15 +465,14 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
       doc.text(deptIntro, margin + indent, y); y += deptIntro.length * 5 + 4;
 
       const maxDeptCount = topDepts[0]?.[1] ?? 1;
-      const barAreaW = 50;
-      const deptCols = [6, 66, 28, barAreaW, 20]; /* sum = 170 */
+      /* Columns: #, DEPARTAMENTO, TOTAL CASOS, % NAL. — total = 170mm */
+      const deptCols = [8, 118, 30, 14];
       y = drawTable(
-        ["#", "DEPARTAMENTO", "TOTAL CASOS", "PROPORCIÓN", "% NAL."],
+        ["#", "DEPARTAMENTO", "TOTAL CASOS", "% NAL."],
         topDepts.map(([dept, count], i) => [
           String(i + 1).padStart(2, "0"),
           dept,
           count.toLocaleString("es-CO"),
-          "█".repeat(Math.round((count / maxDeptCount) * 15)),  /* fake bar */
           `${((count / totalCrimes) * 100).toFixed(1)}%`,
         ]),
         deptCols, y, 7
@@ -665,7 +664,7 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
             const c = monthlyTrend[i].count;
             const diff = c - p;
             const pct = p > 0 ? ((diff / p) * 100).toFixed(1) + "%" : "N/D";
-            const trend = diff > 0 ? "▲ Alza" : diff < 0 ? "▼ Baja" : "— Estable";
+            const trend = diff > 0 ? "(+) Alza" : diff < 0 ? "(-) Baja" : "(=) Estable";
             return [mo, p.toLocaleString("es-CO"), c.toLocaleString("es-CO"), (diff >= 0 ? "+" : "") + diff.toLocaleString("es-CO"), pct, trend];
           }),
           compCols, y, 6.5,
@@ -699,7 +698,7 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
         doc.roundedRect(margin, y, W - margin * 2, 10, 2, 2, "F");
         doc.setGState(new (doc as any).GState({ opacity: 1 }));
         doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(180, 20, 20);
-        doc.text(`⚠  ${activeBlockades.length} BLOQUEO(S) ACTIVO(S) — Verificar corredores antes de despachar carga`, margin + indent, y + 7);
+        doc.text(`[!]  ${activeBlockades.length} BLOQUEO(S) ACTIVO(S) — Verificar corredores antes de despachar carga`, margin + indent, y + 7);
         y += 14;
 
         const blkCols = [36, 56, 24, 30, 24]; /* sum = 170 */
@@ -720,7 +719,7 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
         doc.roundedRect(margin, y, W - margin * 2, 10, 2, 2, "F");
         doc.setGState(new (doc as any).GState({ opacity: 1 }));
         doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(5, 120, 80);
-        doc.text("✓  Sin bloqueos viales activos al momento de este informe", margin + indent, y + 7);
+        doc.text("[OK]  Sin bloqueos viales activos al momento de este informe", margin + indent, y + 7);
         y += 16;
       }
 
