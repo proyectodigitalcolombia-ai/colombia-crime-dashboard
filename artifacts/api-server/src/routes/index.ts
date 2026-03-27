@@ -5,6 +5,7 @@ import blockadeRouter from "./blockades";
 import roadConditionsRouter from "./road-conditions";
 import authRouter from "./auth";
 import armedGroupsRouter from "./armed-groups";
+import routeRouter from "./route";
 
 const router: IRouter = Router();
 
@@ -14,5 +15,6 @@ router.use(crimesRouter);
 router.use(blockadeRouter);
 router.use(roadConditionsRouter);
 router.use(armedGroupsRouter);
+router.use(routeRouter);
 
 export default router;

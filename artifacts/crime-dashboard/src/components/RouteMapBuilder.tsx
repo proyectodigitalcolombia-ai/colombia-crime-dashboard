@@ -146,34 +146,64 @@ function buildFallbackRoute(wps: { lat: number; lng: number }[]): RouteResult {
 /* ─── Route result type ─── */
 interface RouteResult { geometry: [number,number][]; distance: number; duration: number; isEstimated?: boolean }
 
-/* ─── OSRM with fallback ─── */
+/* ─── Route parsers ─── */
+function parseBRouterResponse(data: any): RouteResult | null {
+  const feat = data?.geojson?.features?.[0];
+  if (!feat?.geometry?.coordinates?.length) return null;
+  const coords = feat.geometry.coordinates as [number, number, number][];
+  return {
+    geometry: coords.map(([lng, lat]) => [lat, lng] as [number, number]),
+    distance: parseInt(feat.properties?.["track-length"] ?? "0", 10),
+    duration: parseInt(feat.properties?.["total-time"] ?? "0", 10),
+    isEstimated: false,
+  };
+}
+function parseOsrmResponse(data: any): RouteResult | null {
+  const route = data.routes?.[0];
+  if (!route?.geometry?.coordinates?.length) return null;
+  return {
+    geometry: route.geometry.coordinates.map(([lng, lat]: number[]) => [lat, lng] as [number,number]),
+    distance: route.distance,
+    duration: route.duration,
+    isEstimated: false,
+  };
+}
+
 async function fetchRoute(wps: { lat: number; lng: number }[]): Promise<RouteResult | null> {
   if (wps.length < 2) return null;
 
-  const c = wps.map(w => `${w.lng},${w.lat}`).join(";");
-  const url = `https://router.project-osrm.org/route/v1/driving/${c}?geometries=geojson&overview=full`;
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 8000);
+  const coordStr = wps.map(w => `${w.lng},${w.lat}`).join(";");
 
+  /* ── 1st try: BRouter via our API proxy (road-following, works from cloud) ── */
   try {
-    const res = await fetch(url, { signal: ctrl.signal });
-    clearTimeout(timer);
-    if (res.ok) {
-      const data = await res.json();
-      const route = data.routes?.[0];
-      if (route?.geometry?.coordinates?.length) {
-        return {
-          geometry: route.geometry.coordinates.map(([lng, lat]: number[]) => [lat, lng] as [number,number]),
-          distance: route.distance,
-          duration: route.duration,
-          isEstimated: false,
-        };
-      }
+    const ctrl1 = new AbortController();
+    const t1 = setTimeout(() => ctrl1.abort(), 15000);
+    const proxyRes = await fetch(`/api/route?coords=${encodeURIComponent(coordStr)}`, { signal: ctrl1.signal });
+    clearTimeout(t1);
+    if (proxyRes.ok) {
+      const data = await proxyRes.json();
+      const parsed = parseBRouterResponse(data);
+      if (parsed) return parsed;
     }
-  } catch {
-    clearTimeout(timer);
-  }
+  } catch { /* fall through */ }
 
+  /* ── 2nd try: direct OSRM from browser (in case user has access) ── */
+  try {
+    const ctrl2 = new AbortController();
+    const t2 = setTimeout(() => ctrl2.abort(), 8000);
+    const directRes = await fetch(
+      `https://router.project-osrm.org/route/v1/driving/${coordStr}?geometries=geojson&overview=full`,
+      { signal: ctrl2.signal }
+    );
+    clearTimeout(t2);
+    if (directRes.ok) {
+      const data = await directRes.json();
+      const parsed = parseOsrmResponse(data);
+      if (parsed) return parsed;
+    }
+  } catch { /* fall through */ }
+
+  /* ── Fallback: haversine straight-line (always works) ── */
   return buildFallbackRoute(wps);
 }
 
@@ -648,7 +678,20 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
                 border: "1px solid rgba(245,158,11,0.25)", borderRadius: "6px",
                 padding: "5px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: "5px",
               }}>
-              ＋ Agregar ciudad intermedia
+              ＋ Ciudad intermedia
+            </button>
+
+            <button
+              onClick={() => setMapClickMode(m => m === "dest" ? null : "dest")}
+              style={{
+                fontSize: "10px",
+                color: mapClickMode === "dest" ? "#fff" : "#ff4757",
+                background: mapClickMode === "dest" ? "rgba(255,71,87,0.25)" : "rgba(255,71,87,0.08)",
+                border: `1px solid ${mapClickMode === "dest" ? "#ff4757" : "rgba(255,71,87,0.35)"}`,
+                borderRadius: "6px", padding: "5px 12px", cursor: "pointer",
+                display: "flex", alignItems: "center", gap: "5px", transition: "all 0.2s",
+              }}>
+              {mapClickMode === "dest" ? "🎯 Clic en mapa → DESTINO" : "🔴 Ciudad Final (B)"}
             </button>
 
             <button
@@ -692,12 +735,14 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
           borderRadius: "10px", padding: "8px 14px", fontSize: "11px",
           color: origin ? E.emerald : E.cyan, display: "flex", alignItems: "center", gap: "8px",
         }}>
-          <span>👆</span>
-          {!origin
-            ? "Clic en el mapa → marcará el ORIGEN (A)"
-            : `Clic en el mapa → agrega PARADA ${validVias.length + 1} · El último punto marcado será el DESTINO (B)`
+          <span>{mapClickMode === "dest" ? "🎯" : "👆"}</span>
+          {mapClickMode === "dest"
+            ? "Haga clic en el mapa para fijar el DESTINO FINAL (B)"
+            : !origin
+              ? "Haga clic en el mapa para fijar el ORIGEN (A)"
+              : `Clic → agrega parada intermedia · Use "Ciudad Final (B)" para fijar el destino`
           }
-          {origin && (
+          {origin && mapClickMode !== "dest" && (
             <span style={{ marginLeft: "auto", fontSize: "10px", color: textMuted }}>
               {validVias.length + (dest ? 1 : 0)} punto{validVias.length + (dest ? 1 : 0) !== 1 ? "s" : ""} agregado{validVias.length + (dest ? 1 : 0) !== 1 ? "s" : ""}
             </span>
