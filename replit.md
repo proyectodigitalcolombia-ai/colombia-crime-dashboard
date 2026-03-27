@@ -117,9 +117,20 @@ React + Vite dashboard for Colombian crime statistics. Two-tab application:
 
 **Tab 3 — Informe Gerencial PDF:**
 - Component: `ReportGenerator.tsx` using `jsPDF`
-- 5-page branded PDF: portada (dark navy + SafeNode logo), resumen ejecutivo, ranking departamentos, tipos de delito + gráfico, bloqueos + conclusiones
-- Configurable per client: company name, subtitle, analyst info, logo upload, primary color (10 presets + hex), footer disclaimer — saved to `localStorage` key `colombia_report_config_v2`
+- **6-page** branded PDF: portada (dark navy + SafeNode logo), resumen ejecutivo, ranking departamentos, tipos de delito + gráfico, **comparativo interanual año anterior vs año seleccionado**, bloqueos + conclusiones
+- Configurable per client: company name, subtitle, analyst info, logo upload, primary color (10 presets + hex), footer disclaimer — config synced to DB via `/api/auth/config`
+- On load, pre-fills config from authenticated user (server-side); logoDataUrl stored locally in `localStorage`
 - SafeNode defaults pre-loaded: logo at `public/safenode-logo.png`, color `#00bcd4`
+
+**Authentication System:**
+- Auth backend: `artifacts/api-server/src/routes/auth.ts` — JWT Bearer tokens (30-day), bcryptjs passwords
+- Routes: `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`, `PATCH /api/auth/config`
+- DB: `usersTable` in `lib/db/src/schema/crimes.ts` — stores user config (company name, analyst info, colors, etc.)
+- Default admin: `admin@safenode.com.co` / `SafeNode2025!` (seeded on server startup via env `ADMIN_EMAIL`/`ADMIN_PASSWORD`)
+- Auth frontend: `src/context/AuthContext.tsx` — JWT stored in `localStorage` (`safenode_token`), exposed via `setAuthTokenGetter` to all API hooks
+- Login page: `src/pages/LoginPage.tsx` — dark theme, shown when no valid token
+- Route guard: `App.tsx` — `ProtectedRouter` checks auth before rendering Dashboard; shows `LoginPage` for unauthenticated users
+- Logout: button in dashboard header top-right (LogOut icon); clears localStorage token
 
 **Alert Banner System:**
 - Component: `DataAlertBanner.tsx` — global, shown below tabs on all views

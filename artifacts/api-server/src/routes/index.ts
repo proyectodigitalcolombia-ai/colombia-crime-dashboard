@@ -3,9 +3,11 @@ import healthRouter from "./health";
 import crimesRouter from "./crimes";
 import blockadeRouter from "./blockades";
 import roadConditionsRouter from "./road-conditions";
+import authRouter from "./auth";
 
 const router: IRouter = Router();
 
+router.use(authRouter);
 router.use(healthRouter);
 router.use(crimesRouter);
 router.use(blockadeRouter);

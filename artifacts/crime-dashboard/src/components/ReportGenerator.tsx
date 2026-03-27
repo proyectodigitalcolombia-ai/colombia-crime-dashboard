@@ -7,6 +7,7 @@ import {
 } from "@workspace/api-client-react";
 import { Building2, Upload, Download, Palette, User, Mail, Phone, FileText, CheckCircle2, RefreshCw } from "lucide-react";
 import safeNodeLogoUrl from "../assets/safenode-logo.png";
+import { useAuth, type UserConfig } from "@/context/AuthContext";
 
 const LS_KEY = "colombia_report_config_v2";
 
@@ -32,6 +33,18 @@ const DEFAULTS: ReportConfig = {
   footerDisclaimer: "Documento confidencial — uso exclusivo interno.",
 };
 
+function userToConfig(u: UserConfig): Partial<ReportConfig> {
+  return {
+    companyName:      u.companyName      || DEFAULTS.companyName,
+    companySubtitle:  u.companySubtitle  || DEFAULTS.companySubtitle,
+    analystName:      u.analystName      || DEFAULTS.analystName,
+    analystEmail:     u.analystEmail     || DEFAULTS.analystEmail,
+    analystPhone:     u.analystPhone     || DEFAULTS.analystPhone,
+    primaryColor:     u.primaryColor     || DEFAULTS.primaryColor,
+    footerDisclaimer: u.footerDisclaimer || DEFAULTS.footerDisclaimer,
+  };
+}
+
 function hexToRgb(hex: string) {
   const h = hex.replace("#", "");
   return {
@@ -54,9 +67,10 @@ function darken(hex: string, amount = 40): [number, number, number] {
 const MONTHS_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 const MONTHS_FULL = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
-interface Props { dark?: boolean }
+interface Props { dark?: boolean; user?: UserConfig | null }
 
-export function ReportGenerator({ dark = true }: Props) {
+export function ReportGenerator({ dark = true, user = null }: Props) {
+  const { updateConfig: saveToServer } = useAuth();
   const [config, setConfig] = useState<ReportConfig>(DEFAULTS);
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState(false);
@@ -70,10 +84,19 @@ export function ReportGenerator({ dark = true }: Props) {
   const borderC   = dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.08)";
   const inputBg   = dark ? "rgba(255,255,255,0.04)" : "#f8fafc";
 
-  /* Load saved config and default logo as data URL (needed for PDF generation) */
+  /* Load config: user (server) takes priority, then localStorage (logoDataUrl only locally) */
   useEffect(() => {
-    try { const s = localStorage.getItem(LS_KEY); if (s) setConfig(JSON.parse(s)); } catch { /* ignore */ }
-    /* Convert SafeNode logo to data URL for jsPDF compatibility */
+    setConfig(prev => {
+      let base = { ...DEFAULTS, ...prev };
+      /* Restore logo from localStorage since it's not stored in DB */
+      try { const s = localStorage.getItem(LS_KEY); if (s) { const p = JSON.parse(s); if (p.logoDataUrl) base.logoDataUrl = p.logoDataUrl; } } catch { /* ignore */ }
+      if (user) return { ...base, ...userToConfig(user) };
+      return base;
+    });
+  }, [user]);
+
+  /* Load default logo as data URL for jsPDF compatibility */
+  useEffect(() => {
     fetch(safeNodeLogoUrl)
       .then(r => { if (!r.ok) throw new Error("logo not found"); return r.blob(); })
       .then(blob => {
@@ -91,14 +114,31 @@ export function ReportGenerator({ dark = true }: Props) {
   const activeLogo = activeLogoDisplay;
 
   function updateConfig(patch: Partial<ReportConfig>) {
-    setConfig(prev => { const next = { ...prev, ...patch }; localStorage.setItem(LS_KEY, JSON.stringify(next)); return next; });
+    setConfig(prev => {
+      const next = { ...prev, ...patch };
+      /* Store logoDataUrl locally (too large for DB) */
+      try { localStorage.setItem(LS_KEY, JSON.stringify({ logoDataUrl: next.logoDataUrl })); } catch { /* ignore */ }
+      /* Sync non-logo fields to server if user is logged in */
+      const { logoDataUrl: _logo, ...serverPatch } = patch;
+      if (Object.keys(serverPatch).length > 0) {
+        saveToServer(serverPatch).catch(() => { /* silent — local state is still updated */ });
+      }
+      return next;
+    });
   }
 
   const { data: monthlyData = [] } = useGetNationalMonthly({ year });
+  const { data: prevMonthlyData = [] } = useGetNationalMonthly({ year: year - 1 });
   const { data: deptData    = [] } = useGetCrimesByDepartment({ year });
   const { data: allBlockades = [] } = useGetBlockades();
 
   const totalCrimes = useMemo(() => monthlyData.reduce((s: number, d: any) => s + d.count, 0), [monthlyData]);
+  const prevTotalCrimes = useMemo(() => prevMonthlyData.reduce((s: number, d: any) => s + d.count, 0), [prevMonthlyData]);
+  const prevMonthlyTrend = useMemo(() => {
+    const m: Record<number, number> = {};
+    for (const d of prevMonthlyData) m[d.month] = (m[d.month] ?? 0) + d.count;
+    return Array.from({ length: 12 }, (_, i) => ({ month: i + 1, count: m[i + 1] ?? 0 }));
+  }, [prevMonthlyData]);
 
   const topDepts = useMemo(() => {
     const m: Record<string, number> = {};
@@ -485,10 +525,123 @@ export function ReportGenerator({ dark = true }: Props) {
       });
 
       /* ══════════════════════════════════════
-         PAGE 5 — BLOQUEOS + CONCLUSIONES
+         PAGE 5 — COMPARATIVO INTERANUAL
          ══════════════════════════════════════ */
       doc.addPage();
-      pageHeader("5. Bloqueos Viales y Conclusiones", 5);
+      pageHeader(`5. Comparativo Interanual: ${year - 1} vs ${year}`, 5);
+      pageFooter();
+      y = 30;
+
+      if (prevTotalCrimes > 0) {
+        const pctChange = ((totalCrimes - prevTotalCrimes) / prevTotalCrimes) * 100;
+        const increased = pctChange >= 0;
+
+        /* Summary KPI boxes */
+        const kpiW = (W - margin * 2 - 8) / 3;
+        const kpis = [
+          { label: String(year - 1), value: prevTotalCrimes.toLocaleString("es-CO"), sub: "delitos registrados" },
+          { label: String(year), value: totalCrimes.toLocaleString("es-CO"), sub: "delitos registrados" },
+          { label: "Variación", value: `${increased ? "+" : ""}${pctChange.toFixed(1)}%`, sub: increased ? "aumento interanual" : "reducción interanual" },
+        ];
+        kpis.forEach((k, i) => {
+          const kx = margin + i * (kpiW + 4);
+          const isVar = i === 2;
+          doc.setFillColor(isVar ? (increased ? 220 : 16) : pri.r, isVar ? (increased ? 38 : 185) : pri.g, isVar ? (increased ? 38 : 129) : pri.b);
+          doc.setGState(new (doc as any).GState({ opacity: 0.1 }));
+          doc.roundedRect(kx, y, kpiW, 22, 2, 2, "F");
+          doc.setGState(new (doc as any).GState({ opacity: 1 }));
+          doc.setFontSize(7); doc.setFont("helvetica", "bold"); doc.setTextColor(80, 90, 110);
+          doc.text(k.label.toUpperCase(), kx + kpiW / 2, y + 6, { align: "center" });
+          doc.setFontSize(14); doc.setFont("helvetica", "bold");
+          doc.setTextColor(isVar ? (increased ? 180 : 5) : pri.r, isVar ? (increased ? 20 : 120) : pri.g, isVar ? 20 : pri.b);
+          doc.text(k.value, kx + kpiW / 2, y + 14, { align: "center" });
+          doc.setFontSize(7); doc.setFont("helvetica", "normal"); doc.setTextColor(100, 110, 130);
+          doc.text(k.sub, kx + kpiW / 2, y + 20, { align: "center" });
+        });
+        y += 30;
+
+        /* Dual bar chart per month */
+        y = sectionHeading("Evolución mensual comparativa", y);
+        const dualChartW = W - margin * 2;
+        const dualChartH = 45;
+        const maxVal = Math.max(...monthlyTrend.map(m => m.count), ...prevMonthlyTrend.map(m => m.count), 1);
+        const slotW = dualChartW / 12;
+        const barPairW = slotW * 0.72;
+
+        /* Chart bg */
+        doc.setFillColor(247, 250, 255);
+        doc.setDrawColor(220, 225, 240); doc.setLineWidth(0.3);
+        doc.roundedRect(margin, y, dualChartW, dualChartH + 14, 2, 2, "FD");
+
+        for (let i = 0; i < 12; i++) {
+          const prevCount = prevMonthlyTrend[i].count;
+          const currCount = monthlyTrend[i].count;
+          const slotX = margin + i * slotW;
+          const halfW = barPairW / 2 - 0.5;
+
+          /* prev year bar (grey) */
+          if (prevCount > 0) {
+            const bh = (prevCount / maxVal) * dualChartH;
+            doc.setFillColor(180, 190, 210); doc.setGState(new (doc as any).GState({ opacity: 0.8 }));
+            doc.roundedRect(slotX + (slotW - barPairW) / 2, y + dualChartH - bh, halfW, bh, 0.5, 0.5, "F");
+            doc.setGState(new (doc as any).GState({ opacity: 1 }));
+          }
+          /* current year bar (primary) */
+          if (currCount > 0) {
+            const bh = (currCount / maxVal) * dualChartH;
+            doc.setFillColor(pri.r, pri.g, pri.b); doc.setGState(new (doc as any).GState({ opacity: 0.9 }));
+            doc.roundedRect(slotX + (slotW - barPairW) / 2 + halfW + 1, y + dualChartH - bh, halfW, bh, 0.5, 0.5, "F");
+            doc.setGState(new (doc as any).GState({ opacity: 1 }));
+          }
+          /* month label */
+          doc.setFontSize(5.5); doc.setFont("helvetica", "normal"); doc.setTextColor(100, 110, 130);
+          doc.text(MONTHS_ES[i], slotX + slotW / 2, y + dualChartH + 6, { align: "center" });
+        }
+        y += dualChartH + 20;
+
+        /* Legend */
+        doc.setFillColor(180, 190, 210); doc.rect(margin, y, 8, 4, "F");
+        doc.setFontSize(7); doc.setFont("helvetica", "normal"); doc.setTextColor(80, 90, 110);
+        doc.text(String(year - 1), margin + 10, y + 3.5);
+        doc.setFillColor(pri.r, pri.g, pri.b); doc.rect(margin + 30, y, 8, 4, "F");
+        doc.text(String(year), margin + 40, y + 3.5);
+        y += 12;
+
+        /* Month-by-month detail table */
+        y = sectionHeading("Detalle mensual", y);
+        const compCols = [16, 28, 28, 28, 30, 32];
+        y = drawTable(
+          ["MES", `DELITOS ${year - 1}`, `DELITOS ${year}`, "DIFERENCIA", "VARIACIÓN", "TENDENCIA"],
+          MONTHS_ES.map((mo, i) => {
+            const p = prevMonthlyTrend[i].count;
+            const c = monthlyTrend[i].count;
+            const diff = c - p;
+            const pct = p > 0 ? ((diff / p) * 100).toFixed(1) + "%" : "N/D";
+            const trend = diff > 0 ? "▲ Alza" : diff < 0 ? "▼ Baja" : "— Estable";
+            return [mo, p.toLocaleString("es-CO"), c.toLocaleString("es-CO"), (diff >= 0 ? "+" : "") + diff.toLocaleString("es-CO"), pct, trend];
+          }),
+          compCols, y, 6.5,
+        );
+        y += 6;
+
+        /* Interpretation */
+        const absDiff = Math.abs(totalCrimes - prevTotalCrimes);
+        const interp = increased
+          ? `En ${year} se registraron ${absDiff.toLocaleString("es-CO")} delitos más que en ${year - 1}, representando un incremento del ${Math.abs(pctChange).toFixed(1)}%. Se recomienda reforzar los protocolos de seguridad.`
+          : `En ${year} se registraron ${absDiff.toLocaleString("es-CO")} delitos menos que en ${year - 1}, una reducción del ${Math.abs(pctChange).toFixed(1)}%. Las estrategias de seguridad han mostrado efectividad.`;
+        doc.setFontSize(8.5); doc.setFont("helvetica", "italic"); doc.setTextColor(60, 70, 90);
+        const interpLines = doc.splitTextToSize(interp, W - margin * 2);
+        doc.text(interpLines, margin, y);
+      } else {
+        doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.setTextColor(120, 130, 150);
+        doc.text(`No hay datos disponibles para el año ${year - 1} para realizar la comparación.`, margin, y);
+      }
+
+      /* ══════════════════════════════════════
+         PAGE 6 — BLOQUEOS + CONCLUSIONES
+         ══════════════════════════════════════ */
+      doc.addPage();
+      pageHeader("6. Bloqueos Viales y Conclusiones", 6);
       pageFooter();
       y = 30;
 
@@ -569,7 +722,7 @@ export function ReportGenerator({ dark = true }: Props) {
     } finally {
       setGenerating(false);
     }
-  }, [config, year, totalCrimes, topDepts, crimeTypeSummary, monthlyTrend, activeBlockades]);
+  }, [config, year, totalCrimes, prevTotalCrimes, topDepts, crimeTypeSummary, monthlyTrend, prevMonthlyTrend, activeBlockades]);
 
   /* ── UI styles ── */
   const S = {

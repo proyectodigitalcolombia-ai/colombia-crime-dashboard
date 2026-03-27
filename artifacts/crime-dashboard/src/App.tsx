@@ -3,8 +3,10 @@ import { Switch, Route } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider, useAuth } from "@/context/AuthContext";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/Dashboard";
+import LoginPage from "@/pages/LoginPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -42,7 +44,21 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
   }
 }
 
-function Router() {
+function LoadingScreen() {
+  return (
+    <div style={{
+      minHeight: "100vh", background: "#070c15",
+      display: "flex", alignItems: "center", justifyContent: "center",
+    }}>
+      <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 14 }}>Cargando...</div>
+    </div>
+  );
+}
+
+function ProtectedRouter() {
+  const { user, loading } = useAuth();
+  if (loading) return <LoadingScreen />;
+  if (!user) return <LoginPage />;
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
@@ -56,7 +72,9 @@ function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
-          <Router />
+          <AuthProvider>
+            <ProtectedRouter />
+          </AuthProvider>
           <Toaster />
         </TooltipProvider>
       </QueryClientProvider>

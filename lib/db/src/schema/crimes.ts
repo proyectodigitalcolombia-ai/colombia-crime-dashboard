@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, index, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -55,3 +55,24 @@ export const blockadeTable = pgTable("blockades", {
 export const insertBlockadeSchema = createInsertSchema(blockadeTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertBlockade = z.infer<typeof insertBlockadeSchema>;
 export type Blockade = typeof blockadeTable.$inferSelect;
+
+export const usersTable = pgTable("users", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  companyName: text("company_name").notNull().default("SafeNode S.A.S."),
+  companySubtitle: text("company_subtitle").notNull().default("Inteligencia en Seguridad Logística y Transporte"),
+  analystName: text("analyst_name").notNull().default("Analista de Seguridad"),
+  analystEmail: text("analyst_email").notNull().default("seguridad@safenode.com.co"),
+  analystPhone: text("analyst_phone").notNull().default("+57 300 000 0000"),
+  primaryColor: text("primary_color").notNull().default("#00bcd4"),
+  footerDisclaimer: text("footer_disclaimer").notNull().default("Documento confidencial — uso exclusivo interno."),
+  isAdmin: boolean("is_admin").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("users_email_idx").on(table.email),
+]);
+
+export type User = typeof usersTable.$inferSelect;
+export type InsertUser = typeof usersTable.$inferInsert;

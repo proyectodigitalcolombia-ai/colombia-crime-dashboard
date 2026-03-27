@@ -33,13 +33,14 @@ import {
 } from "@tanstack/react-table";
 import {
   RefreshCw, ChevronDown, Printer, Sun, Moon, Download, Check, ArrowUpIcon, ArrowDownIcon,
-  Activity, MapPin, AlertTriangle, TrendingUp, TrendingDown
+  Activity, MapPin, AlertTriangle, TrendingUp, TrendingDown, LogOut, User
 } from "lucide-react";
 
 import { ColombiaMap } from "@/components/ColombiaMap";
 import { RouteAnalyzer } from "@/components/RouteAnalyzer";
 import { ReportGenerator } from "@/components/ReportGenerator";
 import { DataAlertBanner } from "@/components/DataAlertBanner";
+import { useAuth } from "@/context/AuthContext";
 
 /* ───────── EXECUTIVE PALETTE ───────── */
 const E = {
@@ -220,6 +221,7 @@ function ChartPanel({ title, children, onExport, exportData, exportName, dark, l
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
+  const { user, logout } = useAuth();
   const [isDark, setIsDark] = useState(true);
   const [activeTab, setActiveTab] = useState<"estadisticas" | "ruta" | "informe">("estadisticas");
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -509,6 +511,21 @@ export default function Dashboard() {
             <button onClick={() => setIsDark(d => !d)} style={{ ...ctrlBtn, width: 32, height: 32 }} title="Alternar modo">
               {isDark ? <Sun style={{ width: 13, height: 13 }} /> : <Moon style={{ width: 13, height: 13 }} />}
             </button>
+            {user && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 4, paddingLeft: 10, borderLeft: `1px solid ${isDark ? E.border : "rgba(0,0,0,0.08)"}` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <div style={{ width: 24, height: 24, borderRadius: "50%", background: "rgba(0,212,255,0.15)", border: "1px solid rgba(0,212,255,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <User style={{ width: 12, height: 12, color: E.cyan }} />
+                  </div>
+                  <span style={{ fontSize: 11, color: isDark ? E.textDim : E.textDimLight, maxWidth: 100, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {user.companyName}
+                  </span>
+                </div>
+                <button onClick={logout} style={{ ...ctrlBtn, width: 28, height: 28, color: isDark ? "rgba(255,255,255,0.4)" : "#6b7280" }} title="Cerrar sesión">
+                  <LogOut style={{ width: 12, height: 12 }} />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -554,7 +571,7 @@ export default function Dashboard() {
 
         {/* ── INFORME GERENCIAL TAB ── */}
         {activeTab === "informe" && (
-          <ReportGenerator dark={isDark} />
+          <ReportGenerator dark={isDark} user={user} />
         )}
 
         {/* ── STATS TAB content starts here ── */}

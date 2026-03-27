@@ -1,7 +1,9 @@
 import app from "./app";
 import { logger } from "./lib/logger";
-import { pool } from "@workspace/db";
+import { pool, db, usersTable } from "@workspace/db";
 import { loadDemoIfEmpty, startDailyAutoRefresh } from "./routes/crimes";
+import bcrypt from "bcryptjs";
+import { eq } from "drizzle-orm";
 
 async function ensureSchema() {
   const client = await pool.connect();
@@ -47,6 +49,23 @@ async function ensureSchema() {
       CREATE INDEX IF NOT EXISTS blockades_corridor_idx ON blockades (corridor_id);
       CREATE INDEX IF NOT EXISTS blockades_status_idx ON blockades (status);
 
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        company_name TEXT NOT NULL DEFAULT 'SafeNode S.A.S.',
+        company_subtitle TEXT NOT NULL DEFAULT 'Inteligencia en Seguridad Logística y Transporte',
+        analyst_name TEXT NOT NULL DEFAULT 'Analista de Seguridad',
+        analyst_email TEXT NOT NULL DEFAULT 'seguridad@safenode.com.co',
+        analyst_phone TEXT NOT NULL DEFAULT '+57 300 000 0000',
+        primary_color TEXT NOT NULL DEFAULT '#00bcd4',
+        footer_disclaimer TEXT NOT NULL DEFAULT 'Documento confidencial — uso exclusivo interno.',
+        is_admin BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS users_email_idx ON users (email);
+
       CREATE TABLE IF NOT EXISTS road_conditions_cache (
         id SERIAL PRIMARY KEY,
         via TEXT NOT NULL,
@@ -67,6 +86,32 @@ async function ensureSchema() {
     logger.info("Database schema ensured (all tables)");
   } finally {
     client.release();
+  }
+}
+
+async function seedDefaultUser() {
+  const adminEmail = process.env.ADMIN_EMAIL ?? "admin@safenode.com.co";
+  const adminPassword = process.env.ADMIN_PASSWORD ?? "SafeNode2025!";
+  try {
+    const existing = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, adminEmail));
+    if (existing.length === 0) {
+      const hash = await bcrypt.hash(adminPassword, 12);
+      await db.insert(usersTable).values({
+        email: adminEmail,
+        passwordHash: hash,
+        companyName: "SafeNode S.A.S.",
+        companySubtitle: "Inteligencia en Seguridad Logística y Transporte",
+        analystName: "Administrador SafeNode",
+        analystEmail: adminEmail,
+        analystPhone: "+57 1 234 5678",
+        primaryColor: "#00bcd4",
+        footerDisclaimer: "Documento confidencial — uso exclusivo interno.",
+        isAdmin: true,
+      });
+      logger.info({ email: adminEmail }, "Default admin user created");
+    }
+  } catch (err) {
+    logger.warn({ err }, "Could not seed default user");
   }
 }
 
@@ -92,6 +137,7 @@ app.listen(port, (err) => {
   logger.info({ port }, "Server listening");
 
   ensureSchema()
+    .then(() => seedDefaultUser())
     .then(() => loadDemoIfEmpty())
     .then(() => startDailyAutoRefresh())
     .catch((err) => {
