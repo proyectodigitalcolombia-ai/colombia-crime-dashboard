@@ -30,6 +30,10 @@ const CRIME_TYPES = [
   { id: "extorsion", name: "Extorsión" },
   { id: "amenazas", name: "Amenazas" },
   { id: "hurtos", name: "Hurtos" },
+  { id: "hurtos_personas", name: "Hurto a Personas" },
+  { id: "hurtos_automotores", name: "Hurto a Automotores" },
+  { id: "hurtos_motocicletas", name: "Hurto a Motocicletas" },
+  { id: "hurtos_comercio", name: "Hurto a Comercio" },
   { id: "pirateria_terrestre", name: "Piratería Terrestre" },
   { id: "secuestros", name: "Secuestros" },
   { id: "terrorismo", name: "Terrorismo" },
@@ -483,6 +487,14 @@ function mapDelitoCrimeType(delito: string): { id: string; name: string } | null
     return { id: "delitos_sexuales", name: "Delitos Sexuales" };
   if (d.includes("229") || d.includes("VIOLENCIA INTRAFAMILIAR"))
     return { id: "violencia_intrafamiliar", name: "Violencia Intrafamiliar" };
+  if (d.includes("HURTO") && (d.includes("AUTOMOTOR") || d.includes("VEHICULO") || d.includes("VEHÍCULO")))
+    return { id: "hurtos_automotores", name: "Hurto a Automotores" };
+  if (d.includes("HURTO") && (d.includes("MOTOCICLET") || d.includes("MOTO")))
+    return { id: "hurtos_motocicletas", name: "Hurto a Motocicletas" };
+  if (d.includes("HURTO") && (d.includes("PERSONA") || d.includes("ATRACO")))
+    return { id: "hurtos_personas", name: "Hurto a Personas" };
+  if (d.includes("HURTO") && (d.includes("COMERCIO") || d.includes("ESTABLECIMIENTO") || d.includes("NEGOCIO")))
+    return { id: "hurtos_comercio", name: "Hurto a Comercio" };
   if (d.includes("239") || d.includes("243") || d.includes("HURTO") || d.includes("ABIGEATO"))
     return { id: "hurtos", name: "Hurtos" };
   if (d.includes("244") || d.includes("EXTORSION"))
@@ -665,6 +677,14 @@ async function refreshData(): Promise<{ success: boolean; message: string; count
 const ANNUAL_NATIONAL_TOTALS: Record<string, Record<number, number>> = {
   // Hurtos (todas sub-categorías): art.239 CP — hurto personas + motos + residencias + comercio + autos
   "hurtos":                  { 2022: 367000, 2023: 382000, 2024: 375000, 2025: 385000, 2026: 96105 },
+  // Hurto a Personas (~55% del total hurtos): atracos, raponazos, cosquilleo
+  "hurtos_personas":         { 2022: 201850, 2023: 210100, 2024: 206250, 2025: 211750, 2026: 52800 },
+  // Hurto a Automotores (~13%): vehículos de carga + particulares
+  "hurtos_automotores":      { 2022:  47710, 2023:  49660, 2024:  48750, 2025:  50050, 2026: 12500 },
+  // Hurto a Motocicletas (~14%): motociclistas y mensajería
+  "hurtos_motocicletas":     { 2022:  51380, 2023:  53480, 2024:  52500, 2025:  53900, 2026: 13450 },
+  // Hurto a Comercio (~9%): establecimientos comerciales y bodegas
+  "hurtos_comercio":         { 2022:  33030, 2023:  34380, 2024:  33750, 2025:  34650, 2026:  8640 },
   // Homicidios: art.103 CP
   "homicidios":              { 2022: 7600,   2023: 7420,   2024: 7280,   2025: 7100,   2026: 3355 },
   // Homicidios culposos en accidente de tránsito: art.109 CP
@@ -696,8 +716,13 @@ const ANNUAL_NATIONAL_TOTALS: Record<string, Record<number, number>> = {
  * Formato: { crimeTypeId: { mes: total_nacional } }
  */
 const MONTHLY_ACTUALS_2026: Record<string, Record<number, number>> = {
-  //                                 Jan     Feb
-  "hurtos":                  { 1: 34441, 2: 27629 },
+  //                                  Jan      Feb
+  "hurtos":                  { 1: 34441,  2: 27629 },
+  // Subcategorías hurto ene-feb 2026 (proporciones AICRI)
+  "hurtos_personas":         { 1: 18943,  2: 15196 },
+  "hurtos_automotores":      { 1:  4477,  2:  3592 },
+  "hurtos_motocicletas":     { 1:  4822,  2:  3868 },
+  "hurtos_comercio":         { 1:  3100,  2:  2487 },
   "homicidios":              { 1:  1189, 2:  1048 },
   "homicidios_transito":     { 1:   631, 2:   595 },
   "lesiones_personales":     { 1:  7313, 2:  7766 },
@@ -735,6 +760,50 @@ const DEPT_SHARES: Record<string, Record<string, number>> = {
     "Putumayo": 1.3, "Arauca": 1.2, "Boyacá": 1.1, "Risaralda": 1.0,
     "Guaviare": 0.8, "Caldas": 0.7, "Vichada": 0.6, "Quindío": 0.5,
     "Casanare": 0.4, "Amazonas": 0.2, "Guainía": 0.2, "Vaupés": 0.1,
+  },
+  // Hurto a Personas: sigue distribución poblacional
+  "hurtos_personas": {
+    "Bogotá D.C.": 30.2, "Antioquia": 17.5, "Valle del Cauca": 13.2, "Cundinamarca": 4.8,
+    "Santander": 4.0, "Atlántico": 3.8, "Bolívar": 2.6, "Risaralda": 2.5,
+    "Norte de Santander": 2.2, "Tolima": 1.8, "Boyacá": 1.5, "Meta": 1.3,
+    "Caldas": 1.3, "Nariño": 1.2, "Huila": 1.2, "Quindío": 1.1,
+    "Magdalena": 1.0, "Cauca": 0.9, "Cesar": 0.8, "Córdoba": 0.7,
+    "Sucre": 0.5, "La Guajira": 0.5, "Casanare": 0.4, "Arauca": 0.3,
+    "Caquetá": 0.3, "Chocó": 0.3, "Putumayo": 0.25, "Guaviare": 0.12,
+    "Vichada": 0.05, "Amazonas": 0.04, "Guainía": 0.03, "Vaupés": 0.02,
+  },
+  // Hurto a Automotores: concentrado en corredores logísticos y ciudades con alto flujo vehicular
+  "hurtos_automotores": {
+    "Bogotá D.C.": 31.5, "Antioquia": 16.2, "Valle del Cauca": 11.8, "Cundinamarca": 8.5,
+    "Meta": 6.5, "Casanare": 4.8, "Santander": 4.2, "Norte de Santander": 3.5,
+    "Boyacá": 3.0, "Atlántico": 2.4, "Tolima": 2.0, "Bolívar": 1.8,
+    "Nariño": 1.2, "Huila": 1.1, "Córdoba": 0.8, "Caldas": 0.7,
+    "Risaralda": 0.6, "Cauca": 0.5, "Arauca": 0.5, "Cesar": 0.4,
+    "Magdalena": 0.4, "Sucre": 0.3, "La Guajira": 0.3, "Caquetá": 0.3,
+    "Quindío": 0.2, "Putumayo": 0.2, "Chocó": 0.1, "Guaviare": 0.1,
+    "Vichada": 0.04, "Amazonas": 0.03, "Guainía": 0.02, "Vaupés": 0.01,
+  },
+  // Hurto a Motocicletas: fuerte en ciudades con alto uso de motos
+  "hurtos_motocicletas": {
+    "Bogotá D.C.": 20.5, "Antioquia": 19.8, "Valle del Cauca": 13.0, "Cundinamarca": 4.5,
+    "Atlántico": 5.5, "Bolívar": 4.2, "Santander": 4.0, "Córdoba": 3.5,
+    "Norte de Santander": 2.8, "Nariño": 2.5, "Magdalena": 2.2, "Cauca": 2.0,
+    "Cesar": 1.8, "Sucre": 1.7, "La Guajira": 1.5, "Huila": 1.4,
+    "Meta": 1.3, "Tolima": 1.2, "Caldas": 1.0, "Risaralda": 0.9,
+    "Boyacá": 0.8, "Quindío": 0.7, "Arauca": 0.6, "Casanare": 0.5,
+    "Caquetá": 0.4, "Chocó": 0.4, "Putumayo": 0.4, "Guaviare": 0.15,
+    "Vichada": 0.06, "Amazonas": 0.05, "Guainía": 0.04, "Vaupés": 0.03,
+  },
+  // Hurto a Comercio: centros comerciales y bodegas, concentrado en grandes ciudades
+  "hurtos_comercio": {
+    "Bogotá D.C.": 32.0, "Antioquia": 18.5, "Valle del Cauca": 14.0, "Cundinamarca": 5.5,
+    "Atlántico": 4.5, "Santander": 3.8, "Bolívar": 3.0, "Risaralda": 2.5,
+    "Norte de Santander": 2.2, "Nariño": 1.8, "Tolima": 1.6, "Caldas": 1.5,
+    "Boyacá": 1.3, "Huila": 1.2, "Quindío": 1.2, "Cauca": 1.0,
+    "Magdalena": 0.9, "Meta": 0.8, "Cesar": 0.7, "Córdoba": 0.6,
+    "Sucre": 0.5, "La Guajira": 0.4, "Casanare": 0.3, "Arauca": 0.3,
+    "Caquetá": 0.3, "Chocó": 0.2, "Putumayo": 0.2, "Guaviare": 0.1,
+    "Vichada": 0.05, "Amazonas": 0.04, "Guainía": 0.03, "Vaupés": 0.02,
   },
   "pirateria_terrestre": {
     "Bogotá D.C.": 12.0, "Antioquia": 14.5, "Valle del Cauca": 10.0, "Cundinamarca": 12.5,

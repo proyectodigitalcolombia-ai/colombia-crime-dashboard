@@ -74,6 +74,14 @@ const INTERVAL_OPTIONS = [
   { label: "Cada 24 horas",ms: 24 * 60 * 60 * 1000 },
 ];
 
+const HURTO_SUBCATEGORIES = [
+  { id: "hurtos_personas",    name: "Hurto a Personas",    color: "#00d4ff", icon: "👤" },
+  { id: "hurtos_automotores", name: "Hurto a Automotores", color: "#f59e0b", icon: "🚛" },
+  { id: "hurtos_motocicletas",name: "Hurto a Motocicletas",color: "#a855f7", icon: "🏍️" },
+  { id: "hurtos_comercio",    name: "Hurto a Comercio",    color: "#10b981", icon: "🏪" },
+];
+const HURTO_SUBCATEGORY_IDS = HURTO_SUBCATEGORIES.map(s => s.id);
+
 /* ─── Custom dark tooltip ─── */
 function ExecTooltip({ active, payload, label, dark }: any) {
   if (!active || !payload || payload.length === 0) return null;
@@ -275,6 +283,34 @@ export default function Dashboard() {
   const { data: prevMonthlyData = [] } = useGetNationalMonthly(prevYearParams);
   const { data: deptData = [], isLoading: isLoadingDept, isFetching: isFetchingDept } = useGetCrimesByDepartment({ year: queryParams.year, crimeType: queryParams.crimeType });
 
+  // Subcategory breakdown — only fetched when "hurtos" is selected
+  const showSubcategoryPanel = selectedCrimeType === "hurtos";
+  const { data: subcatMonthlyRaw = [], isLoading: isLoadingSubcat } = useGetNationalMonthly(
+    { year: queryParams.year, department: queryParams.department },
+    { query: { enabled: showSubcategoryPanel } }
+  );
+
+  const subcategoryMonthlyChart = useMemo(() => {
+    if (!showSubcategoryPanel) return [];
+    const months = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+    const pivot = months.map(m => ({ month: m } as Record<string, string | number>));
+    subcatMonthlyRaw
+      .filter((d: any) => HURTO_SUBCATEGORY_IDS.includes(d.crimeTypeId))
+      .forEach((d: any) => {
+        const idx = (d.month as number) - 1;
+        if (pivot[idx]) pivot[idx][d.crimeTypeName] = ((pivot[idx][d.crimeTypeName] as number) || 0) + (d.count as number);
+      });
+    return pivot.filter(p => Object.keys(p).length > 1);
+  }, [subcatMonthlyRaw, showSubcategoryPanel]);
+
+  const subcategoryTotals = useMemo(() => {
+    if (!showSubcategoryPanel) return [];
+    return HURTO_SUBCATEGORIES.map(sc => ({
+      ...sc,
+      total: (subcatMonthlyRaw as any[]).filter(d => d.crimeTypeId === sc.id).reduce((s: number, d: any) => s + (d.count as number), 0),
+    }));
+  }, [subcatMonthlyRaw, showSubcategoryPanel]);
+
   const { data: allBlockadesRaw = [] } = useGetBlockades(undefined, { query: { refetchInterval: 60000 } });
   const blockadeCounts = useMemo<Record<string, number>>(() => {
     const m: Record<string, number> = {};
@@ -293,7 +329,7 @@ export default function Dashboard() {
     return deptData.filter((d: any) => d.department === selectedDepartment);
   }, [deptData, selectedDepartment]);
 
-  const loading = isLoadingYears || isLoadingTypes || isLoadingStatus || isLoadingMonthly || isLoadingDept || isFetchingMonthly || isFetchingDept;
+  const loading = isLoadingYears || isLoadingTypes || isLoadingStatus || isLoadingMonthly || isLoadingDept || isFetchingMonthly || isFetchingDept || (showSubcategoryPanel && isLoadingSubcat);
 
   useEffect(() => {
     if (loading) { setIsSpinning(true); }
@@ -708,6 +744,69 @@ export default function Dashboard() {
             </ChartPanel>
           )}
         </div>
+
+        {/* ── SUBCATEGORY BREAKDOWN — visible only when "Hurtos" is selected ── */}
+        {showSubcategoryPanel && (
+          <ChartPanel title="Desglose por Subcategoría de Hurto" dark={isDark} loading={loading}>
+            {/* KPI mini-cards */}
+            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "16px" }}>
+              {subcategoryTotals.map(sc => {
+                const grandTotal = subcategoryTotals.reduce((s, x) => s + x.total, 0);
+                const pct = grandTotal > 0 ? ((sc.total / grandTotal) * 100).toFixed(1) : "0.0";
+                return (
+                  <div key={sc.id} style={{ flex: "1 1 130px", padding: "12px 14px", borderRadius: "8px", background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)", borderLeft: `3px solid ${sc.color}` }}>
+                    <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sc.color, marginBottom: "4px" }}>
+                      {sc.icon} {sc.name}
+                    </div>
+                    <div style={{ fontSize: "22px", fontWeight: 700, lineHeight: 1.1 }}>
+                      {sc.total > 0 ? sc.total.toLocaleString("es-CO") : "—"}
+                    </div>
+                    <div style={{ fontSize: "10px", color: isDark ? E.textDim : E.textDimLight, marginTop: "2px" }}>
+                      {pct}% del total hurtos
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {/* Stacked area chart */}
+            {subcategoryMonthlyChart.length > 0 ? (
+              <ResponsiveContainer width="100%" height={260} debounce={0}>
+                <AreaChart data={subcategoryMonthlyChart} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                  <defs>
+                    {HURTO_SUBCATEGORIES.map(sc => (
+                      <linearGradient key={sc.id} id={`grad_${sc.id}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={sc.color} stopOpacity={isDark ? 0.28 : 0.18} />
+                        <stop offset="100%" stopColor={sc.color} stopOpacity={0.01} />
+                      </linearGradient>
+                    ))}
+                  </defs>
+                  <CartesianGrid strokeDasharray="4 4" stroke={gridColor} vertical={false} />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} />
+                  <YAxis tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : String(v)} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} />
+                  <Tooltip content={<ExecTooltip dark={isDark} />} isAnimationActive={false} />
+                  <Legend content={<ExecLegend dark={isDark} />} />
+                  {HURTO_SUBCATEGORIES.map(sc => (
+                    <Area
+                      key={sc.id}
+                      type="monotone"
+                      dataKey={sc.name}
+                      stroke={sc.color}
+                      fill={`url(#grad_${sc.id})`}
+                      strokeWidth={2}
+                      dot={false}
+                      activeDot={{ r: 4, fill: sc.color, stroke: isDark ? E.bg : "#fff", strokeWidth: 2 }}
+                      isAnimationActive={false}
+                    />
+                  ))}
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div style={{ height: "260px", display: "flex", alignItems: "center", justifyContent: "center", color: isDark ? E.textDim : E.textDimLight, fontSize: "13px" }}>
+                Cargando desglose de subcategorías…
+              </div>
+            )}
+          </ChartPanel>
+        )}
 
         {/* ── MAP + TABLE ── */}
         <div style={{ display: "grid", gridTemplateColumns: selectedCrimeType === "all" ? "1fr 2fr" : "1fr", gap: "12px", marginBottom: "16px" }}>
