@@ -115,6 +115,10 @@ export interface Blockade {
   notes: string | null;
   /** @nullable */
   reporter: string | null;
+  /** @nullable */
+  lat: number | null;
+  /** @nullable */
+  lng: number | null;
   createdAt: string;
   updatedAt: string;
 }

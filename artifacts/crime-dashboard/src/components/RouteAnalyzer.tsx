@@ -371,6 +371,27 @@ export function RouteAnalyzer({ dark = true }: Props) {
     },
   });
 
+  const [regeocoding, setRegeocoding] = useState<Set<number>>(new Set());
+  const [regeocodeDone, setRegeocodeDone] = useState<Set<number>>(new Set());
+
+  const handleRegeocode = useCallback(async (id: number) => {
+    setRegeocoding(prev => new Set(prev).add(id));
+    try {
+      const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
+      const resp = await fetch(`${BASE}/api/blockades/${id}/regeocode`, {
+        method: "PATCH",
+        credentials: "include",
+      });
+      if (resp.ok) {
+        await queryClient.invalidateQueries({ queryKey: getGetBlockadesQueryKey() });
+        setRegeocodeDone(prev => new Set(prev).add(id));
+        setTimeout(() => setRegeocodeDone(prev => { const s = new Set(prev); s.delete(id); return s; }), 3000);
+      }
+    } finally {
+      setRegeocoding(prev => { const s = new Set(prev); s.delete(id); return s; });
+    }
+  }, [queryClient]);
+
   const handleUrlImport = useCallback(async () => {
     if (!urlInput.trim()) return;
     setUrlLoading(true);
@@ -1380,6 +1401,17 @@ export function RouteAnalyzer({ dark = true }: Props) {
                             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "5px" }}>
                               <span style={{ fontSize: "11px", fontWeight: 700, color: textMain, flex: 1 }}>{blk.department} — {blk.location}</span>
                               <span style={{ fontSize: "8px", fontWeight: 700, color: statusInfo.color, background: `${statusInfo.color}18`, padding: "2px 7px", borderRadius: "4px" }}>{statusInfo.label}</span>
+                              {/* Geo status indicator + recalculate button */}
+                              <button
+                                onClick={() => handleRegeocode(blk.id)}
+                                disabled={regeocoding.has(blk.id)}
+                                title={blk.lat != null ? "Coordenadas OK — clic para recalcular" : "Sin coordenadas — clic para geocodificar"}
+                                style={{ background: "transparent", border: "none", cursor: regeocoding.has(blk.id) ? "wait" : "pointer", color: regeocodeDone.has(blk.id) ? "#10b981" : blk.lat != null ? "#00d4ff" : "#f59e0b", display: "flex", padding: "2px", opacity: regeocoding.has(blk.id) ? 0.5 : 1 }}
+                              >
+                                {regeocoding.has(blk.id)
+                                  ? <RefreshCw style={{ width: 11, height: 11, animation: "spin 1s linear infinite" }} />
+                                  : <MapPin style={{ width: 11, height: 11 }} />}
+                              </button>
                               <button onClick={() => deleteBlockadeMutation.mutate(blk.id)} title="Eliminar" style={{ background: "transparent", border: "none", cursor: "pointer", color: textMuted, display: "flex", padding: "2px" }}>
                                 <X style={{ width: 11, height: 11 }} />
                               </button>

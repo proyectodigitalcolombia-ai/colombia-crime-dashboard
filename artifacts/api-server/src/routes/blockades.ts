@@ -314,6 +314,30 @@ Responde SOLO con el JSON, sin texto antes ni después.`);
   }
 });
 
+/* PATCH /api/blockades/:id/regeocode — re-geocode an existing blockade to fix its map position */
+router.patch("/blockades/:id/regeocode", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+
+    const [existing] = await db.select().from(blockadeTable).where(eq(blockadeTable.id, id));
+    if (!existing) return res.status(404).json({ error: "Blockade not found" });
+
+    const coords = await geocode(existing.location, existing.department ?? "").catch(() => null);
+    if (!coords) return res.status(422).json({ error: "No se pudo geocodificar la ubicación. Verifique que la ubicación sea un nombre de municipio válido de Colombia." });
+
+    const [updated] = await db
+      .update(blockadeTable)
+      .set({ lat: coords.lat, lng: coords.lng, updatedAt: new Date() })
+      .where(eq(blockadeTable.id, id))
+      .returning();
+    res.json({ ...updated, regeocoded: true, coords });
+  } catch (err) {
+    console.error("PATCH /api/blockades/:id/regeocode error:", err);
+    res.status(500).json({ error: "Error al recalcular coordenadas" });
+  }
+});
+
 /* DELETE /api/blockades/:id */
 router.delete("/blockades/:id", async (req, res) => {
   try {
