@@ -761,6 +761,66 @@ export function RouteAnalyzer({ dark = true }: Props) {
         )}
       </div>
 
+      {/* ── GESTIÓN DE BLOQUEOS — lista global ── */}
+      <div style={{ background: panelBg, border: `1px solid rgba(236,72,153,0.25)`, borderRadius: "12px", padding: "14px 16px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
+          <Ban style={{ width: 13, height: 13, color: E.pink }} />
+          <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: E.pink }}>
+            Gestión de Bloqueos Registrados
+          </span>
+          <span style={{ marginLeft: "auto", fontSize: "10px", fontWeight: 700, color: E.pink, background: "rgba(236,72,153,0.12)", padding: "2px 8px", borderRadius: "10px" }}>
+            {userBlockades.length} total
+          </span>
+        </div>
+        {userBlockades.length === 0 ? (
+          <div style={{ textAlign: "center", color: textMuted, fontSize: "12px", padding: "16px 0" }}>
+            No hay bloqueos registrados.
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxHeight: "320px", overflowY: "auto" }}>
+            {[...userBlockades].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(blk => {
+              const corridor = CORRIDORS.find(c => c.id === blk.corridorId);
+              const statusColor = blk.status === "activo" ? E.red : blk.status === "intermitente" ? E.amber : E.emerald;
+              return (
+                <div key={blk.id} style={{ background: dark ? "rgba(236,72,153,0.04)" : "#fff5f9", border: `1px solid ${dark ? "rgba(236,72,153,0.12)" : "rgba(236,72,153,0.12)"}`, borderRadius: "8px", padding: "9px 12px", display: "flex", alignItems: "center", gap: "10px" }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                      <span style={{ fontSize: "11px", fontWeight: 700, color: textMain }}>{blk.department}</span>
+                      <span style={{ fontSize: "10px", color: textMuted }}>·</span>
+                      <span style={{ fontSize: "11px", color: textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "200px" }}>{blk.location}</span>
+                      <span style={{ fontSize: "9px", fontWeight: 700, color: statusColor, background: `${statusColor}18`, padding: "1px 6px", borderRadius: "4px" }}>{blk.status}</span>
+                    </div>
+                    <div style={{ fontSize: "10px", color: textMuted, marginTop: "3px" }}>
+                      {corridor ? `${corridor.icon} ${corridor.name}` : blk.corridorId} · {blk.date}
+                      {blk.reporter && ` · ${blk.reporter}`}
+                    </div>
+                  </div>
+                  {/* Regeocode button */}
+                  <button
+                    onClick={() => handleRegeocode(blk.id)}
+                    disabled={regeocoding.has(blk.id)}
+                    title={blk.lat != null ? "Coordenadas OK — clic para recalcular" : "Sin coordenadas GPS — clic para geocodificar"}
+                    style={{ background: "transparent", border: "none", cursor: regeocoding.has(blk.id) ? "wait" : "pointer", color: regeocodeDone.has(blk.id) ? "#10b981" : blk.lat != null ? "#00d4ff" : "#f59e0b", padding: "4px", borderRadius: "4px", flexShrink: 0, opacity: regeocoding.has(blk.id) ? 0.5 : 1 }}
+                  >
+                    {regeocoding.has(blk.id)
+                      ? <RefreshCw style={{ width: 13, height: 13, animation: "spin 1s linear infinite" }} />
+                      : <MapPin style={{ width: 13, height: 13 }} />}
+                  </button>
+                  {/* Delete button */}
+                  <button
+                    onClick={() => deleteBlockadeMutation.mutate(blk.id)}
+                    title="Eliminar bloqueo"
+                    style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: "6px", cursor: "pointer", color: E.red, padding: "5px 8px", fontSize: "10px", fontWeight: 700, display: "flex", alignItems: "center", gap: "4px", flexShrink: 0 }}
+                  >
+                    <X style={{ width: 11, height: 11 }} /> Eliminar
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* ── REGISTER BLOCKADE MODAL ── */}
       {showForm && (
         <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.72)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>

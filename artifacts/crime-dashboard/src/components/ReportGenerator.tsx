@@ -632,6 +632,9 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const [defaultLogo, setDefaultLogo] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  /* Debounce: avoid resetting form while user is actively typing */
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const editingRef = useRef(false);
 
   const panelBg   = dark ? "#0c1220" : "#ffffff";
   const textMain  = dark ? "#e2eaf4" : "#1a2a3a";
@@ -640,6 +643,8 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
   const inputBg   = dark ? "rgba(255,255,255,0.04)" : "#f8fafc";
 
   useEffect(() => {
+    /* Skip reset while user is actively typing in the form */
+    if (editingRef.current) return;
     setConfig(prev => {
       let base = { ...DEFAULTS, ...prev };
       try { const s = localStorage.getItem(LS_KEY); if (s) { const p = JSON.parse(s); if (p.logoDataUrl) base.logoDataUrl = p.logoDataUrl; } } catch { /* ignore */ }
@@ -664,12 +669,19 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
   const activeLogo = activeLogoDisplay;
 
   function updateConfig(patch: Partial<ReportConfig>) {
+    editingRef.current = true;
     setConfig(prev => {
       const next = { ...prev, ...patch };
       try { localStorage.setItem(LS_KEY, JSON.stringify({ logoDataUrl: next.logoDataUrl })); } catch { /* ignore */ }
       const { logoDataUrl: _logo, ...serverPatch } = patch;
       if (Object.keys(serverPatch).length > 0) {
-        saveToServer(serverPatch).catch(() => { /* silent */ });
+        /* Debounce: save to server 1.5 s after last keystroke to avoid re-render loop */
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = setTimeout(() => {
+          saveToServer(serverPatch)
+            .catch(() => { /* silent */ })
+            .finally(() => { editingRef.current = false; });
+        }, 1500);
       }
       return next;
     });
