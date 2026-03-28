@@ -5,6 +5,8 @@ import {
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { Blockade } from "@workspace/api-client-react";
+import { useRoadConditions } from "@/hooks/useRoadConditions";
+import { useInviasClosures } from "@/hooks/useInviasClosures";
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -456,6 +458,92 @@ const DEPT_CENTROIDS: Record<string, [number, number]> = {
   "Vichada": [4.4234, -69.2877], "San Andrés": [12.5567, -81.7185], "Bogotá D.C.": [4.7109, -74.0721],
 };
 
+/* Municipios y ciudades clave para geocodificación de cierres oficiales */
+const MUNICIPIOS_COORDS: Record<string, [number, number]> = {
+  "bogotá": [4.7109, -74.0721], "bogota": [4.7109, -74.0721],
+  "medellín": [6.2442, -75.5812], "medellin": [6.2442, -75.5812],
+  "cali": [3.4516, -76.5320],
+  "barranquilla": [10.9639, -74.7964],
+  "cartagena": [10.3910, -75.4794],
+  "buenaventura": [3.8801, -77.0311],
+  "villavicencio": [4.1533, -73.6371],
+  "manizales": [5.0703, -75.5138],
+  "pereira": [4.8087, -75.6906],
+  "armenia": [4.5388, -75.6745],
+  "ibagué": [4.4389, -75.2322], "ibague": [4.4389, -75.2322],
+  "neiva": [2.9273, -75.2819],
+  "pasto": [1.2136, -77.2811],
+  "bucaramanga": [7.1253, -73.1198],
+  "cúcuta": [7.8939, -72.5078], "cucuta": [7.8939, -72.5078],
+  "santa marta": [11.2408, -74.2110],
+  "montería": [8.7574, -75.8908], "monteria": [8.7574, -75.8908],
+  "sincelejo": [9.3047, -75.3978],
+  "valledupar": [10.4631, -73.2532],
+  "florencia": [1.6144, -75.6062],
+  "mocoa": [1.1523, -76.6482],
+  "quibdó": [5.6919, -76.6583], "quibdo": [5.6919, -76.6583],
+  "riohacha": [11.5444, -72.9072],
+  "popayán": [2.4448, -76.6147], "popayan": [2.4448, -76.6147],
+  "tunja": [5.5353, -73.3678],
+  "duitama": [5.8268, -73.0250],
+  "sogamoso": [5.7192, -72.9349],
+  "honda": [5.2050, -74.7389],
+  "girardot": [4.3065, -74.8019],
+  "la dorada": [5.4553, -74.6600],
+  "barrancabermeja": [7.0656, -73.8542],
+  "ocaña": [8.2384, -73.3569], "ocana": [8.2384, -73.3569],
+  "palmira": [3.5394, -76.3036],
+  "buga": [3.9022, -76.3011],
+  "tuluá": [4.0839, -76.1959], "tulua": [4.0839, -76.1959],
+  "yopal": [5.3378, -72.3967],
+  "arauca": [7.0897, -70.7619],
+  "puerto boyacá": [5.9847, -74.5861], "puerto boyaca": [5.9847, -74.5861],
+  "la virginia": [4.9017, -75.8756],
+  "aguachica": [8.3097, -73.6156],
+  "puerto wilches": [7.3497, -73.9022],
+  "san gil": [6.5523, -73.1359],
+  "vélez": [6.0075, -73.6783], "velez": [6.0075, -73.6783],
+  "chiquinquirá": [5.6151, -73.8176], "chiquinquira": [5.6151, -73.8176],
+  "zipaquirá": [5.0227, -74.0062], "zipaquira": [5.0227, -74.0062],
+  "facatativá": [4.8150, -74.3567], "facatativa": [4.8150, -74.3567],
+  "fusagasugá": [4.3419, -74.3636], "fusagasuga": [4.3419, -74.3636],
+  "la mesa": [4.6350, -74.4683],
+  "villeta": [5.0181, -74.4722],
+  "garzón": [2.1994, -75.6297], "garzon": [2.1994, -75.6297],
+  "la plata": [2.3875, -75.8936],
+  "campoalegre": [2.6875, -75.3317],
+  "la unión": [4.5369, -76.1028], "la union": [4.5369, -76.1028],
+  "roldanillo": [4.4078, -76.1583],
+  "el cerrito": [3.6964, -76.3011],
+  "cartago": [4.7450, -75.9150],
+  "anserma": [5.2108, -75.7894],
+  "riosucio": [5.4211, -75.7086],
+  "la ceja": [6.0317, -75.4358],
+  "marinilla": [6.1769, -75.3283],
+  "el santuario": [6.1286, -75.2658],
+  "apartadó": [7.8831, -76.6250], "apartado": [7.8831, -76.6250],
+  "turbo": [8.0978, -76.7283],
+  "caucasia": [7.9878, -75.1978],
+  "yarumal": [7.0036, -75.4175],
+  "santa rosa de osos": [6.6386, -75.4622],
+  "el bagre": [7.5947, -74.8108],
+  "puerto berrío": [6.4900, -74.4058], "puerto berrio": [6.4900, -74.4058],
+  "magangué": [9.2394, -74.7517], "magangue": [9.2394, -74.7517],
+  "mompós": [9.2406, -74.4281], "mompos": [9.2406, -74.4281],
+  "el banco": [9.0022, -73.9756],
+  "ciénaga": [11.0050, -74.2508], "cienaga": [11.0050, -74.2508],
+  "fundación": [10.5222, -74.1883], "fundacion": [10.5222, -74.1883],
+};
+
+/** Geocodifica un texto de localización — busca municipio → depto centroide */
+function geocodeClosure(text: string, dept: string): [number, number] | null {
+  const lower = (text + " " + dept).toLowerCase();
+  for (const [key, coords] of Object.entries(MUNICIPIOS_COORDS)) {
+    if (lower.includes(key)) return coords;
+  }
+  return DEPT_CENTROIDS[dept] ?? null;
+}
+
 interface Peaje { name: string; lat: number; lng: number; dept: string; via: string; tarifa: string }
 const PEAJES: Peaje[] = [
   { name: "Marahuaco", lat: 10.5745, lng: -75.4507, dept: "Bolívar", via: "Troncal del Caribe", tarifa: "Cat II: $11.600 | Cat IV: $18.300 | Cat VI: $38.200" },
@@ -596,9 +684,17 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
   const [phase, setPhase] = useState<"setup" | "result">("setup");
 
   /* ─ Overlay layer toggles ─ */
-  const [showPeajes,      setShowPeajes]      = useState(false);
-  const [showBasculas,    setShowBasculas]    = useState(false);
-  const [showBlockadesOnMap, setShowBlockadesOnMap] = useState(true);
+  const [showPeajes,         setShowPeajes]         = useState(false);
+  const [showBasculas,       setShowBasculas]        = useState(false);
+  const [showBlockadesOnMap, setShowBlockadesOnMap]  = useState(true);
+  const [showPolicia,        setShowPolicia]         = useState(false);
+  const [showInvias,         setShowInvias]          = useState(false);
+
+  /* ─ Real-time official closure data ─ */
+  const { data: roadData }  = useRoadConditions();
+  const { data: inviasData } = useInviasClosures();
+  const policiaConditions = roadData?.conditions ?? [];
+  const inviasClosures    = inviasData?.closures ?? [];
 
   /* ─ Custom overlay icons ─ */
   const peajeIcon = useMemo(() => L.divIcon({
@@ -615,6 +711,16 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
     className: "",
     html: `<div style="background:#ef4444;border:2px solid #7f1d1d;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 2px 8px rgba(239,68,68,0.6);animation:pulse 1.5s infinite;cursor:pointer">🚨</div>`,
     iconSize: [26, 26], iconAnchor: [13, 13], popupAnchor: [0, -16],
+  }), []);
+  const policiaIcon = useMemo(() => L.divIcon({
+    className: "",
+    html: `<div style="background:#1d4ed8;border:2px solid #1e3a8a;border-radius:6px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:12px;box-shadow:0 2px 8px rgba(29,78,216,0.6);cursor:pointer">🚔</div>`,
+    iconSize: [24, 24], iconAnchor: [12, 12], popupAnchor: [0, -15],
+  }), []);
+  const inviasIcon = useMemo(() => L.divIcon({
+    className: "",
+    html: `<div style="background:#d97706;border:2px solid #92400e;border-radius:4px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:12px;box-shadow:0 2px 8px rgba(217,119,6,0.6);cursor:pointer">🏗</div>`,
+    iconSize: [24, 24], iconAnchor: [12, 12], popupAnchor: [0, -15],
   }), []);
 
   /* ─ Blockades on this route (uses routeDepts to avoid ordering deps) ─
@@ -913,6 +1019,30 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
     ? BASCULAS.filter(b => canonDepts.some(d => d.toLowerCase().includes((b.dept ?? "").toLowerCase().slice(0,5)) || (b.dept ?? "").toLowerCase().includes(d.toLowerCase().slice(0,5))))
     : BASCULAS;
 
+  /* ─ Filtered Policía / INVIAS closures for panels and map ─ */
+  const matchesDept = (dept: string) =>
+    canonDepts.length === 0 || canonDepts.some(d =>
+      d.toLowerCase().includes(dept.toLowerCase().slice(0,5)) || dept.toLowerCase().includes(d.toLowerCase().slice(0,5))
+    );
+
+  const panelPolicia = policiaConditions.filter(c =>
+    (c.conditionCode === "cierre_total" || c.conditionCode === "cierre_parcial" || c.conditionCode === "desvio") &&
+    matchesDept(c.department)
+  );
+  const panelInvias = inviasClosures.filter(c => matchesDept(c.department));
+
+  /* Policía markers with geocoded positions */
+  const policiaMarkers = panelPolicia.map(c => ({
+    ...c,
+    position: geocodeClosure(c.sector + " " + c.via, c.department) as [number, number] | null,
+  })).filter(c => c.position !== null) as Array<typeof panelPolicia[0] & { position: [number, number] }>;
+
+  /* INVIAS markers with geocoded positions */
+  const inviasMarkers = panelInvias.map(c => ({
+    ...c,
+    position: geocodeClosure(c.sector + " " + c.municipality + " " + c.via, c.department) as [number, number] | null,
+  })).filter(c => c.position !== null) as Array<typeof panelInvias[0] & { position: [number, number] }>;
+
   const recs: string[] = [];
   if (activeBlocks.length > 0) recs.push(`🚨 ${activeBlocks.length} BLOQUEO(S) ACTIVO(S) en departamentos de esta ruta`);
   if (maxNight >= 75) recs.push("⛔ Evitar tránsito entre 10 PM y 5 AM — alta incidencia nocturna");
@@ -1157,9 +1287,11 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
           {/* Overlay layers */}
           <div style={{ fontSize: "8px", fontWeight: 700, color: textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "2px" }}>Capas</div>
           {[
-            { id: "peajes",   label: "Peajes", icon: "💲", active: showPeajes,      set: setShowPeajes,      color: E.amber },
-            { id: "basculas", label: "Básculas", icon: "⚖", active: showBasculas,   set: setShowBasculas,   color: "#8b5cf6" },
-            { id: "cierres",  label: "Cierres", icon: "🚨", active: showBlockadesOnMap, set: setShowBlockadesOnMap, color: E.red },
+            { id: "peajes",   label: "Peajes",   icon: "💲", active: showPeajes,         set: setShowPeajes,         color: E.amber,   badge: null },
+            { id: "basculas", label: "Básculas", icon: "⚖", active: showBasculas,        set: setShowBasculas,       color: "#8b5cf6", badge: null },
+            { id: "cierres",  label: "Cierres",  icon: "🚨", active: showBlockadesOnMap,  set: setShowBlockadesOnMap, color: E.red,     badge: routeBlockades.length || null },
+            { id: "policia",  label: "Policía",  icon: "🚔", active: showPolicia,         set: setShowPolicia,        color: "#3b82f6", badge: panelPolicia.length || null },
+            { id: "invias",   label: "INVIAS",   icon: "🏗", active: showInvias,          set: setShowInvias,         color: "#f97316", badge: panelInvias.length || null },
           ].map(ov => (
             <button
               key={ov.id}
@@ -1174,7 +1306,13 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
                 transition: "all 0.15s", whiteSpace: "nowrap",
               }}
             >
-              <span>{ov.icon}</span><span>{ov.label}</span>
+              <span>{ov.icon}</span>
+              <span style={{ flex: 1 }}>{ov.label}</span>
+              {ov.badge !== null && (
+                <span style={{ fontSize: "8px", fontWeight: 800, background: `${ov.color}33`, color: ov.color, borderRadius: "6px", padding: "1px 4px", minWidth: "14px", textAlign: "center" }}>
+                  {ov.badge}
+                </span>
+              )}
             </button>
           ))}
 
@@ -1365,6 +1503,58 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
               </Marker>
             );
           })}
+
+          {/* ── Cierres Policía Nacional ── */}
+          {showPolicia && policiaMarkers.map((c, idx) => (
+            <Marker key={`pol-${idx}`} position={c.position} icon={policiaIcon}>
+              <Popup>
+                <div style={{ minWidth: "210px" }}>
+                  <div style={{ fontWeight: 700, fontSize: "13px", color: "#1d4ed8", marginBottom: "4px" }}>🚔 Policía Nacional</div>
+                  <div style={{ fontSize: "10px", background: c.conditionCode === "cierre_total" ? "#fee2e2" : "#fef3c7", borderRadius: "4px", padding: "2px 6px", marginBottom: "5px", fontWeight: 700 }}>
+                    {c.conditionCode === "cierre_total" ? "🔴 CIERRE TOTAL" : c.conditionCode === "cierre_parcial" ? "🟡 CIERRE PARCIAL" : "⚠ DESVÍO"}
+                  </div>
+                  <div style={{ fontSize: "11px", marginBottom: "2px" }}><strong>Vía:</strong> {c.via}</div>
+                  <div style={{ fontSize: "11px", marginBottom: "2px" }}><strong>Dpto:</strong> {c.department}</div>
+                  <div style={{ fontSize: "11px", marginBottom: "2px" }}><strong>Sector:</strong> {c.sector}</div>
+                  {c.km && <div style={{ fontSize: "11px", marginBottom: "2px" }}><strong>KM:</strong> {c.km}</div>}
+                  <div style={{ fontSize: "11px", marginBottom: "4px" }}><strong>Razón:</strong> {c.reason}</div>
+                  {c.alternativeRoute && c.alternativeRoute !== "Sin información" && (
+                    <div style={{ fontSize: "10px", background: "#f0fdf4", borderRadius: "4px", padding: "3px 6px" }}>🔀 Ruta alterna: {c.alternativeRoute}</div>
+                  )}
+                  <div style={{ fontSize: "9px", color: "#999", marginTop: "4px" }}>
+                    📅 {c.startDate}{c.indefinite ? " (Indefinido)" : c.endDate ? ` → ${c.endDate}` : ""}
+                  </div>
+                  <div style={{ fontSize: "8px", color: "#aaa", marginTop: "2px" }}>Fuente: policia.gov.co/estado-de-las-vias</div>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+
+          {/* ── Cierres INVIAS ── */}
+          {showInvias && inviasMarkers.map((c, idx) => (
+            <Marker key={`inv-${idx}`} position={c.position} icon={inviasIcon}>
+              <Popup>
+                <div style={{ minWidth: "210px" }}>
+                  <div style={{ fontWeight: 700, fontSize: "13px", color: "#d97706", marginBottom: "4px" }}>🏗 INVIAS</div>
+                  <div style={{ fontSize: "10px", background: c.conditionCode === "cierre_total" ? "#fee2e2" : c.conditionCode === "obra" ? "#fef3c7" : "#f0fdf4", borderRadius: "4px", padding: "2px 6px", marginBottom: "5px", fontWeight: 700 }}>
+                    {c.conditionCode === "cierre_total" ? "🔴 CIERRE TOTAL" : c.conditionCode === "cierre_parcial" ? "🟡 CIERRE PARCIAL" : c.conditionCode === "obra" ? "🏗 OBRA/MANTENIMIENTO" : c.conditionCode === "derrumbe" ? "⛰ DERRUMBE" : "⚠ OTRO"}
+                  </div>
+                  <div style={{ fontSize: "11px", marginBottom: "2px" }}><strong>Vía:</strong> {c.via}</div>
+                  <div style={{ fontSize: "11px", marginBottom: "2px" }}><strong>Dpto:</strong> {c.department}</div>
+                  <div style={{ fontSize: "11px", marginBottom: "2px" }}><strong>Sector:</strong> {c.sector}</div>
+                  {c.km && <div style={{ fontSize: "11px", marginBottom: "2px" }}><strong>KM:</strong> {c.km}</div>}
+                  <div style={{ fontSize: "11px", marginBottom: "4px" }}><strong>Razón:</strong> {c.reason}</div>
+                  {c.alternativeRoute && c.alternativeRoute !== "Sin información" && (
+                    <div style={{ fontSize: "10px", background: "#f0fdf4", borderRadius: "4px", padding: "3px 6px" }}>🔀 Ruta alterna: {c.alternativeRoute}</div>
+                  )}
+                  <div style={{ fontSize: "9px", color: "#999", marginTop: "4px" }}>
+                    📅 {c.startDate}{c.indefinite ? " (Indefinido)" : c.endDate ? ` → ${c.endDate}` : ""}
+                  </div>
+                  <div style={{ fontSize: "8px", color: "#aaa", marginTop: "2px" }}>Fuente: invias.gov.co</div>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
         </MapContainer>
       </div>
 
@@ -1476,6 +1666,114 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
             ))}
           </div>
           <div style={{ fontSize: "9px", color: textMuted, marginTop: "6px" }}>Estaciones de pesaje INVIAS — Haga clic en el pin del mapa para más detalle</div>
+        </div>
+      )}
+
+      {/* ── POLICÍA NACIONAL PANEL ── */}
+      {showPolicia && (
+        <div style={{ background: dark ? "rgba(29,78,216,0.05)" : "#eff6ff", border: `1px solid rgba(59,130,246,0.3)`, borderRadius: "12px", padding: "12px 14px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "10px" }}>
+            <span style={{ fontSize: "13px" }}>🚔</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#3b82f6" }}>
+                Cierres Oficiales — Policía Nacional{canonDepts.length > 0 ? " (Ruta)" : ""}
+              </div>
+              {roadData?.fetchedAt && (
+                <div style={{ fontSize: "8px", color: textMuted }}>
+                  Actualizado: {new Date(roadData.fetchedAt).toLocaleString("es-CO")} · Fuente: policia.gov.co
+                </div>
+              )}
+            </div>
+            <span style={{ fontSize: "9px", fontWeight: 700, color: panelPolicia.length > 0 ? "#3b82f6" : "#10b981", background: panelPolicia.length > 0 ? "rgba(59,130,246,0.12)" : "rgba(16,185,129,0.12)", padding: "2px 8px", borderRadius: "8px" }}>
+              {panelPolicia.length} cierre{panelPolicia.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+          {panelPolicia.length === 0 ? (
+            <div style={{ textAlign: "center", fontSize: "11px", color: textMuted, padding: "12px 0" }}>
+              {roadData?.error
+                ? `⚠ ${roadData.error} — Verificar policia.gov.co/estado-de-las-vias`
+                : `✅ Sin cierres oficiales reportados${canonDepts.length > 0 ? " en esta ruta" : ""}. Se actualiza automáticamente cada 2h.`}
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "5px", maxHeight: "320px", overflowY: "auto" }}>
+              {panelPolicia.map((c, i) => (
+                <div key={i} style={{ background: dark ? "rgba(29,78,216,0.07)" : "#dbeafe", border: `1px solid rgba(59,130,246,0.2)`, borderRadius: "8px", padding: "8px 10px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
+                    <span style={{ fontSize: "9px", fontWeight: 800, color: c.conditionCode === "cierre_total" ? E.red : c.conditionCode === "cierre_parcial" ? E.amber : "#10b981", background: c.conditionCode === "cierre_total" ? "rgba(239,68,68,0.12)" : c.conditionCode === "cierre_parcial" ? "rgba(245,158,11,0.12)" : "rgba(16,185,129,0.12)", padding: "1px 5px", borderRadius: "4px" }}>
+                      {c.conditionCode === "cierre_total" ? "🔴 TOTAL" : c.conditionCode === "cierre_parcial" ? "🟡 PARCIAL" : "⚠ DESVÍO"}
+                    </span>
+                    <span style={{ fontSize: "9px", fontWeight: 600, color: textMuted }}>{c.department}</span>
+                    {c.indefinite && <span style={{ marginLeft: "auto", fontSize: "8px", color: E.red, fontWeight: 700 }}>INDEFINIDO</span>}
+                  </div>
+                  <div style={{ fontSize: "11px", fontWeight: 700, color: dark ? "#e2eaf4" : "#1e3a8a", marginBottom: "2px" }}>{c.via}</div>
+                  <div style={{ fontSize: "10px", color: textMuted, marginBottom: "2px" }}>{c.sector}{c.km ? ` · KM ${c.km}` : ""}</div>
+                  <div style={{ fontSize: "10px", color: dark ? "#94a3b8" : "#4b5563" }}>{c.reason}</div>
+                  {c.alternativeRoute && c.alternativeRoute !== "Sin información" && (
+                    <div style={{ fontSize: "9px", color: "#10b981", marginTop: "3px" }}>🔀 {c.alternativeRoute}</div>
+                  )}
+                  <div style={{ fontSize: "8px", color: textMuted, marginTop: "3px" }}>📅 {c.startDate}{c.endDate ? ` → ${c.endDate}` : ""}{c.responsibleEntity && c.responsibleEntity !== "N/A" ? ` · ${c.responsibleEntity}` : ""}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "8px", paddingTop: "6px", borderTop: `1px solid rgba(59,130,246,0.15)` }}>
+            <div style={{ fontSize: "9px", color: textMuted }}>Total nacional: {policiaConditions.filter(c => c.conditionCode !== "otro").length} cierres · Actualización automática cada 2h</div>
+            <a href="https://www.policia.gov.co/estado-de-las-vias" target="_blank" rel="noopener noreferrer" style={{ fontSize: "9px", color: "#3b82f6", textDecoration: "none", fontWeight: 600 }}>Ver fuente ↗</a>
+          </div>
+        </div>
+      )}
+
+      {/* ── INVIAS PANEL ── */}
+      {showInvias && (
+        <div style={{ background: dark ? "rgba(217,119,6,0.05)" : "#fffbeb", border: `1px solid rgba(249,115,22,0.3)`, borderRadius: "12px", padding: "12px 14px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "10px" }}>
+            <span style={{ fontSize: "13px" }}>🏗</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#f97316" }}>
+                Cierres INVIAS{canonDepts.length > 0 ? " (Ruta)" : " — Nacional"}
+              </div>
+              {inviasData?.fetchedAt && (
+                <div style={{ fontSize: "8px", color: textMuted }}>
+                  Actualizado: {new Date(inviasData.fetchedAt).toLocaleString("es-CO")} · Fuente: invias.gov.co
+                </div>
+              )}
+            </div>
+            <span style={{ fontSize: "9px", fontWeight: 700, color: panelInvias.length > 0 ? "#f97316" : "#10b981", background: panelInvias.length > 0 ? "rgba(249,115,22,0.12)" : "rgba(16,185,129,0.12)", padding: "2px 8px", borderRadius: "8px" }}>
+              {panelInvias.length} registro{panelInvias.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+          {panelInvias.length === 0 ? (
+            <div style={{ textAlign: "center", fontSize: "11px", color: textMuted, padding: "12px 0" }}>
+              {inviasData?.error
+                ? `⚠ ${inviasData.error} — Verificar invias.gov.co/estado-vias`
+                : `✅ Sin cierres INVIAS registrados${canonDepts.length > 0 ? " en esta ruta" : ""}. Se actualiza cada 2h.`}
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "5px", maxHeight: "300px", overflowY: "auto" }}>
+              {panelInvias.map((c, i) => (
+                <div key={i} style={{ background: dark ? "rgba(217,119,6,0.07)" : "#fef3c7", border: `1px solid rgba(249,115,22,0.2)`, borderRadius: "8px", padding: "8px 10px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
+                    <span style={{ fontSize: "9px", fontWeight: 800, color: c.conditionCode === "cierre_total" ? E.red : c.conditionCode === "cierre_parcial" ? E.amber : c.conditionCode === "obra" ? "#f97316" : "#10b981", background: "rgba(0,0,0,0.06)", padding: "1px 5px", borderRadius: "4px" }}>
+                      {c.conditionCode === "cierre_total" ? "🔴 TOTAL" : c.conditionCode === "cierre_parcial" ? "🟡 PARCIAL" : c.conditionCode === "obra" ? "🏗 OBRA" : c.conditionCode === "derrumbe" ? "⛰ DERRUMBE" : "⚠ OTRO"}
+                    </span>
+                    <span style={{ fontSize: "9px", fontWeight: 600, color: textMuted }}>{c.department}</span>
+                    {c.indefinite && <span style={{ marginLeft: "auto", fontSize: "8px", color: E.red, fontWeight: 700 }}>INDEFINIDO</span>}
+                  </div>
+                  <div style={{ fontSize: "11px", fontWeight: 700, color: dark ? "#e2eaf4" : "#92400e", marginBottom: "2px" }}>{c.via}</div>
+                  <div style={{ fontSize: "10px", color: textMuted, marginBottom: "2px" }}>{c.sector}{c.km ? ` · KM ${c.km}` : ""}</div>
+                  <div style={{ fontSize: "10px", color: dark ? "#94a3b8" : "#4b5563" }}>{c.reason}</div>
+                  {c.alternativeRoute && c.alternativeRoute !== "Sin información" && (
+                    <div style={{ fontSize: "9px", color: "#10b981", marginTop: "3px" }}>🔀 {c.alternativeRoute}</div>
+                  )}
+                  <div style={{ fontSize: "8px", color: textMuted, marginTop: "3px" }}>📅 {c.startDate}{c.endDate ? ` → ${c.endDate}` : ""}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "8px", paddingTop: "6px", borderTop: `1px solid rgba(249,115,22,0.15)` }}>
+            <div style={{ fontSize: "9px", color: textMuted }}>Actualización automática cada 2h · Incluye obras, derrumbes y cierres</div>
+            <a href="https://www.invias.gov.co/index.php/estado-vias" target="_blank" rel="noopener noreferrer" style={{ fontSize: "9px", color: "#f97316", textDecoration: "none", fontWeight: 600 }}>Ver fuente ↗</a>
+          </div>
         </div>
       )}
 
