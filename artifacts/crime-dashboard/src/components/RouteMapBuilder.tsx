@@ -1652,7 +1652,7 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
       )}
 
       {/* ── MAP ── */}
-      <div style={{ borderRadius: "14px", overflow: "hidden", border: `1px solid ${borderC}`, height: "440px", position: "relative" }}>
+      <div style={{ borderRadius: "14px", overflow: "hidden", border: `1px solid ${borderC}`, height: "460px", position: "relative" }}>
 
         {/* ── Layer selector (bottom-left overlay) ── */}
         <div style={{
@@ -1661,7 +1661,7 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
           background: dark ? "rgba(7,12,21,0.90)" : "rgba(255,255,255,0.93)",
           border: `1px solid ${borderC}`, borderRadius: "10px", padding: "6px 8px",
           backdropFilter: "blur(6px)", boxShadow: "0 4px 16px rgba(0,0,0,0.35)",
-          maxHeight: "380px", overflowY: "auto",
+          maxHeight: "430px", overflowY: "auto",
         }}>
           {/* Base tiles */}
           <div style={{ fontSize: "8px", fontWeight: 700, color: textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "2px" }}>Fondo</div>
