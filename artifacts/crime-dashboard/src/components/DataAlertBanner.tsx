@@ -87,6 +87,9 @@ export function DataAlertBanner({ dark = true }: Props) {
   }
 
   /* ── Road conditions alerts ── */
+  const isNetworkError = (msg: string) =>
+    /fetch failed|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|AbortError|network/i.test(msg);
+
   if (rcError) {
     alerts.push({
       id: "road-api-down",
@@ -99,7 +102,7 @@ export function DataAlertBanner({ dark = true }: Props) {
         loading: rcRefreshing || rcLoading,
       },
     });
-  } else if (rcData?.error) {
+  } else if (rcData?.error && !isNetworkError(rcData.error)) {
     alerts.push({
       id: "road-source-error",
       level: "warning",
