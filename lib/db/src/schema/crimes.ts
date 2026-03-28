@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, index, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, index, boolean, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -45,6 +45,8 @@ export const blockadeTable = pgTable("blockades", {
   status: text("status").notNull().default("activo"),
   notes: text("notes"),
   reporter: text("reporter"),
+  lat: real("lat"),
+  lng: real("lng"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [

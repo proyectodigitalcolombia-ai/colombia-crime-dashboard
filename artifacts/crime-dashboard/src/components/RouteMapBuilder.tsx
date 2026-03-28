@@ -1327,7 +1327,11 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
 
           {/* ── Cierres activos sobre la ruta ── */}
           {routeBlockades.map((bl, idx) => {
-            const center = DEPT_CENTROIDS[bl.department ?? ""] ?? null;
+            /* Prefer precise geocoded coordinates stored in DB; fallback to dept centroid */
+            const center: [number, number] | null =
+              (bl.lat != null && bl.lng != null)
+                ? [bl.lat, bl.lng]
+                : (DEPT_CENTROIDS[bl.department ?? ""] ?? null);
             if (!center) return null;
             return (
               <Marker key={`bl-${idx}`} position={center} icon={blockadeIcon}>

@@ -4,6 +4,32 @@ import { eq, desc } from "drizzle-orm";
 import Anthropic from "@anthropic-ai/sdk";
 import Groq from "groq-sdk";
 import { parse as parseHtml } from "node-html-parser";
+import { createRequire } from "module";
+
+const _require = createRequire(import.meta.url);
+
+/* ── Nominatim geocoder (OpenStreetMap, free, no key required) ─────────────
+   Returns precise lat/lng for a location string like "Oiba, Santander"
+   ──────────────────────────────────────────────────────────────────────── */
+async function geocode(location: string, department: string): Promise<{ lat: number; lng: number } | null> {
+  const queries = [
+    `${location}, ${department}, Colombia`,
+    `${location}, Colombia`,
+  ];
+  for (const q of queries) {
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1&countrycodes=co`;
+      const r = await fetch(url, {
+        headers: { "User-Agent": "SafeNode-Security-Dashboard/1.0 (safenode.com.co)" },
+        signal: AbortSignal.timeout(6000),
+      });
+      if (!r.ok) continue;
+      const data: any[] = await r.json();
+      if (data.length) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+    } catch { /* ignore, try next query */ }
+  }
+  return null;
+}
 
 /* ── Unified AI helper ────────────────────────────────────────────────────────
    Priority:
@@ -159,11 +185,20 @@ router.post("/blockades/from-url", async (req, res) => {
 TEXTO FUENTE (${hostname}):
 ${text}
 
+REGLA CRÍTICA para el campo "department":
+- Identifica el DEPARTAMENTO donde FÍSICAMENTE ocurre el bloqueo.
+- Usa el municipio o kilómetro mencionado para determinar el departamento real.
+- NO uses el departamento del destino de la ruta ni el de la ciudad capital de la empresa.
+- Ejemplos correctos: si el bloqueo es en Oiba → "Santander". Si es en La Paila → "Valle del Cauca". Si es en La Pintada → "Antioquia".
+- Municipios y sus departamentos: Oiba→Santander, Chaparral→Tolima, Florencia→Caquetá, Mocoa→Putumayo, Popayán→Cauca, Neiva→Huila, Palmira→Valle del Cauca, La Dorada→Caldas, Honda→Tolima, Ciénaga→Magdalena, Aguachica→Cesar, Ocaña→Norte de Santander, Tibú→Norte de Santander, El Bagre→Antioquia, Turbo→Antioquia, Rionegro→Antioquia, Quibdó→Chocó, Buenaventura→Valle del Cauca.
+- Si el texto solo menciona una vía (ej. "vía Bogotá-Medellín") sin municipio específico, usa "Antioquia" o "Cundinamarca" según el kilómetro.
+
 Responde SOLO con un JSON array. Si no hay bloqueos, responde []. Cada objeto debe tener EXACTAMENTE estos campos:
 - "corridorId": uno de ["bog-med","bog-cal","bog-baq","med-bar","cal-bar","bog-vil","bog-cuc","med-eje","bog-tun","cal-pop","otro"]
-- "department": nombre del departamento colombiano (ej: "Antioquia", "Cundinamarca")
+- "department": departamento colombiano donde ocurre FÍSICAMENTE el bloqueo (ver REGLA CRÍTICA arriba)
+- "municipality": nombre del municipio específico donde ocurre el bloqueo (ej: "Oiba", "La Paila", "El Bagre")
 - "date": fecha YYYY-MM-DD (usa ${today} si no se menciona)
-- "location": ubicación específica (ej: "Km 54 vía Bogotá-Medellín, sector La Quiebra")
+- "location": ubicación específica (ej: "Km 54 vía Bogotá-Medellín sector La Quiebra" o "Casco urbano Oiba")
 - "cause": uno de ["comunidad","protesta_social","paro_camionero","grupos_ilegales","otro"]
 - "status": uno de ["activo","levantado","intermitente"]
 - "notes": resumen del incidente máx 180 caracteres
@@ -182,7 +217,16 @@ Responde SOLO con el JSON array, sin texto adicional antes ni después.`);
       return res.json({ inserted: [], message: "No se identificaron bloqueos viales en el contenido analizado" });
     }
 
-    const toInsert = blockades.map(b => ({
+    /* Geocode each blockade via Nominatim (parallelized, best-effort) */
+    const geocodeResults = await Promise.all(
+      blockades.map(b => {
+        const loc = b.municipality ?? b.location ?? "";
+        const dept = b.department ?? "";
+        return geocode(loc, dept).catch(() => null);
+      })
+    );
+
+    const toInsert = blockades.map((b, i) => ({
       corridorId:    (typeof b.corridorId === "string" && b.corridorId.trim()) ? b.corridorId.trim() : "otro",
       department:    (typeof b.department === "string" && b.department.trim()) ? b.department.trim() : "Colombia",
       date:          (typeof b.date === "string" && b.date.trim()) ? b.date.trim() : today,
@@ -192,6 +236,8 @@ Responde SOLO con el JSON array, sin texto adicional antes ni después.`);
       notes:         `[${b.newsTitle || "Noticia"}] ${b.notes || ""}`.slice(0, 280),
       reporter:      `IA — ${hostname}`,
       durationHours: null as number | null,
+      lat:           geocodeResults[i]?.lat ?? null,
+      lng:           geocodeResults[i]?.lng ?? null,
     }));
 
     const inserted = await db.insert(blockadeTable).values(toInsert).returning();
@@ -211,20 +257,22 @@ router.post("/analyze/pdf", async (req, res) => {
   try {
     let text: string = req.body?.text ?? "";
 
-    /* If caller sends raw base64 PDF, extract text server-side with pdf-parse */
+    /* If caller sends raw base64 PDF, extract text server-side with pdf-parse.
+       Use createRequire(_require) because pdf-parse is CJS and dynamic import()
+       of CJS modules in an ESM bundle may return undefined for .default.        */
     if (!text && req.body?.pdfBase64) {
       try {
         const buf = Buffer.from(req.body.pdfBase64, "base64");
-        if (buf.length > 15_000_000) {
-          return res.status(400).json({ error: "El PDF es demasiado grande (máx 15 MB). Redúzcalo antes de enviarlo." });
+        if (buf.length > 20_000_000) {
+          return res.status(400).json({ error: "El PDF es demasiado grande (máx 20 MB). Redúzcalo antes de enviarlo." });
         }
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const pdfParse = (await import("pdf-parse")).default;
+        const pdfParse: (buf: Buffer, opts?: any) => Promise<{ text: string }> = _require("pdf-parse");
+        if (typeof pdfParse !== "function") throw new Error("pdf-parse no se pudo cargar correctamente");
         const parsed = await pdfParse(buf, { max: 50 }); // limit to first 50 pages
         text = parsed.text;
       } catch (parseErr: any) {
         const msg = parseErr instanceof RangeError
-          ? "El PDF es demasiado complejo para procesarlo automáticamente. Copie y pegue el texto manualmente en el campo de texto."
+          ? "El PDF es demasiado complejo para procesarlo automáticamente. Copie y pegue el texto manualmente."
           : `No se pudo extraer texto del PDF: ${parseErr.message}`;
         return res.status(400).json({ error: msg });
       }
