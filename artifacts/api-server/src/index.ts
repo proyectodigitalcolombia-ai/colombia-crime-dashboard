@@ -83,6 +83,13 @@ async function ensureSchema() {
         fetched_at TIMESTAMP NOT NULL DEFAULT NOW()
       );
     `);
+
+    /* Incremental migrations — idempotent, safe to run on every startup */
+    await client.query(`
+      ALTER TABLE blockades ADD COLUMN IF NOT EXISTS lat REAL;
+      ALTER TABLE blockades ADD COLUMN IF NOT EXISTS lng REAL;
+    `);
+
     logger.info("Database schema ensured (all tables)");
   } finally {
     client.release();
