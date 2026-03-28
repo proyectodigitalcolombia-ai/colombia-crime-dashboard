@@ -611,6 +611,379 @@ const BASCULAS: Bascula[] = [
   { name: "Básc. Neiva", lat: 2.9300, lng: -75.2800, dept: "Huila", via: "Ruta Sur", dir: "Ambos sentidos" },
 ];
 
+/* ════════ FUERZAS MILITARES — DATASET PÚBLICO ════════
+   Fuentes: ejercito.mil.co · armada.mil.co · fac.mil.co · policia.gov.co · mindefensa.gov.co
+   Información de carácter público institucional — sin datos operacionales clasificados.
+════════════════════════════════════════════════════════ */
+
+type MilitaryBranch = "ejercito" | "armada" | "fuerza_aerea" | "policia";
+interface MilitaryUnit {
+  id: string;
+  name: string;
+  shortName: string;
+  type: MilitaryBranch;
+  division?: string;
+  city: string;
+  department: string;
+  lat: number; lng: number;
+  depts: string[];
+  phone: string;
+  emergency: string;
+  role: string;
+  website?: string;
+}
+
+const MILITARY_UNITS: MilitaryUnit[] = [
+  /* ── EJÉRCITO NACIONAL — DIVISIONES ─────────────────────── */
+  {
+    id: "div1", name: "Primera División del Ejército", shortName: "1ª División", type: "ejercito", division: "División",
+    city: "Bogotá D.C.", department: "Bogotá D.C.", lat: 4.6572, lng: -74.0969,
+    depts: ["Bogotá D.C.", "Cundinamarca", "Boyacá", "Tolima"],
+    phone: "601 315 0111", emergency: "159", role: "Comando operacional — centro del país",
+    website: "https://www.ejercito.mil.co",
+  },
+  {
+    id: "div2", name: "Segunda División del Ejército", shortName: "2ª División", type: "ejercito", division: "División",
+    city: "Bucaramanga", department: "Santander", lat: 7.0700, lng: -73.0600,
+    depts: ["Santander", "Norte de Santander", "Bolívar"],
+    phone: "607 643 5000", emergency: "159", role: "Comando operacional — nororiente",
+    website: "https://www.ejercito.mil.co",
+  },
+  {
+    id: "div3", name: "Tercera División del Ejército", shortName: "3ª División", type: "ejercito", division: "División",
+    city: "Cali", department: "Valle del Cauca", lat: 3.4200, lng: -76.5200,
+    depts: ["Valle del Cauca", "Cauca", "Nariño", "Huila"],
+    phone: "602 399 3000", emergency: "159", role: "Comando operacional — suroccidente",
+    website: "https://www.ejercito.mil.co",
+  },
+  {
+    id: "div4", name: "Cuarta División del Ejército", shortName: "4ª División", type: "ejercito", division: "División",
+    city: "Villavicencio", department: "Meta", lat: 4.1400, lng: -73.6200,
+    depts: ["Meta", "Casanare", "Arauca", "Vichada", "Guaviare"],
+    phone: "608 662 7100", emergency: "159", role: "Comando operacional — Llanos Orientales",
+    website: "https://www.ejercito.mil.co",
+  },
+  {
+    id: "div6", name: "Sexta División del Ejército", shortName: "6ª División", type: "ejercito", division: "División",
+    city: "Florencia", department: "Caquetá", lat: 1.6100, lng: -75.5900,
+    depts: ["Caquetá", "Putumayo", "Amazonas", "Vaupés"],
+    phone: "608 434 8000", emergency: "159", role: "Comando operacional — Amazonía",
+    website: "https://www.ejercito.mil.co",
+  },
+  {
+    id: "div7", name: "Séptima División del Ejército", shortName: "7ª División", type: "ejercito", division: "División",
+    city: "Medellín", department: "Antioquia", lat: 6.2300, lng: -75.5700,
+    depts: ["Antioquia", "Córdoba", "Chocó"],
+    phone: "604 385 0000", emergency: "159", role: "Comando operacional — noroccidente",
+    website: "https://www.ejercito.mil.co",
+  },
+  /* ── EJÉRCITO NACIONAL — BRIGADAS TERRITORIALES ─────────── */
+  {
+    id: "brig1", name: "Brigada 1 de Infantería", shortName: "Brig. 1", type: "ejercito", division: "1ª División",
+    city: "Honda", department: "Tolima", lat: 5.2050, lng: -74.7389,
+    depts: ["Cundinamarca", "Tolima", "Boyacá"],
+    phone: "868 251 1700", emergency: "159", role: "Seguridad corredor Magdalena medio",
+  },
+  {
+    id: "brig2", name: "Brigada 2 de Infantería", shortName: "Brig. 2", type: "ejercito", division: "2ª División",
+    city: "Bucaramanga", department: "Santander", lat: 7.1253, lng: -73.1198,
+    depts: ["Santander"],
+    phone: "607 657 5000", emergency: "159", role: "Seguridad territorial — Santander",
+  },
+  {
+    id: "brig3", name: "Brigada 3 de Infantería", shortName: "Brig. 3", type: "ejercito", division: "3ª División",
+    city: "Cali", department: "Valle del Cauca", lat: 3.4516, lng: -76.5320,
+    depts: ["Valle del Cauca"],
+    phone: "602 551 4141", emergency: "159", role: "Seguridad territorial — Valle del Cauca",
+  },
+  {
+    id: "brig4", name: "Brigada 4 de Infantería", shortName: "Brig. 4", type: "ejercito", division: "7ª División",
+    city: "Medellín", department: "Antioquia", lat: 6.2442, lng: -75.5812,
+    depts: ["Antioquia"],
+    phone: "604 385 3000", emergency: "159", role: "Seguridad territorial — Antioquia centro",
+  },
+  {
+    id: "brig5", name: "Brigada 5 de Infantería", shortName: "Brig. 5", type: "ejercito", division: "2ª División",
+    city: "Bucaramanga", department: "Santander", lat: 7.1400, lng: -73.1400,
+    depts: ["Santander", "Sur de Bolívar"],
+    phone: "607 643 9000", emergency: "159", role: "Operaciones especiales — Magdalena Medio",
+  },
+  {
+    id: "brig6", name: "Brigada 6 de Infantería", shortName: "Brig. 6", type: "ejercito", division: "3ª División",
+    city: "Ibagué", department: "Tolima", lat: 4.4389, lng: -75.2322,
+    depts: ["Tolima", "Huila"],
+    phone: "608 261 8000", emergency: "159", role: "Seguridad territorial — Tolima y Huila",
+  },
+  {
+    id: "brig7", name: "Brigada 7 de Infantería", shortName: "Brig. 7", type: "ejercito", division: "4ª División",
+    city: "Villavicencio", department: "Meta", lat: 4.1533, lng: -73.6371,
+    depts: ["Meta"],
+    phone: "608 662 7200", emergency: "159", role: "Seguridad territorial — Meta y acceso Llanos",
+  },
+  {
+    id: "brig8", name: "Brigada 8 de Infantería", shortName: "Brig. 8", type: "ejercito", division: "3ª División",
+    city: "Pasto", department: "Nariño", lat: 1.2136, lng: -77.2811,
+    depts: ["Nariño"],
+    phone: "602 723 9000", emergency: "159", role: "Seguridad territorial — Nariño y frontera Ecuador",
+  },
+  {
+    id: "brig11", name: "Brigada 11 de Infantería", shortName: "Brig. 11", type: "ejercito", division: "7ª División",
+    city: "Montería", department: "Córdoba", lat: 8.7574, lng: -75.8908,
+    depts: ["Córdoba", "Sucre"],
+    phone: "604 782 7000", emergency: "159", role: "Seguridad territorial — Córdoba y Sucre",
+  },
+  {
+    id: "brig12", name: "Brigada 12 de Infantería", shortName: "Brig. 12", type: "ejercito", division: "6ª División",
+    city: "Florencia", department: "Caquetá", lat: 1.6144, lng: -75.6062,
+    depts: ["Caquetá"],
+    phone: "608 434 8200", emergency: "159", role: "Seguridad territorial — Caquetá",
+  },
+  {
+    id: "brig13", name: "Brigada 13 de Infantería", shortName: "Brig. 13", type: "ejercito", division: "1ª División",
+    city: "Bogotá D.C.", department: "Bogotá D.C.", lat: 4.6800, lng: -74.1200,
+    depts: ["Bogotá D.C.", "Cundinamarca"],
+    phone: "601 315 0200", emergency: "159", role: "Defensa capital — Bogotá y Cundinamarca",
+  },
+  {
+    id: "brig14", name: "Brigada 14 de Infantería (Fuerza de Tarea Conjunta)", shortName: "Brig. 14 / FTC", type: "ejercito", division: "7ª División",
+    city: "Apartadó", department: "Antioquia", lat: 7.8831, lng: -76.6250,
+    depts: ["Antioquia", "Chocó"],
+    phone: "604 828 7000", emergency: "159", role: "Operaciones Urabá — Bajo Atrato",
+  },
+  {
+    id: "brig16", name: "Brigada 16 de Infantería", shortName: "Brig. 16", type: "ejercito", division: "4ª División",
+    city: "Yopal", department: "Casanare", lat: 5.3378, lng: -72.3967,
+    depts: ["Casanare"],
+    phone: "608 635 8000", emergency: "159", role: "Seguridad territorial — Casanare y oleoductos",
+  },
+  {
+    id: "brig18", name: "Brigada 18 de Infantería", shortName: "Brig. 18", type: "ejercito", division: "4ª División",
+    city: "Arauca", department: "Arauca", lat: 7.0897, lng: -70.7619,
+    depts: ["Arauca"],
+    phone: "607 885 7100", emergency: "159", role: "Seguridad territorial — Arauca y frontera Venezuela",
+  },
+  {
+    id: "brig22", name: "Brigada 22 de Infantería", shortName: "Brig. 22", type: "ejercito", division: "4ª División",
+    city: "Yopal", department: "Casanare", lat: 5.3500, lng: -72.3700,
+    depts: ["Casanare", "Meta Norte"],
+    phone: "608 635 8100", emergency: "159", role: "Seguridad vías — corredor petrolero Llanos",
+  },
+  {
+    id: "brig23", name: "Brigada 23 de Infantería", shortName: "Brig. 23", type: "ejercito", division: "3ª División",
+    city: "Popayán", department: "Cauca", lat: 2.4448, lng: -76.6147,
+    depts: ["Cauca"],
+    phone: "602 824 8000", emergency: "159", role: "Seguridad territorial — Cauca",
+  },
+  {
+    id: "brig26", name: "Brigada 26 de Infantería", shortName: "Brig. 26", type: "ejercito", division: "6ª División",
+    city: "Mocoa", department: "Putumayo", lat: 1.1523, lng: -76.6482,
+    depts: ["Putumayo"],
+    phone: "608 429 1000", emergency: "159", role: "Seguridad territorial — Putumayo y frontera Ecuador",
+  },
+  {
+    id: "brig27", name: "Brigada 27 de Infantería", shortName: "Brig. 27", type: "ejercito", division: "6ª División",
+    city: "San José del Guaviare", department: "Guaviare", lat: 2.5667, lng: -72.6389,
+    depts: ["Guaviare", "Vaupés"],
+    phone: "608 584 8000", emergency: "159", role: "Seguridad territorial — Guaviare y selva oriental",
+  },
+  {
+    id: "brig29", name: "Brigada 29 de Infantería", shortName: "Brig. 29", type: "ejercito", division: "3ª División",
+    city: "Melgar", department: "Tolima", lat: 4.2025, lng: -74.6383,
+    depts: ["Tolima", "Cundinamarca Sur"],
+    phone: "608 247 8000", emergency: "159", role: "Entrenamiento y reserva estratégica",
+  },
+  {
+    id: "brig30", name: "Brigada 30 de Infantería", shortName: "Brig. 30", type: "ejercito", division: "2ª División",
+    city: "Cúcuta", department: "Norte de Santander", lat: 7.8939, lng: -72.5078,
+    depts: ["Norte de Santander"],
+    phone: "607 583 7000", emergency: "159", role: "Seguridad territorial — Norte de Santander y frontera Venezuela",
+  },
+  /* ── ARMADA NACIONAL ─────────────────────────────────────── */
+  {
+    id: "nav_caribe", name: "Fuerza Naval del Caribe", shortName: "FN Caribe", type: "armada", division: "Armada",
+    city: "Cartagena", department: "Bolívar", lat: 10.3910, lng: -75.4794,
+    depts: ["Bolívar", "Atlántico", "Magdalena", "Sucre", "Córdoba", "La Guajira", "Cesar"],
+    phone: "605 665 0000", emergency: "146", role: "Control marítimo y fluvial — Caribe colombiano",
+    website: "https://www.armada.mil.co",
+  },
+  {
+    id: "nav_pacifico", name: "Fuerza Naval del Pacífico", shortName: "FN Pacífico", type: "armada", division: "Armada",
+    city: "Buenaventura", department: "Valle del Cauca", lat: 3.8801, lng: -77.0311,
+    depts: ["Valle del Cauca", "Cauca", "Nariño", "Chocó"],
+    phone: "602 241 0000", emergency: "146", role: "Control marítimo — Pacífico colombiano",
+    website: "https://www.armada.mil.co",
+  },
+  {
+    id: "nav_sur", name: "Fuerza Naval del Sur", shortName: "FN Sur", type: "armada", division: "Armada",
+    city: "Puerto Leguizamo", department: "Putumayo", lat: 0.1876, lng: -74.7805,
+    depts: ["Putumayo", "Caquetá", "Amazonas"],
+    phone: "608 429 7000", emergency: "146", role: "Control fluvial — ríos Amazonía",
+    website: "https://www.armada.mil.co",
+  },
+  {
+    id: "nav_oriente", name: "Fuerza Naval del Oriente", shortName: "FN Oriente", type: "armada", division: "Armada",
+    city: "Arauca", department: "Arauca", lat: 7.0897, lng: -70.7619,
+    depts: ["Arauca", "Casanare", "Vichada", "Guainía"],
+    phone: "607 885 7200", emergency: "146", role: "Control fluvial — ríos Orinoquía",
+    website: "https://www.armada.mil.co",
+  },
+  {
+    id: "nav_arc_bolivar", name: "Base Naval ARC Bolívar", shortName: "BN ARC Bolívar", type: "armada", division: "FN Caribe",
+    city: "Cartagena", department: "Bolívar", lat: 10.4100, lng: -75.5400,
+    depts: ["Bolívar"],
+    phone: "605 665 1000", emergency: "146", role: "Base principal — Caribe",
+  },
+  {
+    id: "nav_arc_malaga", name: "Base Naval ARC Málaga", shortName: "BN ARC Málaga", type: "armada", division: "FN Pacífico",
+    city: "Bahía Málaga", department: "Valle del Cauca", lat: 3.9833, lng: -77.3000,
+    depts: ["Valle del Cauca"],
+    phone: "602 241 1000", emergency: "146", role: "Base principal — Pacífico",
+  },
+  /* ── FUERZA AÉREA COLOMBIANA ─────────────────────────────── */
+  {
+    id: "fac_cacom1", name: "Comando Aéreo de Combate No. 1 (CACOM 1)", shortName: "CACOM 1", type: "fuerza_aerea", division: "FAC",
+    city: "Madrid", department: "Cundinamarca", lat: 4.7300, lng: -74.2700,
+    depts: ["Cundinamarca", "Bogotá D.C.", "Boyacá", "Tolima"],
+    phone: "601 829 1000", emergency: "152", role: "Combate aéreo — Centro del país",
+    website: "https://www.fac.mil.co",
+  },
+  {
+    id: "fac_cacom2", name: "Comando Aéreo de Combate No. 2 (CACOM 2)", shortName: "CACOM 2", type: "fuerza_aerea", division: "FAC",
+    city: "Barranquilla", department: "Atlántico", lat: 10.8900, lng: -74.7800,
+    depts: ["Atlántico", "Magdalena", "Cesar", "La Guajira", "Bolívar", "Sucre"],
+    phone: "605 353 7000", emergency: "152", role: "Combate aéreo — Costa Caribe",
+    website: "https://www.fac.mil.co",
+  },
+  {
+    id: "fac_cacom3", name: "Comando Aéreo de Combate No. 3 (CACOM 3)", shortName: "CACOM 3", type: "fuerza_aerea", division: "FAC",
+    city: "Rionegro", department: "Antioquia", lat: 6.1500, lng: -75.3700,
+    depts: ["Antioquia", "Chocó", "Córdoba"],
+    phone: "604 569 7000", emergency: "152", role: "Combate aéreo — Noroccidente",
+    website: "https://www.fac.mil.co",
+  },
+  {
+    id: "fac_cacom4", name: "Comando Aéreo de Combate No. 4 (CACOM 4)", shortName: "CACOM 4", type: "fuerza_aerea", division: "FAC",
+    city: "Melgar", department: "Tolima", lat: 4.2025, lng: -74.6383,
+    depts: ["Tolima", "Meta", "Cundinamarca Sur"],
+    phone: "608 247 7000", emergency: "152", role: "Combate aéreo — Centro y Llanos",
+    website: "https://www.fac.mil.co",
+  },
+  {
+    id: "fac_cacom5", name: "Comando Aéreo de Combate No. 5 (CACOM 5)", shortName: "CACOM 5", type: "fuerza_aerea", division: "FAC",
+    city: "Yopal", department: "Casanare", lat: 5.3200, lng: -72.3800,
+    depts: ["Casanare", "Arauca", "Vichada"],
+    phone: "608 635 7000", emergency: "152", role: "Combate aéreo — Llanos Orientales",
+    website: "https://www.fac.mil.co",
+  },
+  {
+    id: "fac_cacom6", name: "Comando Aéreo de Combate No. 6 (CACOM 6)", shortName: "CACOM 6", type: "fuerza_aerea", division: "FAC",
+    city: "Tres Esquinas", department: "Caquetá", lat: 0.7214, lng: -75.2553,
+    depts: ["Caquetá", "Putumayo", "Amazonas"],
+    phone: "608 434 7000", emergency: "152", role: "Combate aéreo — Amazonía",
+    website: "https://www.fac.mil.co",
+  },
+  {
+    id: "fac_cacom7", name: "Comando Aéreo de Combate No. 7 (CACOM 7)", shortName: "CACOM 7", type: "fuerza_aerea", division: "FAC",
+    city: "Malambo", department: "Atlántico", lat: 10.8600, lng: -74.7700,
+    depts: ["Atlántico", "Córdoba", "Sucre"],
+    phone: "605 353 9000", emergency: "152", role: "Apoyo aéreo — Caribe occidente",
+    website: "https://www.fac.mil.co",
+  },
+  /* ── POLICÍA NACIONAL — COMANDOS REGIONALES ──────────────── */
+  {
+    id: "pol_bogota", name: "Policía Metropolitana de Bogotá", shortName: "MEBOG", type: "policia", division: "Región 1",
+    city: "Bogotá D.C.", department: "Bogotá D.C.", lat: 4.7109, lng: -74.0721,
+    depts: ["Bogotá D.C.", "Cundinamarca"],
+    phone: "601 315 9090", emergency: "123", role: "Control territorial — Capital y Cundinamarca",
+    website: "https://www.policia.gov.co",
+  },
+  {
+    id: "pol_medellin", name: "Policía Metropolitana de Medellín", shortName: "MEAME", type: "policia", division: "Región 7",
+    city: "Medellín", department: "Antioquia", lat: 6.2442, lng: -75.5812,
+    depts: ["Antioquia"],
+    phone: "604 385 9090", emergency: "123", role: "Control territorial — Antioquia",
+    website: "https://www.policia.gov.co",
+  },
+  {
+    id: "pol_cali", name: "Policía Metropolitana de Cali", shortName: "MECAL", type: "policia", division: "Región 3",
+    city: "Cali", department: "Valle del Cauca", lat: 3.4516, lng: -76.5320,
+    depts: ["Valle del Cauca"],
+    phone: "602 886 9090", emergency: "123", role: "Control territorial — Valle del Cauca",
+    website: "https://www.policia.gov.co",
+  },
+  {
+    id: "pol_barranquilla", name: "Policía Metropolitana de Barranquilla", shortName: "MEBAR", type: "policia", division: "Región 4",
+    city: "Barranquilla", department: "Atlántico", lat: 10.9639, lng: -74.7964,
+    depts: ["Atlántico"],
+    phone: "605 379 9090", emergency: "123", role: "Control territorial — Atlántico y Caribe",
+    website: "https://www.policia.gov.co",
+  },
+  {
+    id: "pol_bucaramanga", name: "Policía Metropolitana de Bucaramanga", shortName: "MEBUC", type: "policia", division: "Región 2",
+    city: "Bucaramanga", department: "Santander", lat: 7.1253, lng: -73.1198,
+    depts: ["Santander"],
+    phone: "607 634 9090", emergency: "123", role: "Control territorial — Santander",
+    website: "https://www.policia.gov.co",
+  },
+  {
+    id: "pol_cartagena", name: "Policía Metropolitana de Cartagena", shortName: "MECAR", type: "policia", division: "Región 4",
+    city: "Cartagena", department: "Bolívar", lat: 10.3910, lng: -75.4794,
+    depts: ["Bolívar"],
+    phone: "605 660 9090", emergency: "123", role: "Control territorial — Bolívar y Caribe",
+    website: "https://www.policia.gov.co",
+  },
+  {
+    id: "pol_cucuta", name: "Policía Metropolitana de Cúcuta", shortName: "MECUC", type: "policia", division: "Región 6",
+    city: "Cúcuta", department: "Norte de Santander", lat: 7.8939, lng: -72.5078,
+    depts: ["Norte de Santander"],
+    phone: "607 577 9090", emergency: "123", role: "Control territorial — Norte de Santander y frontera",
+    website: "https://www.policia.gov.co",
+  },
+  {
+    id: "pol_manizales", name: "Policía Metropolitana de Manizales", shortName: "MEMAN", type: "policia", division: "Región 8",
+    city: "Manizales", department: "Caldas", lat: 5.0703, lng: -75.5138,
+    depts: ["Caldas", "Risaralda", "Quindío"],
+    phone: "606 887 9090", emergency: "123", role: "Control territorial — Eje Cafetero",
+    website: "https://www.policia.gov.co",
+  },
+  {
+    id: "pol_pasto", name: "Policía Metropolitana de Pasto", shortName: "MEPAS", type: "policia", division: "Región 9",
+    city: "Pasto", department: "Nariño", lat: 1.2136, lng: -77.2811,
+    depts: ["Nariño"],
+    phone: "602 729 9090", emergency: "123", role: "Control territorial — Nariño y frontera Ecuador",
+    website: "https://www.policia.gov.co",
+  },
+  {
+    id: "pol_villavicencio", name: "Policía Metropolitana de Villavicencio", shortName: "MEVIL", type: "policia", division: "Región 4",
+    city: "Villavicencio", department: "Meta", lat: 4.1533, lng: -73.6371,
+    depts: ["Meta"],
+    phone: "608 662 9090", emergency: "123", role: "Control territorial — Meta y Llanos",
+    website: "https://www.policia.gov.co",
+  },
+  {
+    id: "pol_dijin", name: "Dirección de Investigación Criminal (DIJIN)", shortName: "DIJIN", type: "policia", division: "Nacional",
+    city: "Bogotá D.C.", department: "Bogotá D.C.", lat: 4.7109, lng: -74.0421,
+    depts: ["Bogotá D.C."],
+    phone: "601 315 9090 Ext. 130", emergency: "123", role: "Investigación criminal nacional — apoyo a SIJIN regionales",
+    website: "https://www.policia.gov.co/dijin",
+  },
+  {
+    id: "pol_dicar", name: "Dir. de Carabineros y Seguridad Rural (DICAR)", shortName: "DICAR", type: "policia", division: "Nacional",
+    city: "Bogotá D.C.", department: "Bogotá D.C.", lat: 4.6900, lng: -74.1100,
+    depts: ["Bogotá D.C."],
+    phone: "601 315 9090 Ext. 155", emergency: "123", role: "Policía de carreteras — control de vías rurales nacionales",
+    website: "https://www.policia.gov.co/dicar",
+  },
+];
+
+/* Colores y etiquetas por tipo de fuerza */
+const BRANCH_META: Record<MilitaryBranch, { color: string; bg: string; icon: string; label: string }> = {
+  ejercito:      { color: "#16a34a", bg: "rgba(22,163,74,0.12)",   icon: "⚔️", label: "Ejército" },
+  armada:        { color: "#0ea5e9", bg: "rgba(14,165,233,0.12)",  icon: "⚓", label: "Armada" },
+  fuerza_aerea:  { color: "#6366f1", bg: "rgba(99,102,241,0.12)",  icon: "✈️", label: "Fuerza Aérea" },
+  policia:       { color: "#1d4ed8", bg: "rgba(29,78,216,0.12)",   icon: "🚔", label: "Policía" },
+};
+
 /* ════════ MAIN COMPONENT ════════ */
 interface Props { dark?: boolean; userBlockades?: Blockade[]; pirataMap?: Record<string, number>; corridorDepts?: string[] }
 
@@ -689,6 +1062,8 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
   const [showBlockadesOnMap, setShowBlockadesOnMap]  = useState(true);
   const [showPolicia,        setShowPolicia]         = useState(false);
   const [showInvias,         setShowInvias]          = useState(false);
+  const [showMilitary,       setShowMilitary]        = useState(false);
+  const [militaryFilter,     setMilitaryFilter]      = useState<MilitaryBranch | "all">("all");
 
   /* ─ Real-time official closure data ─ */
   const { data: roadData }  = useRoadConditions();
@@ -721,6 +1096,14 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
     className: "",
     html: `<div style="background:#d97706;border:2px solid #92400e;border-radius:4px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:12px;box-shadow:0 2px 8px rgba(217,119,6,0.6);cursor:pointer">🏗</div>`,
     iconSize: [24, 24], iconAnchor: [12, 12], popupAnchor: [0, -15],
+  }), []);
+
+  /* Military icons per branch */
+  const militaryIcons = useMemo(() => ({
+    ejercito:     L.divIcon({ className: "", html: `<div style="background:#15803d;border:2px solid #14532d;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 10px rgba(21,128,61,0.7);cursor:pointer">⚔️</div>`, iconSize: [28, 28], iconAnchor: [14, 14], popupAnchor: [0, -18] }),
+    armada:       L.divIcon({ className: "", html: `<div style="background:#0369a1;border:2px solid #0c4a6e;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 10px rgba(3,105,161,0.7);cursor:pointer">⚓</div>`,  iconSize: [28, 28], iconAnchor: [14, 14], popupAnchor: [0, -18] }),
+    fuerza_aerea: L.divIcon({ className: "", html: `<div style="background:#4f46e5;border:2px solid #3730a3;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 10px rgba(79,70,229,0.7);cursor:pointer">✈️</div>`, iconSize: [28, 28], iconAnchor: [14, 14], popupAnchor: [0, -18] }),
+    policia:      L.divIcon({ className: "", html: `<div style="background:#1e40af;border:2px solid #1e3a8a;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 10px rgba(30,64,175,0.7);cursor:pointer">🛡️</div>`, iconSize: [28, 28], iconAnchor: [14, 14], popupAnchor: [0, -18] }),
   }), []);
 
   /* ─ Blockades on this route (uses routeDepts to avoid ordering deps) ─
@@ -1043,6 +1426,26 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
     position: geocodeClosure(c.sector + " " + c.municipality + " " + c.via, c.department) as [number, number] | null,
   })).filter(c => c.position !== null) as Array<typeof panelInvias[0] & { position: [number, number] }>;
 
+  /* Military units — filter by branch and by route departments (if route drawn) */
+  const panelMilitary = MILITARY_UNITS.filter(u => {
+    const branchOk = militaryFilter === "all" || u.type === militaryFilter;
+    if (!branchOk) return false;
+    if (canonDepts.length === 0) return true;
+    return u.depts.some(d => canonDepts.some(cd =>
+      d.toLowerCase().includes(cd.toLowerCase().slice(0, 5)) ||
+      cd.toLowerCase().includes(d.toLowerCase().slice(0, 5))
+    ));
+  });
+
+  /* Sort by proximity to route origin when a route is drawn */
+  const sortedMilitary = canonDepts.length > 0 && origin
+    ? [...panelMilitary].sort((a, b) => {
+        const distA = Math.sqrt(Math.pow(a.lat - origin.lat, 2) + Math.pow(a.lng - origin.lng, 2));
+        const distB = Math.sqrt(Math.pow(b.lat - origin.lat, 2) + Math.pow(b.lng - origin.lng, 2));
+        return distA - distB;
+      })
+    : panelMilitary;
+
   const recs: string[] = [];
   if (activeBlocks.length > 0) recs.push(`🚨 ${activeBlocks.length} BLOQUEO(S) ACTIVO(S) en departamentos de esta ruta`);
   if (maxNight >= 75) recs.push("⛔ Evitar tránsito entre 10 PM y 5 AM — alta incidencia nocturna");
@@ -1287,11 +1690,12 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
           {/* Overlay layers */}
           <div style={{ fontSize: "8px", fontWeight: 700, color: textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "2px" }}>Capas</div>
           {[
-            { id: "peajes",   label: "Peajes",   icon: "💲", active: showPeajes,         set: setShowPeajes,         color: E.amber,   badge: null },
-            { id: "basculas", label: "Básculas", icon: "⚖", active: showBasculas,        set: setShowBasculas,       color: "#8b5cf6", badge: null },
-            { id: "cierres",  label: "Cierres",  icon: "🚨", active: showBlockadesOnMap,  set: setShowBlockadesOnMap, color: E.red,     badge: routeBlockades.length || null },
-            { id: "policia",  label: "Policía",  icon: "🚔", active: showPolicia,         set: setShowPolicia,        color: "#3b82f6", badge: panelPolicia.length || null },
-            { id: "invias",   label: "INVIAS",   icon: "🏗", active: showInvias,          set: setShowInvias,         color: "#f97316", badge: panelInvias.length || null },
+            { id: "peajes",   label: "Peajes",    icon: "💲", active: showPeajes,         set: setShowPeajes,         color: E.amber,   badge: null },
+            { id: "basculas", label: "Básculas",  icon: "⚖", active: showBasculas,        set: setShowBasculas,       color: "#8b5cf6", badge: null },
+            { id: "cierres",  label: "Cierres",   icon: "🚨", active: showBlockadesOnMap,  set: setShowBlockadesOnMap, color: E.red,     badge: routeBlockades.length || null },
+            { id: "policia",  label: "Policía",   icon: "🚔", active: showPolicia,         set: setShowPolicia,        color: "#3b82f6", badge: panelPolicia.length || null },
+            { id: "invias",   label: "INVIAS",    icon: "🏗", active: showInvias,          set: setShowInvias,         color: "#f97316", badge: panelInvias.length || null },
+            { id: "military", label: "Militares", icon: "🪖", active: showMilitary,        set: setShowMilitary,       color: "#16a34a", badge: sortedMilitary.length || null },
           ].map(ov => (
             <button
               key={ov.id}
@@ -1315,6 +1719,22 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
               )}
             </button>
           ))}
+
+          {/* Military branch sub-filter strip */}
+          {showMilitary && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginTop: "2px", padding: "4px 6px", background: "rgba(22,163,74,0.06)", borderRadius: "6px", border: "1px solid rgba(22,163,74,0.2)" }}>
+              <div style={{ fontSize: "8px", fontWeight: 700, color: "#16a34a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>Filtrar fuerza</div>
+              {([["all","Todas","🪖","#64748b"],["ejercito","Ejército","⚔️","#16a34a"],["armada","Armada","⚓","#0ea5e9"],["fuerza_aerea","Fuerza Aérea","✈️","#6366f1"],["policia","Policía","🛡️","#1d4ed8"]] as const).map(([val, label, icon, col]) => (
+                <button key={val} onClick={() => setMilitaryFilter(val as MilitaryBranch | "all")}
+                  style={{ display: "flex", alignItems: "center", gap: "4px", background: militaryFilter === val ? `${col}22` : "transparent", border: militaryFilter === val ? `1px solid ${col}` : "1px solid transparent", borderRadius: "5px", padding: "2px 6px", cursor: "pointer", color: militaryFilter === val ? col : textMuted, fontSize: "9px", fontWeight: militaryFilter === val ? 700 : 400, transition: "all 0.12s" }}>
+                  <span style={{ fontSize: "10px" }}>{icon}</span><span>{label}</span>
+                  <span style={{ marginLeft: "auto", fontSize: "8px", fontWeight: 800, background: `${col}22`, color: col, borderRadius: "4px", padding: "1px 4px" }}>
+                    {val === "all" ? MILITARY_UNITS.length : MILITARY_UNITS.filter(u => u.type === val).length}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Divider */}
           <div style={{ height: "1px", background: borderC, margin: "3px 0" }} />
@@ -1555,6 +1975,31 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
               </Popup>
             </Marker>
           ))}
+
+          {/* ── Unidades Militares ── */}
+          {showMilitary && sortedMilitary.map(u => (
+            <Marker key={u.id} position={[u.lat, u.lng]} icon={militaryIcons[u.type]}>
+              <Popup>
+                <div style={{ minWidth: "230px" }}>
+                  <div style={{ fontWeight: 800, fontSize: "13px", color: BRANCH_META[u.type].color, marginBottom: "2px" }}>
+                    {BRANCH_META[u.type].icon} {u.shortName}
+                  </div>
+                  <div style={{ fontSize: "10px", color: "#888", marginBottom: "5px" }}>{u.name}</div>
+                  <div style={{ fontSize: "10px", background: BRANCH_META[u.type].bg, borderRadius: "4px", padding: "2px 6px", marginBottom: "5px", fontWeight: 700, color: BRANCH_META[u.type].color }}>
+                    {BRANCH_META[u.type].label}{u.division ? ` · ${u.division}` : ""}
+                  </div>
+                  <div style={{ fontSize: "11px", marginBottom: "2px" }}><strong>Sede:</strong> {u.city}, {u.department}</div>
+                  <div style={{ fontSize: "11px", marginBottom: "2px" }}><strong>Cobertura:</strong> {u.depts.join(", ")}</div>
+                  <div style={{ fontSize: "11px", marginBottom: "4px" }}><strong>Misión:</strong> {u.role}</div>
+                  <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                    <div style={{ fontSize: "10px", background: "#f0fdf4", borderRadius: "4px", padding: "2px 7px" }}>📞 {u.phone}</div>
+                    <div style={{ fontSize: "10px", background: "#fef3c7", borderRadius: "4px", padding: "2px 7px", fontWeight: 700 }}>🆘 {u.emergency}</div>
+                  </div>
+                  {u.website && <div style={{ fontSize: "9px", color: "#aaa", marginTop: "5px" }}>🌐 <a href={u.website} target="_blank" rel="noreferrer" style={{ color: BRANCH_META[u.type].color }}>{u.website.replace("https://","")}</a></div>}
+                </div>
+              </Popup>
+            </Marker>
+          ))}
         </MapContainer>
       </div>
 
@@ -1773,6 +2218,86 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "8px", paddingTop: "6px", borderTop: `1px solid rgba(249,115,22,0.15)` }}>
             <div style={{ fontSize: "9px", color: textMuted }}>Actualización automática cada 2h · Incluye obras, derrumbes y cierres</div>
             <a href="https://www.invias.gov.co/index.php/estado-vias" target="_blank" rel="noopener noreferrer" style={{ fontSize: "9px", color: "#f97316", textDecoration: "none", fontWeight: 600 }}>Ver fuente ↗</a>
+          </div>
+        </div>
+      )}
+
+      {/* ── UNIDADES MILITARES PANEL ── */}
+      {showMilitary && (
+        <div style={{ background: dark ? "rgba(22,163,74,0.05)" : "#f0fdf4", border: "1px solid rgba(22,163,74,0.2)", borderRadius: "12px", padding: "12px 14px" }}>
+          {/* Header */}
+          <div style={{ display: "flex", alignItems: "flex-start", gap: "8px", marginBottom: "8px" }}>
+            <span style={{ fontSize: "14px" }}>🪖</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#16a34a" }}>
+                Fuerzas Militares {canonDepts.length > 0 ? "— Unidades en Ruta" : "— Colombia"}
+              </div>
+              <div style={{ fontSize: "8px", color: textMuted }}>
+                {canonDepts.length > 0 ? `Depts. afectados: ${canonDepts.join(", ")} · ordenadas por proximidad al origen` : "Dataset institucional público · Fuentes: ejercito.mil.co · armada.mil.co · fac.mil.co · policia.gov.co"}
+              </div>
+            </div>
+            <span style={{ fontSize: "9px", fontWeight: 700, color: "#16a34a", background: "rgba(22,163,74,0.12)", padding: "2px 8px", borderRadius: "8px", whiteSpace: "nowrap" }}>
+              {sortedMilitary.length} unidad{sortedMilitary.length !== 1 ? "es" : ""}
+            </span>
+          </div>
+
+          {/* Branch filter pills row (compact) */}
+          <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", marginBottom: "8px" }}>
+            {(["all","ejercito","armada","fuerza_aerea","policia"] as const).map(bk => {
+              const meta = bk === "all" ? { color: "#64748b", icon: "🪖", label: `Todas (${MILITARY_UNITS.length})` } : { ...BRANCH_META[bk as MilitaryBranch], label: `${BRANCH_META[bk as MilitaryBranch].label} (${MILITARY_UNITS.filter(u => u.type === bk).length})` };
+              return (
+                <button key={bk} onClick={() => setMilitaryFilter(bk as MilitaryBranch | "all")}
+                  style={{ fontSize: "9px", fontWeight: militaryFilter === bk ? 700 : 400, padding: "2px 8px", borderRadius: "20px", border: militaryFilter === bk ? `1px solid ${meta.color}` : "1px solid transparent", background: militaryFilter === bk ? `${meta.color}22` : "rgba(100,116,139,0.08)", color: militaryFilter === bk ? meta.color : textMuted, cursor: "pointer", transition: "all 0.12s" }}>
+                  {meta.icon} {meta.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Units list */}
+          {sortedMilitary.length === 0 ? (
+            <div style={{ textAlign: "center", fontSize: "11px", color: textMuted, padding: "12px 0" }}>
+              Sin unidades para los filtros seleccionados{canonDepts.length > 0 ? " en esta ruta" : ""}.
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "5px", maxHeight: "360px", overflowY: "auto" }}>
+              {sortedMilitary.map(u => {
+                const meta = BRANCH_META[u.type];
+                return (
+                  <div key={u.id} style={{ background: dark ? meta.bg : "#fff", border: `1px solid ${meta.color}33`, borderRadius: "8px", padding: "8px 10px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px", flexWrap: "wrap" }}>
+                      <span style={{ fontSize: "9px", fontWeight: 800, color: meta.color, background: meta.bg, padding: "1px 6px", borderRadius: "4px" }}>
+                        {meta.icon} {meta.label.toUpperCase()}
+                      </span>
+                      {u.division && (
+                        <span style={{ fontSize: "8px", color: textMuted, background: "rgba(100,116,139,0.1)", padding: "1px 5px", borderRadius: "4px" }}>{u.division}</span>
+                      )}
+                      <span style={{ marginLeft: "auto", fontSize: "9px", color: textMuted }}>{u.city}, {u.department}</span>
+                    </div>
+                    <div style={{ fontSize: "11px", fontWeight: 700, color: dark ? "#e2e8f0" : "#1e293b", marginBottom: "2px" }}>{u.shortName}</div>
+                    <div style={{ fontSize: "10px", color: textMuted, marginBottom: "4px" }}>{u.role}</div>
+                    <div style={{ fontSize: "9px", color: textMuted, marginBottom: "4px" }}>
+                      <strong>Cobertura:</strong> {u.depts.join(" · ")}
+                    </div>
+                    <div style={{ display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }}>
+                      <span style={{ fontSize: "9px", fontWeight: 600, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "4px", padding: "1px 7px", color: "#15803d" }}>📞 {u.phone}</span>
+                      <span style={{ fontSize: "9px", fontWeight: 800, background: "#fef3c7", border: "1px solid #fde68a", borderRadius: "4px", padding: "1px 7px", color: "#b45309" }}>🆘 Emergencia: {u.emergency}</span>
+                      {u.website && (
+                        <a href={u.website} target="_blank" rel="noreferrer" style={{ fontSize: "8px", color: meta.color, textDecoration: "none", fontWeight: 600 }}>🌐 Web ↗</a>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Footer */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "8px", paddingTop: "6px", borderTop: "1px solid rgba(22,163,74,0.15)" }}>
+            <span style={{ fontSize: "8px", color: textMuted }}>
+              ⚠ Información pública institucional — Sin datos operacionales clasificados · Llame siempre al 123 o 159 en emergencia
+            </span>
+            <a href="https://www.mindefensa.gov.co" target="_blank" rel="noopener noreferrer" style={{ fontSize: "9px", color: "#16a34a", textDecoration: "none", fontWeight: 600 }}>MinDefensa ↗</a>
           </div>
         </div>
       )}
