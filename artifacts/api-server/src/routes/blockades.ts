@@ -2,30 +2,30 @@ import { Router, type IRouter } from "express";
 import { db, blockadeTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import Anthropic from "@anthropic-ai/sdk";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import Groq from "groq-sdk";
 import { parse as parseHtml } from "node-html-parser";
 
 /* ── Unified AI helper ────────────────────────────────────────────────────────
    Priority:
-   1. Replit dev proxy (AI_INTEGRATIONS_ANTHROPIC_BASE_URL set) → Anthropic
-   2. Production → Gemini 1.5 Flash via GEMINI_API_KEY (free tier, no credit card)
+   1. Replit dev proxy (AI_INTEGRATIONS_ANTHROPIC_BASE_URL set) → Anthropic Claude
+   2. Production → Groq Llama 3.3 via GROQ_API_KEY (free tier, no credit card)
    3. Neither → aiAvailable = false, endpoints return 503
    ──────────────────────────────────────────────────────────────────────────── */
 let _anthropic: Anthropic | null = null;
-let _gemini: GoogleGenerativeAI | null = null;
+let _groq: Groq | null = null;
 
 if (process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL) {
   _anthropic = new Anthropic({
     baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
     apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY ?? "_DUMMY_",
   });
-} else if (process.env.GEMINI_API_KEY) {
-  _gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+} else if (process.env.GROQ_API_KEY) {
+  _groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 } else {
-  console.warn("[blockades] No AI key configured — AI features disabled. Set GEMINI_API_KEY (free) or ANTHROPIC_API_KEY.");
+  console.warn("[blockades] No AI key configured — Set GROQ_API_KEY (free at console.groq.com).");
 }
 
-const aiAvailable = !!(_anthropic || _gemini);
+const aiAvailable = !!(_anthropic || _groq);
 
 async function askAI(prompt: string): Promise<string> {
   if (_anthropic) {
@@ -36,21 +36,13 @@ async function askAI(prompt: string): Promise<string> {
     });
     return msg.content[0]?.type === "text" ? msg.content[0].text : "[]";
   }
-  if (_gemini) {
-    // Try models in order: newest → stable → fallback
-    const models = ["gemini-2.0-flash", "gemini-1.5-flash-latest", "gemini-1.5-flash-002"];
-    let lastErr: unknown;
-    for (const modelName of models) {
-      try {
-        const model = _gemini.getGenerativeModel({ model: modelName });
-        const result = await model.generateContent(prompt);
-        return result.response.text();
-      } catch (e: any) {
-        if (e?.status === 404 || e?.message?.includes("not found")) { lastErr = e; continue; }
-        throw e;
-      }
-    }
-    throw lastErr;
+  if (_groq) {
+    const completion = await _groq.chat.completions.create({
+      model: "llama-3.3-70b-versatile",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 4096,
+    });
+    return completion.choices[0]?.message?.content ?? "[]";
   }
   throw new Error("No AI backend available");
 }
@@ -222,13 +214,19 @@ router.post("/analyze/pdf", async (req, res) => {
     /* If caller sends raw base64 PDF, extract text server-side with pdf-parse */
     if (!text && req.body?.pdfBase64) {
       try {
+        const buf = Buffer.from(req.body.pdfBase64, "base64");
+        if (buf.length > 15_000_000) {
+          return res.status(400).json({ error: "El PDF es demasiado grande (máx 15 MB). Redúzcalo antes de enviarlo." });
+        }
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const pdfParse = (await import("pdf-parse")).default;
-        const buf = Buffer.from(req.body.pdfBase64, "base64");
-        const parsed = await pdfParse(buf);
+        const parsed = await pdfParse(buf, { max: 50 }); // limit to first 50 pages
         text = parsed.text;
       } catch (parseErr: any) {
-        return res.status(400).json({ error: `No se pudo extraer texto del PDF: ${parseErr.message}` });
+        const msg = parseErr instanceof RangeError
+          ? "El PDF es demasiado complejo para procesarlo automáticamente. Copie y pegue el texto manualmente en el campo de texto."
+          : `No se pudo extraer texto del PDF: ${parseErr.message}`;
+        return res.status(400).json({ error: msg });
       }
     }
 
