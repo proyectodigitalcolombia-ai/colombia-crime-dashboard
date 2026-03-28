@@ -53,7 +53,7 @@ function blobLoaderPlugin() {
 <script>
 (async function() {
   try {
-    var r1 = fetch('${jsUrl}'), r2 = fetch('${cssUrl}');
+    var r1 = fetch('${jsUrl}?v='+Date.now()), r2 = fetch('${cssUrl}?v='+Date.now());
     var jsRes = await r1, cssRes = await r2;
     if (!jsRes.ok) throw new Error('JS ' + jsRes.status);
     if (!cssRes.ok) throw new Error('CSS ' + cssRes.status);

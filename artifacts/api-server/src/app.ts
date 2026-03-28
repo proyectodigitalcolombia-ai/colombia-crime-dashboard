@@ -123,8 +123,18 @@ document.getElementById('mod-row').innerHTML = '&#x2705; <b>ES Modules inline:</
 
 const dashboardDist = path.join(__dirname, "../../crime-dashboard/dist/public");
 if (fs.existsSync(dashboardDist)) {
-  app.use(express.static(dashboardDist, { index: false }));
+  app.use(express.static(dashboardDist, {
+    index: false,
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+      }
+    },
+  }));
   app.get("/{*splat}", (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
     res.sendFile(path.join(dashboardDist, "index.html"));
   });
 } else {
