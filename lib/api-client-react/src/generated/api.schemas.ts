@@ -119,6 +119,11 @@ export interface Blockade {
   lat: number | null;
   /** @nullable */
   lng: number | null;
+  source: string;
+  /** @nullable */
+  sourceUrl: string | null;
+  /** @nullable */
+  expiresAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

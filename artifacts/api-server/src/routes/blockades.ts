@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, blockadeTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, lt, and, ne, isNull, or } from "drizzle-orm";
 import Anthropic from "@anthropic-ai/sdk";
 import Groq from "groq-sdk";
 import { parse as parseHtml } from "node-html-parser";
@@ -88,6 +88,41 @@ function validateBody(body: any): { data: any; error?: string } {
   return { data: body };
 }
 
+/* ─── Auto-expiry background job ─────────────────────────────────────────────
+   Every hour: mark blockades whose expires_at has passed as 'levantado'
+   Only affects auto-generated records (source != 'manual'). Manual blockades
+   are permanent until an operator changes the status.
+   ──────────────────────────────────────────────────────────────────────────── */
+export async function runBlockadeExpiry(): Promise<number> {
+  const now = new Date();
+  const result = await db
+    .update(blockadeTable)
+    .set({ status: "levantado", updatedAt: now })
+    .where(
+      and(
+        lt(blockadeTable.expiresAt, now),
+        ne(blockadeTable.status, "levantado"),
+        ne(blockadeTable.source, "manual"),
+      )
+    )
+    .returning({ id: blockadeTable.id });
+  return result.length;
+}
+
+export function startBlockadeAutoExpiry(): void {
+  const CHECK_MS = 60 * 60 * 1000; // every 1 hour
+  setTimeout(async () => {
+    const expired = await runBlockadeExpiry().catch(() => 0);
+    if (expired > 0) console.log(`[AutoExpiry] ${expired} bloqueo(s) expirado(s) → marcados 'levantado'`);
+    else console.log("[AutoExpiry] Sin bloqueos expirados.");
+    setInterval(async () => {
+      const n = await runBlockadeExpiry().catch(() => 0);
+      if (n > 0) console.log(`[AutoExpiry] ${n} bloqueo(s) expirado(s) → 'levantado'`);
+    }, CHECK_MS);
+  }, 5 * 60 * 1000); // first check after 5 min
+  console.log("[AutoExpiry] Expiración automática de bloqueos activada (revisión cada 1h, inicia en 5 min).");
+}
+
 /* GET /api/blockades?corridorId=bog-med */
 router.get("/blockades", async (req, res) => {
   try {
@@ -123,6 +158,9 @@ router.post("/blockades", async (req, res) => {
       reporter:      data.reporter ?? null,
       lat:           coords?.lat ?? null,
       lng:           coords?.lng ?? null,
+      source:        "manual",
+      sourceUrl:     null,
+      expiresAt:     null,
     }).returning();
     res.status(201).json(inserted);
   } catch (err) {
@@ -230,6 +268,7 @@ Responde SOLO con el JSON array, sin texto adicional antes ni después.`);
       })
     );
 
+    const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000); // 72h expiry for news imports
     const toInsert = blockades.map((b, i) => ({
       corridorId:    (typeof b.corridorId === "string" && b.corridorId.trim()) ? b.corridorId.trim() : "otro",
       department:    (typeof b.department === "string" && b.department.trim()) ? b.department.trim() : "Colombia",
@@ -242,6 +281,9 @@ Responde SOLO con el JSON array, sin texto adicional antes ni después.`);
       durationHours: null as number | null,
       lat:           geocodeResults[i]?.lat ?? null,
       lng:           geocodeResults[i]?.lng ?? null,
+      source:        "news_import" as string,
+      sourceUrl:     url as string,
+      expiresAt,
     }));
 
     const inserted = await db.insert(blockadeTable).values(toInsert).returning();

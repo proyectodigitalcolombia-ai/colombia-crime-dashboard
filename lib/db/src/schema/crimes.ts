@@ -47,11 +47,15 @@ export const blockadeTable = pgTable("blockades", {
   reporter: text("reporter"),
   lat: real("lat"),
   lng: real("lng"),
+  source: text("source").notNull().default("manual"),
+  sourceUrl: text("source_url"),
+  expiresAt: timestamp("expires_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
   index("blockades_corridor_idx").on(table.corridorId),
   index("blockades_status_idx").on(table.status),
+  index("blockades_expires_idx").on(table.expiresAt),
 ]);
 
 export const insertBlockadeSchema = createInsertSchema(blockadeTable).omit({ id: true, createdAt: true, updatedAt: true });

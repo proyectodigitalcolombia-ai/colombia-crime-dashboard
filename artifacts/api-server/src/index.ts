@@ -2,6 +2,8 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { pool, db, usersTable } from "@workspace/db";
 import { loadDemoIfEmpty, startDailyAutoRefresh } from "./routes/crimes";
+import { startBlockadeAutoExpiry } from "./routes/blockades";
+import { startNewsMonitor } from "./routes/news-monitor";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 
@@ -88,6 +90,10 @@ async function ensureSchema() {
     await client.query(`
       ALTER TABLE blockades ADD COLUMN IF NOT EXISTS lat REAL;
       ALTER TABLE blockades ADD COLUMN IF NOT EXISTS lng REAL;
+      ALTER TABLE blockades ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'manual';
+      ALTER TABLE blockades ADD COLUMN IF NOT EXISTS source_url TEXT;
+      ALTER TABLE blockades ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP;
+      CREATE INDEX IF NOT EXISTS blockades_expires_idx ON blockades (expires_at);
     `);
 
     logger.info("Database schema ensured (all tables)");
@@ -147,6 +153,8 @@ app.listen(port, (err) => {
     .then(() => seedDefaultUser())
     .then(() => loadDemoIfEmpty())
     .then(() => startDailyAutoRefresh())
+    .then(() => startBlockadeAutoExpiry())
+    .then(() => startNewsMonitor())
     .catch((err) => {
       logger.error({ err }, "Failed to ensure database schema or load initial data");
     });

@@ -6,6 +6,7 @@ import roadConditionsRouter from "./road-conditions";
 import authRouter from "./auth";
 import armedGroupsRouter from "./armed-groups";
 import routeRouter from "./route";
+import newsMonitorRouter from "./news-monitor";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(blockadeRouter);
 router.use(roadConditionsRouter);
 router.use(armedGroupsRouter);
 router.use(routeRouter);
+router.use(newsMonitorRouter);
 
 export default router;

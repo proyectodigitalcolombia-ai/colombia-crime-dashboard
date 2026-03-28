@@ -763,7 +763,7 @@ export function RouteAnalyzer({ dark = true }: Props) {
 
       {/* ── GESTIÓN DE BLOQUEOS — lista global ── */}
       <div style={{ background: panelBg, border: `1px solid rgba(236,72,153,0.25)`, borderRadius: "12px", padding: "14px 16px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
           <Ban style={{ width: 13, height: 13, color: E.pink }} />
           <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: E.pink }}>
             Gestión de Bloqueos Registrados
@@ -771,6 +771,17 @@ export function RouteAnalyzer({ dark = true }: Props) {
           <span style={{ marginLeft: "auto", fontSize: "10px", fontWeight: 700, color: E.pink, background: "rgba(236,72,153,0.12)", padding: "2px 8px", borderRadius: "10px" }}>
             {userBlockades.length} total
           </span>
+        </div>
+        {/* Leyenda de fuentes */}
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "10px", paddingBottom: "10px", borderBottom: `1px solid ${borderC}` }}>
+          {[
+            { label: "Manual", color: textMuted, desc: "Registrado por operador · Sin expiración" },
+            { label: "IA·URL", color: "#a78bfa", desc: "Importado de URL de noticia · Expira 72h" },
+            { label: "RSS·Auto", color: E.cyan, desc: "Detectado automáticamente · Expira 48h" },
+          ].map(s => (
+            <span key={s.label} title={s.desc} style={{ fontSize: "9px", fontWeight: 700, color: s.color, background: `${s.color}15`, padding: "2px 8px", borderRadius: "4px", border: `1px solid ${s.color}30`, cursor: "default" }}>{s.label}</span>
+          ))}
+          <span style={{ fontSize: "9px", color: textMuted, marginLeft: "auto" }}>⏱ = tiempo hasta auto-cierre</span>
         </div>
         {userBlockades.length === 0 ? (
           <div style={{ textAlign: "center", color: textMuted, fontSize: "12px", padding: "16px 0" }}>
@@ -781,14 +792,23 @@ export function RouteAnalyzer({ dark = true }: Props) {
             {[...userBlockades].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(blk => {
               const corridor = CORRIDORS.find(c => c.id === blk.corridorId);
               const statusColor = blk.status === "activo" ? E.red : blk.status === "intermitente" ? E.amber : E.emerald;
+              const src = (blk as any).source ?? "manual";
+              const srcLabel = src === "news_rss" ? "RSS·Auto" : src === "news_import" ? "IA·URL" : "Manual";
+              const srcColor = src === "news_rss" ? E.cyan : src === "news_import" ? "#a78bfa" : textMuted;
+              const exp = (blk as any).expiresAt ? new Date((blk as any).expiresAt) : null;
+              const hoursLeft = exp ? Math.max(0, Math.round((exp.getTime() - Date.now()) / 3600000)) : null;
+              const expLabel = hoursLeft === null ? "Permanente" : hoursLeft <= 0 ? "Expirando…" : `${hoursLeft}h`;
+              const expColor = hoursLeft === null ? textMuted : hoursLeft <= 6 ? E.red : hoursLeft <= 24 ? E.amber : "#10b981";
               return (
                 <div key={blk.id} style={{ background: dark ? "rgba(236,72,153,0.04)" : "#fff5f9", border: `1px solid ${dark ? "rgba(236,72,153,0.12)" : "rgba(236,72,153,0.12)"}`, borderRadius: "8px", padding: "9px 12px", display: "flex", alignItems: "center", gap: "10px" }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
                       <span style={{ fontSize: "11px", fontWeight: 700, color: textMain }}>{blk.department}</span>
                       <span style={{ fontSize: "10px", color: textMuted }}>·</span>
-                      <span style={{ fontSize: "11px", color: textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "200px" }}>{blk.location}</span>
+                      <span style={{ fontSize: "11px", color: textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "160px" }}>{blk.location}</span>
                       <span style={{ fontSize: "9px", fontWeight: 700, color: statusColor, background: `${statusColor}18`, padding: "1px 6px", borderRadius: "4px" }}>{blk.status}</span>
+                      <span style={{ fontSize: "9px", fontWeight: 700, color: srcColor, background: `${srcColor}15`, padding: "1px 6px", borderRadius: "4px", border: `1px solid ${srcColor}30` }}>{srcLabel}</span>
+                      <span style={{ fontSize: "9px", fontWeight: 700, color: expColor, background: `${expColor}15`, padding: "1px 6px", borderRadius: "4px" }} title={exp ? `Expira: ${exp.toLocaleString("es-CO")}` : "Sin expiración"}>⏱ {expLabel}</span>
                     </div>
                     <div style={{ fontSize: "10px", color: textMuted, marginTop: "3px" }}>
                       {corridor ? `${corridor.icon} ${corridor.name}` : blk.corridorId} · {blk.date}
