@@ -904,6 +904,15 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
   const activeBlocks = userBlockades.filter(b =>
     canonDepts.some(d => d.toLowerCase().includes((b.department ?? "").toLowerCase().slice(0,5))) && b.status === "activo"
   );
+
+  /* ─ Filtered Peajes / Básculas for consolidated panels ─ */
+  const panelPeajes = canonDepts.length > 0
+    ? PEAJES.filter(p => canonDepts.some(d => d.toLowerCase().includes((p.dept ?? "").toLowerCase().slice(0,5)) || (p.dept ?? "").toLowerCase().includes(d.toLowerCase().slice(0,5))))
+    : PEAJES;
+  const panelBasculas = canonDepts.length > 0
+    ? BASCULAS.filter(b => canonDepts.some(d => d.toLowerCase().includes((b.dept ?? "").toLowerCase().slice(0,5)) || (b.dept ?? "").toLowerCase().includes(d.toLowerCase().slice(0,5))))
+    : BASCULAS;
+
   const recs: string[] = [];
   if (activeBlocks.length > 0) recs.push(`🚨 ${activeBlocks.length} BLOQUEO(S) ACTIVO(S) en departamentos de esta ruta`);
   if (maxNight >= 75) recs.push("⛔ Evitar tránsito entre 10 PM y 5 AM — alta incidencia nocturna");
@@ -1363,6 +1372,112 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
       <div style={{ fontSize: "9px", color: textMuted, textAlign: "center" }}>
         Clic en el mapa → agrega puntos de ruta · <strong style={{ color: E.cyan, opacity: 0.8 }}>Clic en la línea de ruta → inserta desvío y recalcula</strong> · Arrastra un pin → recalcula automáticamente · Rueda del mouse para zoom
       </div>
+
+      {/* ── CIERRES PANEL ── */}
+      {showBlockadesOnMap && (
+        <div style={{ background: dark ? "rgba(239,68,68,0.05)" : "#fff5f5", border: `1px solid rgba(239,68,68,0.25)`, borderRadius: "12px", padding: "12px 14px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "10px" }}>
+            <span style={{ fontSize: "13px" }}>🚨</span>
+            <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: E.red }}>
+              Cierres Viales Activos{canonDepts.length > 0 ? " — Ruta trazada" : " — Nacional"}
+            </span>
+            <span style={{ marginLeft: "auto", fontSize: "9px", fontWeight: 700, color: routeBlockades.length > 0 ? E.red : "#10b981", background: routeBlockades.length > 0 ? "rgba(239,68,68,0.12)" : "rgba(16,185,129,0.12)", padding: "2px 8px", borderRadius: "8px" }}>
+              {routeBlockades.length} registro{routeBlockades.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+          {routeBlockades.length === 0 ? (
+            <div style={{ textAlign: "center", fontSize: "11px", color: textMuted, padding: "12px 0" }}>
+              ✅ Sin cierres activos registrados{canonDepts.length > 0 ? " en esta ruta" : ""}.<br />
+              <span style={{ fontSize: "10px" }}>El monitor RSS escanea medios colombianos cada 2h automáticamente.</span>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              {routeBlockades.map((bl, i) => {
+                const src = (bl as any).source ?? "manual";
+                const exp = (bl as any).expiresAt ? new Date((bl as any).expiresAt) : null;
+                const hoursLeft = exp ? Math.max(0, Math.round((exp.getTime() - Date.now()) / 3600000)) : null;
+                const srcLabel = src === "news_rss" ? "RSS·Auto" : src === "news_import" ? "IA·URL" : "Operador";
+                const srcColor = src === "news_rss" ? E.cyan : src === "news_import" ? "#a78bfa" : textMuted;
+                return (
+                  <div key={i} style={{ background: dark ? "rgba(239,68,68,0.07)" : "#fff1f1", border: `1px solid rgba(239,68,68,0.2)`, borderRadius: "8px", padding: "8px 10px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
+                      <span style={{ fontSize: "10px", color: bl.status === "activo" ? E.red : E.amber, fontWeight: 700 }}>
+                        {bl.status === "activo" ? "🔴 ACTIVO" : "🟡 INTERMITENTE"}
+                      </span>
+                      <span style={{ fontSize: "9px", fontWeight: 700, color: textMuted }}>{bl.department}</span>
+                      <span style={{ marginLeft: "auto", fontSize: "8px", fontWeight: 700, color: srcColor, background: `${srcColor}15`, padding: "1px 5px", borderRadius: "3px" }}>{srcLabel}</span>
+                      {hoursLeft !== null && <span style={{ fontSize: "8px", color: hoursLeft <= 6 ? E.red : hoursLeft <= 24 ? E.amber : "#10b981" }}>⏱{hoursLeft}h</span>}
+                    </div>
+                    <div style={{ fontSize: "11px", color: dark ? "#e2eaf4" : "#1a2a3a", fontWeight: 600 }}>{bl.location}</div>
+                    {bl.cause && <div style={{ fontSize: "10px", color: textMuted, marginTop: "2px" }}>Causa: {bl.cause.replace(/_/g, " ")}</div>}
+                    <div style={{ fontSize: "9px", color: textMuted, marginTop: "2px" }}>📅 {bl.date} · Corredor: {bl.corridorId}</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── PEAJES PANEL ── */}
+      {showPeajes && (
+        <div style={{ background: dark ? "rgba(245,158,11,0.05)" : "#fffbeb", border: `1px solid rgba(245,158,11,0.25)`, borderRadius: "12px", padding: "12px 14px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "10px" }}>
+            <span style={{ fontSize: "13px" }}>💲</span>
+            <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: E.amber }}>
+              Peajes{canonDepts.length > 0 ? " en Ruta" : " — Nacional"}
+            </span>
+            <span style={{ marginLeft: "auto", fontSize: "9px", fontWeight: 700, color: E.amber, background: "rgba(245,158,11,0.12)", padding: "2px 8px", borderRadius: "8px" }}>
+              {panelPeajes.length} estación{panelPeajes.length !== 1 ? "es" : ""}
+            </span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "5px", maxHeight: "280px", overflowY: "auto" }}>
+            {panelPeajes.map((p, i) => (
+              <div key={i} style={{ background: dark ? "rgba(245,158,11,0.06)" : "#fefce8", border: `1px solid rgba(245,158,11,0.18)`, borderRadius: "7px", padding: "7px 10px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "3px" }}>
+                  <span style={{ fontSize: "11px", fontWeight: 700, color: dark ? "#e2eaf4" : "#1a2a3a", flex: 1 }}>💲 {p.name}</span>
+                  <span style={{ fontSize: "9px", color: textMuted, fontWeight: 600 }}>{p.dept}</span>
+                </div>
+                <div style={{ fontSize: "10px", color: textMuted, marginBottom: "3px" }}>🛣 {p.via}</div>
+                <div style={{ fontSize: "9px", color: E.amber, background: "rgba(245,158,11,0.1)", borderRadius: "4px", padding: "2px 6px", lineHeight: 1.7 }}>
+                  {p.tarifa.split(" | ").map((t, j) => <span key={j} style={{ display: "block" }}>{t}</span>)}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: "9px", color: textMuted, marginTop: "6px" }}>Tarifas ref. INVIAS 2024 · Haga clic en el pin del mapa para más detalle</div>
+        </div>
+      )}
+
+      {/* ── BÁSCULAS PANEL ── */}
+      {showBasculas && (
+        <div style={{ background: dark ? "rgba(139,92,246,0.05)" : "#f5f3ff", border: `1px solid rgba(139,92,246,0.25)`, borderRadius: "12px", padding: "12px 14px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "10px" }}>
+            <span style={{ fontSize: "13px" }}>⚖</span>
+            <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8b5cf6" }}>
+              Básculas INVIAS{canonDepts.length > 0 ? " en Ruta" : " — Nacional"}
+            </span>
+            <span style={{ marginLeft: "auto", fontSize: "9px", fontWeight: 700, color: "#8b5cf6", background: "rgba(139,92,246,0.12)", padding: "2px 8px", borderRadius: "8px" }}>
+              {panelBasculas.length} estación{panelBasculas.length !== 1 ? "es" : ""}
+            </span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "5px", maxHeight: "260px", overflowY: "auto" }}>
+            {panelBasculas.map((b, i) => (
+              <div key={i} style={{ background: dark ? "rgba(139,92,246,0.06)" : "#ede9fe", border: `1px solid rgba(139,92,246,0.18)`, borderRadius: "7px", padding: "7px 10px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "3px" }}>
+                  <span style={{ fontSize: "11px", fontWeight: 700, color: dark ? "#e2eaf4" : "#1a2a3a", flex: 1 }}>⚖ {b.name}</span>
+                  <span style={{ fontSize: "9px", color: textMuted, fontWeight: 600 }}>{b.dept}</span>
+                </div>
+                <div style={{ fontSize: "10px", color: textMuted, marginBottom: "3px" }}>🛣 {b.via}</div>
+                <div style={{ fontSize: "9px", color: "#8b5cf6", background: "rgba(139,92,246,0.1)", borderRadius: "4px", padding: "2px 6px" }}>
+                  Sentido: {b.dir}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: "9px", color: textMuted, marginTop: "6px" }}>Estaciones de pesaje INVIAS — Haga clic en el pin del mapa para más detalle</div>
+        </div>
+      )}
 
       {/* ── ROUTE SUMMARY CARDS ── */}
       {phase === "result" && routeResult && (
