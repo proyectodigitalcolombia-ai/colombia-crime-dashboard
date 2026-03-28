@@ -37,9 +37,20 @@ async function askAI(prompt: string): Promise<string> {
     return msg.content[0]?.type === "text" ? msg.content[0].text : "[]";
   }
   if (_gemini) {
-    const model = _gemini.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const result = await model.generateContent(prompt);
-    return result.response.text();
+    // Try models in order: newest → stable → fallback
+    const models = ["gemini-2.0-flash", "gemini-1.5-flash-latest", "gemini-1.5-flash-002"];
+    let lastErr: unknown;
+    for (const modelName of models) {
+      try {
+        const model = _gemini.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent(prompt);
+        return result.response.text();
+      } catch (e: any) {
+        if (e?.status === 404 || e?.message?.includes("not found")) { lastErr = e; continue; }
+        throw e;
+      }
+    }
+    throw lastErr;
   }
   throw new Error("No AI backend available");
 }
