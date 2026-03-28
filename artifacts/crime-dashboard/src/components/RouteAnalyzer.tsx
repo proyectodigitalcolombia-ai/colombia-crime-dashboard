@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ComposableMap, Geographies, Geography } from "react-simple-maps";
 import { RouteMapBuilder } from "./RouteMapBuilder";
 import {
@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import { useWeather } from "@/hooks/useWeather";
-import { useRoadConditionsByDepartment, useRefreshRoadConditions } from "@/hooks/useRoadConditions";
+import { useRoadConditions, useRoadConditionsByDepartment, useRefreshRoadConditions } from "@/hooks/useRoadConditions";
 
 const GEO_URL =
   "https://gist.githubusercontent.com/john-guerra/43c7656821069d00dcbc/raw/be6a6e239cd5b5b803c6e7c2ec405b793a9064dd/colombia.geo.json";
@@ -331,6 +331,43 @@ export function RouteAnalyzer({ dark = true }: Props) {
     useRoadConditionsByDepartment(selectedCorridor?.departments ?? []);
   const refreshRcMutation = useRefreshRoadConditions();
 
+  /* ── Real road conditions (all depts) from policia.gov.co cache ── */
+  const { data: allRoadData } = useRoadConditions();
+  const realRoadDeptMap = useMemo<Record<string, "good" | "regular" | "difficult">>(() => {
+    const m: Record<string, "good" | "regular" | "difficult"> = {};
+    for (const c of allRoadData?.conditions ?? []) {
+      const dept = c.department;
+      if (!dept) continue;
+      const cur = m[dept];
+      const next = c.conditionCode === "cierre_total" ? "difficult"
+                 : c.conditionCode === "cierre_parcial" || c.conditionCode === "desvio" ? "regular"
+                 : "good";
+      if (!cur || next === "difficult" || (next === "regular" && cur === "good")) m[dept] = next;
+    }
+    return m;
+  }, [allRoadData]);
+
+  /* ── Armed groups from API (refreshed every 4h) ── */
+  const BASE_URL_RAW = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
+  const { data: armedGroupsApi } = useQuery<{ groups: { shortName: string; presence: { department: string; level: string }[] }[] }>({
+    queryKey: ["armed-groups"],
+    queryFn: () => fetch(`${BASE_URL_RAW}/api/armed-groups`, { credentials: "include" }).then(r => r.json()),
+    staleTime: 1000 * 60 * 60 * 4,
+  });
+  const armedDeptMap = useMemo<Record<string, { level: number; groups: string[] }>>(() => {
+    if (!armedGroupsApi?.groups?.length) return ARMED_GROUPS;
+    const m: Record<string, { level: number; groups: string[] }> = {};
+    for (const grp of armedGroupsApi.groups) {
+      for (const p of grp.presence) {
+        if (!m[p.department]) m[p.department] = { level: 0, groups: [] };
+        const lvl = p.level === "alta" ? 3 : p.level === "media" ? 2 : 1;
+        if (lvl > m[p.department].level) m[p.department].level = lvl;
+        if (!m[p.department].groups.includes(grp.shortName)) m[p.department].groups.push(grp.shortName);
+      }
+    }
+    return m;
+  }, [armedGroupsApi]);
+
   const panelBg   = dark ? E.panel   : "#ffffff";
   const textMain  = dark ? "#e2eaf4" : "#1a2a3a";
   const textMuted = dark ? E.textDim : "#64748b";
@@ -422,19 +459,60 @@ export function RouteAnalyzer({ dark = true }: Props) {
 
   const userBlockades: Blockade[] = Array.isArray(allBlockades) ? allBlockades as Blockade[] : [];
 
+  /* ── Real blockade level per dept from DB ── */
+  const blockadeDeptMap = useMemo<Record<string, number>>(() => {
+    const m: Record<string, number> = {};
+    for (const blk of userBlockades) {
+      if (blk.status === "activo") m[blk.department] = (m[blk.department] ?? 0) + 1;
+      else if (blk.status === "intermitente" && !m[blk.department]) m[blk.department] = 0.5 as number;
+    }
+    return m;
+  }, [userBlockades]);
+
+  /* ── Unified score function using real data ── */
+  const scoreForDept = useCallback((dept: string, pirataCount: number): number => {
+    const pScore = Math.min(pirataCount / 80, 1) * 35;
+    const aScore = (armedDeptMap[dept]?.level ?? 0) / 3 * 25;
+    const nScore = ((NIGHT_RISK[dept] ?? 60) - 50) / 35 * 15;
+    const roadScore = realRoadDeptMap[dept] ?? ROAD_CONDITION[dept]?.score ?? "regular";
+    const rScore = roadScore === "difficult" ? 10 : roadScore === "regular" ? 5 : 0;
+    const blkLvl = blockadeDeptMap[dept] !== undefined
+      ? Math.min(3, Math.ceil(blockadeDeptMap[dept]))
+      : 0;
+    const bScore = blkLvl / 3 * 15;
+    return Math.min(100, Math.round(pScore + aScore + nScore + rScore + bScore));
+  }, [armedDeptMap, blockadeDeptMap, realRoadDeptMap]);
+
   const routeSet = useMemo(() => !selectedCorridor ? new Set<string>() : new Set(selectedCorridor.departments.map(d => normKey(d))), [selectedCorridor]);
 
   const routeStats = useMemo(() => {
     if (!selectedCorridor) return { total: 0, avgScore: 0 };
     const total    = selectedCorridor.departments.reduce((s, d) => s + (pirataMap[normKey(d)] ?? 0), 0);
-    const avgScore = Math.round(selectedCorridor.departments.reduce((s, d) => s + compositeScore(d, pirataMap[normKey(d)] ?? 0), 0) / selectedCorridor.departments.length);
+    const avgScore = Math.round(selectedCorridor.departments.reduce((s, d) => s + scoreForDept(d, pirataMap[normKey(d)] ?? 0), 0) / selectedCorridor.departments.length);
     return { total, avgScore };
-  }, [selectedCorridor, pirataMap]);
+  }, [selectedCorridor, pirataMap, scoreForDept]);
 
-  const recommendations = useMemo(() =>
-    selectedCorridor ? buildRecommendations(selectedCorridor, pirataMap, userBlockades) : [],
-    [selectedCorridor, pirataMap, userBlockades],
-  );
+  const recommendations = useMemo(() => {
+    if (!selectedCorridor) return [];
+    const nightMax   = Math.max(...selectedCorridor.departments.map(d => NIGHT_RISK[d] ?? 60));
+    const armedMax   = Math.max(...selectedCorridor.departments.map(d => armedDeptMap[d]?.level ?? 0));
+    const roadDiff   = selectedCorridor.departments.some(d => (realRoadDeptMap[d] ?? ROAD_CONDITION[d]?.score) === "difficult");
+    const poorSig    = selectedCorridor.departments.some(d => CELL_SIGNAL[d] === "poor");
+    const blkActive  = userBlockades.filter(b => b.corridorId === selectedCorridor.id && b.status === "activo");
+    const totalPirat = selectedCorridor.departments.reduce((s, d) => s + (pirataMap[normKey(d)] ?? 0), 0);
+    const recs: string[] = [];
+    if (blkActive.length > 0) recs.push(`🚨 HAY ${blkActive.length} BLOQUEO(S) ACTIVO(S) REGISTRADO(S) EN ESTE CORREDOR — verificar antes de salir`);
+    if (nightMax >= 75) recs.push("⛔ Evitar tránsito entre 10 PM y 5 AM — alta incidencia nocturna en este corredor");
+    if (nightMax >= 60 && nightMax < 75) recs.push("⚠ Reducir velocidad y mantener comunicación constante en horario nocturno");
+    if (armedMax >= 3) recs.push("🔴 Presencia crítica de grupos armados — consultar inteligencia actualizada antes del despacho");
+    if (armedMax === 2) recs.push("🟠 Grupos armados con actividad media en el corredor — vigilancia reforzada");
+    if (roadDiff) recs.push("🔧 Vías en condición difícil o cierre oficial — verificar INVIAS y Policía de Carreteras");
+    if (poorSig) recs.push("📵 Zonas sin señal celular — llevar radio satelital o plan de contingencia offline");
+    if (totalPirat > 150) recs.push("🚛 Alta concentración de piratería terrestre — convoy recomendado");
+    else if (totalPirat > 60) recs.push("🚛 Incidencia moderada de piratería — reforzar seguimiento GPS en tránsito");
+    if (recs.length === 0) recs.push("✅ Corredor sin alertas críticas activas — mantener protocolos estándar");
+    return recs;
+  }, [selectedCorridor, armedDeptMap, blockadeDeptMap, realRoadDeptMap, userBlockades, pirataMap]);
 
   const corridorBlockades = useMemo(() =>
     selectedCorridor ? userBlockades.filter(b => b.corridorId === selectedCorridor.id) : [],
@@ -450,7 +528,7 @@ export function RouteAnalyzer({ dark = true }: Props) {
     if (!onRoute) return dark ? "#131e2e" : "#c8d8e8";
     const count = pirataMap[normKey(dept)] ?? 0;
     if (activeView === "pirateria") return pirataFill(count);
-    const score = compositeScore(dept, count);
+    const score = scoreForDept(dept, count);
     if (score < 20) return "#1a6a50"; if (score < 45) return "#c07a00";
     if (score < 70) return "#c04000"; return "#cc1000";
   }
@@ -529,12 +607,12 @@ export function RouteAnalyzer({ dark = true }: Props) {
 
     selectedCorridor.departments.forEach((dept, idx) => {
       const count = pirataMap[normKey(dept)] ?? 0;
-      const score = compositeScore(dept, count);
+      const score = scoreForDept(dept, count);
       const clabel = compositeLabel(score);
       const night  = nightLabel(NIGHT_RISK[dept] ?? 60);
-      const armed  = armedLabel(ARMED_GROUPS[dept]?.level ?? 0);
+      const armed  = armedLabel(armedDeptMap[dept]?.level ?? 0);
       const signal = signalLabel(CELL_SIGNAL[dept] ?? "partial");
-      const road   = roadLabel(ROAD_CONDITION[dept]?.score ?? "regular");
+      const road   = roadLabel((realRoadDeptMap[dept] ?? ROAD_CONDITION[dept]?.score) ?? "regular");
       const rowBg  = idx % 2 === 0 ? [250, 252, 255] as [number,number,number] : [255, 255, 255] as [number,number,number];
       doc.setFillColor(...rowBg); doc.rect(margin, y, W - margin * 2, 7, "F");
       doc.setFontSize(7); doc.setFont("helvetica", "normal"); doc.setTextColor(...dark2);
@@ -930,11 +1008,11 @@ export function RouteAnalyzer({ dark = true }: Props) {
       {false && (() => {
         const crDepts  = customDepts; // canonical names
         const crScore  = crDepts.length > 0
-          ? Math.round(crDepts.reduce((s, d) => s + compositeScore(d, pirataMap[normKey(d)] ?? 0), 0) / crDepts.length)
+          ? Math.round(crDepts.reduce((s, d) => s + scoreForDept(d, pirataMap[normKey(d)] ?? 0), 0) / crDepts.length)
           : 0;
         const crLabel  = compositeLabel(crScore);
         const crPirata = crDepts.reduce((s, d) => s + (pirataMap[normKey(d)] ?? 0), 0);
-        const crArmed  = Math.max(0, ...crDepts.map(d => ARMED_GROUPS[d]?.level ?? 0));
+        const crArmed  = Math.max(0, ...crDepts.map(d => armedDeptMap[d]?.level ?? 0));
         const crNight  = Math.max(0, ...crDepts.map(d => NIGHT_RISK[d] ?? 60));
         const crBlocksBD = userBlockades.filter(b =>
           crDepts.some(d => normKey(d) === normKey(b.department ?? "")) && b.status === "activo"
@@ -964,7 +1042,7 @@ export function RouteAnalyzer({ dark = true }: Props) {
               <div style={{ background: panelBg, border: `1px solid ${borderC}`, borderRadius: "10px", padding: "10px 14px", display: "flex", alignItems: "center", gap: "5px", flexWrap: "wrap" }}>
                 <MapPin style={{ width: 11, height: 11, color: E.cyan, flexShrink: 0 }} />
                 {crDepts.map((d, i) => {
-                  const s = compositeScore(d, pirataMap[normKey(d)] ?? 0);
+                  const s = scoreForDept(d, pirataMap[normKey(d)] ?? 0);
                   const l = compositeLabel(s);
                   return (
                     <div key={d} style={{ display: "flex", alignItems: "center", gap: "3px" }}>
@@ -990,7 +1068,7 @@ export function RouteAnalyzer({ dark = true }: Props) {
                     const canonical = findCanonicalDept(rawName);
                     const idx = crDepts.findIndex(d => normKey(d) === normKey(canonical));
                     const onRoute = idx >= 0;
-                    const score = compositeScore(canonical, pirataMap[normKey(canonical)] ?? 0);
+                    const score = scoreForDept(canonical, pirataMap[normKey(canonical)] ?? 0);
                     let fill: string;
                     if (onRoute) fill = E.cyan;
                     else { fill = getMapFill(rawName, false); }
@@ -1020,7 +1098,7 @@ export function RouteAnalyzer({ dark = true }: Props) {
                     Riesgo: {compositeLabel(hovered.score).label} · {hovered.score}/100
                   </div>
                   <div style={{ fontSize: "10px", color: textMuted }}>
-                    Piratería: {hovered.pirataCount} casos · Grupos: {armedLabel(ARMED_GROUPS[hovered.name]?.level ?? 0).label}
+                    Piratería: {hovered.pirataCount} casos · Grupos: {armedLabel(armedDeptMap[hovered.name]?.level ?? 0).label}
                   </div>
                 </div>
               )}
@@ -1102,9 +1180,9 @@ export function RouteAnalyzer({ dark = true }: Props) {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(255px, 1fr))", gap: "7px" }}>
             {CORRIDORS.map(corridor => {
               const risk       = corridorCardRisk(corridor);
-              const armedMax   = Math.max(...corridor.departments.map(d => ARMED_GROUPS[d]?.level ?? 0));
+              const armedMax   = Math.max(...corridor.departments.map(d => armedDeptMap[d]?.level ?? 0));
               const nightMax   = Math.max(...corridor.departments.map(d => NIGHT_RISK[d] ?? 60));
-              const blockadeMax= Math.max(...corridor.departments.map(d => BLOCKADE_HISTORY[d]?.level ?? 0));
+              const blockadeMax= userBlockades.filter(b => b.corridorId === corridor.id).length;
               const activeBlks = userBlockades.filter(b => b.corridorId === corridor.id && b.status === "activo").length;
               return (
                 <button key={corridor.id} onClick={() => setSelectedCorridor(corridor)}
@@ -1119,8 +1197,8 @@ export function RouteAnalyzer({ dark = true }: Props) {
                     <div style={{ display: "flex", gap: "3px", marginTop: "4px", flexWrap: "wrap" }}>
                       {armedMax >= 2   && <span style={{ fontSize: "8px", color: E.red,    background: "rgba(239,68,68,0.12)",    borderRadius: "3px", padding: "1px 5px", fontWeight: 700 }}>⚔ ARMADOS</span>}
                       {nightMax >= 75  && <span style={{ fontSize: "8px", color: E.amber,  background: "rgba(245,158,11,0.12)",  borderRadius: "3px", padding: "1px 5px", fontWeight: 700 }}>🌙 NOCTURNO</span>}
-                      {corridor.departments.some(d => ROAD_CONDITION[d]?.score === "difficult") && <span style={{ fontSize: "8px", color: E.orange, background: "rgba(249,115,22,0.12)", borderRadius: "3px", padding: "1px 5px", fontWeight: 700 }}>🔧 VÍA</span>}
-                      {blockadeMax >= 2 && <span style={{ fontSize: "8px", color: E.pink,  background: "rgba(236,72,153,0.12)",  borderRadius: "3px", padding: "1px 5px", fontWeight: 700 }}>🛑 BLOQUEOS</span>}
+                      {corridor.departments.some(d => (realRoadDeptMap[d] ?? ROAD_CONDITION[d]?.score) === "difficult") && <span style={{ fontSize: "8px", color: E.orange, background: "rgba(249,115,22,0.12)", borderRadius: "3px", padding: "1px 5px", fontWeight: 700 }}>🔧 VÍA</span>}
+                      {blockadeMax >= 1 && <span style={{ fontSize: "8px", color: E.pink,  background: "rgba(236,72,153,0.12)",  borderRadius: "3px", padding: "1px 5px", fontWeight: 700 }}>🛑 {blockadeMax} BLOQUEO{blockadeMax>1?"S":""}</span>}
                       {activeBlks > 0  && <span style={{ fontSize: "8px", color: "#fff",   background: E.red,                    borderRadius: "3px", padding: "1px 5px", fontWeight: 700 }}>🔴 {activeBlks} ACTIVO{activeBlks>1?"S":""}</span>}
                     </div>
                   </div>
@@ -1229,7 +1307,7 @@ export function RouteAnalyzer({ dark = true }: Props) {
                           const geoNorm = normGeo(rawName);
                           const onRoute = routeSet.has(geoNorm);
                           const count   = pirataMap[geoNorm] ?? 0;
-                          const score   = compositeScore(rawName, count);
+                          const score   = scoreForDept(rawName, count);
                           return (
                             <Geography key={geo.rsmKey} geography={geo}
                               fill={getMapFill(rawName, onRoute)}
@@ -1264,14 +1342,17 @@ export function RouteAnalyzer({ dark = true }: Props) {
                     <div style={{ display: "flex", flexDirection: "column", gap: "6px", overflowY: "auto", maxHeight: "300px" }}>
                       {selectedCorridor.departments.map((dept, i) => {
                         const count   = pirataMap[normKey(dept)] ?? 0;
-                        const score   = compositeScore(dept, count);
+                        const score   = scoreForDept(dept, count);
                         const clabel  = compositeLabel(score);
                         const night   = nightLabel(NIGHT_RISK[dept] ?? 60);
-                        const armed   = armedLabel(ARMED_GROUPS[dept]?.level ?? 0);
+                        const armed   = armedLabel(armedDeptMap[dept]?.level ?? 0);
                         const signal  = signalLabel(CELL_SIGNAL[dept] ?? "partial");
-                        const road    = roadLabel(ROAD_CONDITION[dept]?.score ?? "regular");
-                        const blkData = BLOCKADE_HISTORY[dept];
-                        const blkLbl  = blockadeLabel(blkData?.level ?? 0);
+                        const realRoad = realRoadDeptMap[dept] ?? ROAD_CONDITION[dept]?.score ?? "regular";
+                        const road    = roadLabel(realRoad);
+                        const deptActiveBlks = userBlockades.filter(b => b.department === dept && b.status === "activo").length;
+                        const deptAllBlks    = userBlockades.filter(b => b.department === dept);
+                        const blkLvl  = deptActiveBlks >= 2 ? 3 : deptActiveBlks === 1 ? 2 : deptAllBlks.some(b => b.status === "intermitente") ? 1 : 0;
+                        const blkLbl  = blockadeLabel(blkLvl);
                         const isEnd   = i === 0 || i === selectedCorridor.departments.length - 1;
                         return (
                           <div key={dept} style={{ background: dark?(isEnd?"rgba(0,212,255,0.04)":"rgba(255,255,255,0.02)"):(isEnd?"rgba(59,130,246,0.04)":"#f8fafc"), border: `1px solid ${isEnd?"rgba(0,212,255,0.15)":borderC}`, borderRadius: "7px", padding: "8px 10px" }}>
@@ -1312,9 +1393,9 @@ export function RouteAnalyzer({ dark = true }: Props) {
                                 </div>
                               ))}
                             </div>
-                            {(ARMED_GROUPS[dept]?.groups?.length ?? 0) > 0 && <div style={{ marginTop: "4px", fontSize: "9px", color: E.red, opacity: 0.8 }}>⚔ {ARMED_GROUPS[dept].groups.join(", ")}</div>}
-                            {blkData?.level > 0 && <div style={{ marginTop: "2px", fontSize: "9px", color: E.pink, opacity: 0.85 }}>🛑 {blkData.hotspot} — {blkData.cause}</div>}
-                            <div style={{ marginTop: "2px", fontSize: "9px", color: textMuted, opacity: 0.75 }}>🛣 {ROAD_CONDITION[dept]?.notes}</div>
+                            {(armedDeptMap[dept]?.groups?.length ?? 0) > 0 && <div style={{ marginTop: "4px", fontSize: "9px", color: E.red, opacity: 0.8 }}>⚔ {armedDeptMap[dept].groups.join(", ")}</div>}
+                            {deptActiveBlks > 0 && <div style={{ marginTop: "2px", fontSize: "9px", color: E.red, opacity: 0.9 }}>🔴 {deptActiveBlks} bloqueo{deptActiveBlks>1?"s":""} activo{deptActiveBlks>1?"s":""} en BD</div>}
+                            <div style={{ marginTop: "2px", fontSize: "9px", color: textMuted, opacity: 0.75 }}>🛣 {realRoadDeptMap[dept] ? `Cierre oficial (policia.gov.co)` : ROAD_CONDITION[dept]?.notes}</div>
                           </div>
                         );
                       })}
