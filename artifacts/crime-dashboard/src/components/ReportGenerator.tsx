@@ -187,8 +187,18 @@ export function ReportGenerator({ dark = true, user = null }: Props) {
     setPdfError("");
     setPdfAnalysis(null);
     try {
-      const ab = await pdfFile.arrayBuffer();
-      const b64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
+      /* FileReader avoids "Maximum call stack size exceeded" on large PDFs.
+         btoa(String.fromCharCode(...new Uint8Array(ab))) crashes on big files
+         because spreading a large typed array overflows the JS call stack. */
+      const b64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(",")[1] ?? "");
+        };
+        reader.onerror = () => reject(new Error("No se pudo leer el archivo PDF"));
+        reader.readAsDataURL(pdfFile);
+      });
       const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
       const resp = await fetch(`${BASE}/api/analyze/pdf`, {
         method: "POST",
