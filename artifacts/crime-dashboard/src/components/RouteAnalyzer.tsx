@@ -440,13 +440,6 @@ export function RouteAnalyzer({ dark = true }: Props) {
     selectedCorridor ? userBlockades.filter(b => b.corridorId === selectedCorridor.id) : [],
     [selectedCorridor, userBlockades],
   );
-  const historicBlockades = useMemo(() =>
-    selectedCorridor ? selectedCorridor.departments
-      .filter(d => (BLOCKADE_HISTORY[d]?.level ?? 0) > 0)
-      .sort((a, b) => (BLOCKADE_HISTORY[b]?.level ?? 0) - (BLOCKADE_HISTORY[a]?.level ?? 0))
-      : [],
-    [selectedCorridor],
-  );
 
   function corridorCardRisk(c: Corridor) {
     const total = c.departments.reduce((s, d) => s + (pirataMap[normKey(d)] ?? 0), 0);
@@ -1348,36 +1341,80 @@ export function RouteAnalyzer({ dark = true }: Props) {
             {activeTab === "blockades" && (
               <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
 
-                {/* Historical baseline */}
-                <div style={{ background: panelBg, border: `1px solid ${borderC}`, borderRadius: "12px", padding: "14px 16px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
-                    <BarChart2 style={{ width: 13, height: 13, color: E.pink }} />
-                    <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: E.pink }}>Historial de Bloqueos por Departamento</span>
-                    <span style={{ fontSize: "10px", color: textMuted, marginLeft: "auto" }}>Fuente: INVIAS / Policía de Carreteras / Medios regionales</span>
-                  </div>
-                  {historicBlockades.length === 0 ? (
-                    <div style={{ textAlign: "center", color: textMuted, fontSize: "12px", padding: "20px 0" }}>Sin historial de bloqueos en este corredor</div>
-                  ) : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                      {historicBlockades.map(dept => {
-                        const b = BLOCKADE_HISTORY[dept];
-                        const lbl = blockadeLabel(b.level);
-                        return (
-                          <div key={dept} style={{ background: dark?"rgba(255,255,255,0.025)":"#f8fafc", border: `1px solid ${borderC}`, borderRadius: "8px", padding: "10px 12px" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "5px" }}>
-                              <span style={{ fontSize: "11px", fontWeight: 700, color: textMain, flex: 1 }}>{dept}</span>
-                              <span style={{ fontSize: "9px", fontWeight: 700, color: lbl.color, background: lbl.bg, padding: "2px 8px", borderRadius: "4px" }}>{lbl.label}</span>
-                              {b.avgDurationHours > 0 && <span style={{ fontSize: "9px", color: textMuted }}>~{b.avgDurationHours}h duración media</span>}
-                            </div>
-                            <div style={{ fontSize: "11px", color: E.pink, marginBottom: "3px" }}>🛑 Punto crítico: {b.hotspot}</div>
-                            <div style={{ fontSize: "11px", color: textMuted }}><span style={{ color: dark?"rgba(255,255,255,0.6)":textMain }}>Causa habitual:</span> {b.cause || "Sin datos"}</div>
-                            <div style={{ fontSize: "10px", color: textMuted, marginTop: "3px" }}><Clock style={{ width: 9, height: 9, display: "inline", marginRight: "3px" }} />Último evento registrado: {b.lastEvent}</div>
-                          </div>
-                        );
-                      })}
+                {/* Bloqueos reales agrupados por departamento */}
+                {(() => {
+                  const deptMap: Record<string, typeof userBlockades> = {};
+                  userBlockades.forEach(blk => {
+                    if (!selectedCorridor || !selectedCorridor.departments.includes(blk.department)) return;
+                    if (!deptMap[blk.department]) deptMap[blk.department] = [];
+                    deptMap[blk.department].push(blk);
+                  });
+                  const depts = Object.keys(deptMap).sort((a, b) =>
+                    deptMap[b].filter(x => x.status === "activo").length - deptMap[a].filter(x => x.status === "activo").length
+                  );
+                  return (
+                    <div style={{ background: panelBg, border: `1px solid ${borderC}`, borderRadius: "12px", padding: "14px 16px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                        <BarChart2 style={{ width: 13, height: 13, color: E.pink }} />
+                        <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: E.pink }}>
+                          Bloqueos por Departamento — {selectedCorridor?.name}
+                        </span>
+                        <span style={{ marginLeft: "auto", fontSize: "9px", fontWeight: 700, color: E.pink, background: "rgba(236,72,153,0.12)", padding: "2px 7px", borderRadius: "8px" }}>
+                          {userBlockades.filter(b => selectedCorridor?.departments.includes(b.department)).length} en corredor
+                        </span>
+                      </div>
+                      {depts.length === 0 ? (
+                        <div style={{ textAlign: "center", color: textMuted, fontSize: "12px", padding: "20px 0" }}>
+                          <Ban style={{ width: 24, height: 24, opacity: 0.2, display: "block", margin: "0 auto 8px" }} />
+                          Sin bloqueos registrados en este corredor.<br />
+                          <span style={{ fontSize: "10px" }}>El monitor RSS detectará nuevos eventos automáticamente.</span>
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                          {depts.map(dept => {
+                            const blks = deptMap[dept];
+                            const activos = blks.filter(b => b.status === "activo");
+                            const interms = blks.filter(b => b.status === "intermitente");
+                            const last = blks.reduce((a, b) => new Date(b.updatedAt) > new Date(a.updatedAt) ? b : a);
+                            const srcColors: Record<string, string> = { news_rss: E.cyan, news_import: "#a78bfa", manual: textMuted };
+                            return (
+                              <div key={dept} style={{ background: dark?"rgba(255,255,255,0.025)":"#f8fafc", border: `1px solid ${activos.length > 0 ? "rgba(239,68,68,0.3)" : borderC}`, borderRadius: "8px", padding: "10px 12px" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+                                  <span style={{ fontSize: "11px", fontWeight: 700, color: textMain, flex: 1 }}>{dept}</span>
+                                  {activos.length > 0 && <span style={{ fontSize: "9px", fontWeight: 700, color: E.red, background: "rgba(239,68,68,0.12)", padding: "2px 7px", borderRadius: "4px" }}>🔴 {activos.length} ACTIVO{activos.length > 1 ? "S" : ""}</span>}
+                                  {interms.length > 0 && <span style={{ fontSize: "9px", fontWeight: 700, color: E.amber, background: "rgba(245,158,11,0.12)", padding: "2px 7px", borderRadius: "4px" }}>🟡 {interms.length} INTERM.</span>}
+                                  {activos.length === 0 && interms.length === 0 && <span style={{ fontSize: "9px", fontWeight: 700, color: "#10b981", background: "rgba(16,185,129,0.12)", padding: "2px 7px", borderRadius: "4px" }}>✅ Levantados</span>}
+                                </div>
+                                <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                                  {blks.slice(0, 4).map(blk => {
+                                    const src = (blk as any).source ?? "manual";
+                                    const exp = (blk as any).expiresAt ? new Date((blk as any).expiresAt) : null;
+                                    const hoursLeft = exp ? Math.max(0, Math.round((exp.getTime() - Date.now()) / 3600000)) : null;
+                                    const statusColor = blk.status === "activo" ? E.red : blk.status === "intermitente" ? E.amber : "#10b981";
+                                    return (
+                                      <div key={blk.id} style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "10px" }}>
+                                        <span style={{ color: statusColor, flexShrink: 0 }}>●</span>
+                                        <span style={{ color: textMain, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{blk.location}</span>
+                                        <span style={{ color: srcColors[src] ?? textMuted, fontSize: "8px", fontWeight: 700, background: `${srcColors[src] ?? textMuted}15`, padding: "1px 5px", borderRadius: "3px", flexShrink: 0 }}>{src === "news_rss" ? "RSS" : src === "news_import" ? "IA" : "OP"}</span>
+                                        {hoursLeft !== null && <span style={{ fontSize: "8px", color: hoursLeft <= 6 ? E.red : hoursLeft <= 24 ? E.amber : "#10b981", flexShrink: 0 }}>⏱{hoursLeft}h</span>}
+                                        <span style={{ fontSize: "9px", color: textMuted, flexShrink: 0 }}>{blk.date}</span>
+                                      </div>
+                                    );
+                                  })}
+                                  {blks.length > 4 && <div style={{ fontSize: "9px", color: textMuted }}>+{blks.length - 4} más</div>}
+                                </div>
+                                <div style={{ fontSize: "9px", color: textMuted, marginTop: "5px" }}>
+                                  <Clock style={{ width: 8, height: 8, display: "inline", marginRight: "3px" }} />
+                                  Último: {new Date(last.updatedAt).toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric" })}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  );
+                })()}
 
                 {/* ── OFFICIAL POLICE ROAD CONDITIONS ── */}
                 <div style={{ background: panelBg, border: `1px solid ${dark?"rgba(239,68,68,0.25)":borderC}`, borderRadius: "12px", padding: "14px 16px" }}>

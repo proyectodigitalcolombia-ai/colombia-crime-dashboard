@@ -112,7 +112,7 @@ React + Vite dashboard for Colombian crime statistics. Two-tab application:
 - Real-time weather: `src/hooks/useWeather.ts` fetches Open-Meteo API for each corridor department (free, no key)
 - PDF export: `jsPDF` generates structured A4 report on demand
 - Blockade CRUD: register/delete active blockades (persisted in PostgreSQL via `/api/blockades`); 30s auto-refresh
-- BLOCKADE_HISTORY: static historical data per department (FIP/INVIAS sources)
+- BLOCKADE_HISTORY: static risk-score reference per dept (FIP/INVIAS sources) — only used for composite score calculation, NOT for UI display (real DB data shown instead)
 - **Official road closures**: `src/hooks/useRoadConditions.ts` fetches `/api/road-conditions` which scrapes all pages of `policia.gov.co/estado-de-las-vias` (67+ closures, multi-page, refreshed every 6h); shown in "Cierres Oficiales — Policía Nacional" section in blockades tab; badge turns red on total closures
 
 **Tab 3 — Informe Gerencial PDF:**
