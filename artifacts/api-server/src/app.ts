@@ -30,8 +30,8 @@ app.use(
 );
 app.use(cors({ origin: true, credentials: true }));
 app.use(cookieParser());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "25mb" }));
+app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 
 app.use("/api", router);
 
@@ -132,5 +132,21 @@ if (fs.existsSync(dashboardDist)) {
     res.json({ name: "Colombia Crime Statistics API", status: "operational" });
   });
 }
+
+/* ── Global error handler — converts body-parser HTML errors to JSON ────────
+   express.json() default limit is 100 KB; large PDFs exceed it and Express
+   responds with raw HTML which breaks JSON.parse() in the frontend.
+   This middleware catches those errors and returns a clean JSON response.
+   ──────────────────────────────────────────────────────────────────────── */
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  if (err.type === "entity.too.large") {
+    return res.status(413).json({ error: "El archivo es demasiado grande (máx 25 MB). Redúzcalo antes de enviarlo." });
+  }
+  if (err.type === "entity.parse.failed") {
+    return res.status(400).json({ error: "JSON inválido en la petición." });
+  }
+  const status = err.status ?? err.statusCode ?? 500;
+  res.status(status).json({ error: err.message ?? "Error interno del servidor" });
+});
 
 export default app;
