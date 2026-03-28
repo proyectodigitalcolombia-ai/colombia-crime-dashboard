@@ -524,7 +524,7 @@ const BASCULAS: Bascula[] = [
 ];
 
 /* ════════ MAIN COMPONENT ════════ */
-interface Props { dark?: boolean; userBlockades?: Blockade[]; pirataMap?: Record<string, number> }
+interface Props { dark?: boolean; userBlockades?: Blockade[]; pirataMap?: Record<string, number>; corridorDepts?: string[] }
 
 const MAP_LAYERS = [
   {
@@ -565,7 +565,7 @@ const MAP_LAYERS = [
 ] as const;
 type MapLayerId = typeof MAP_LAYERS[number]["id"];
 
-export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {} }: Props) {
+export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {}, corridorDepts = [] }: Props) {
   const textMain  = dark ? "#e2eaf4" : "#1a2a3a";
   const textMuted = dark ? E.textDim : "#64748b";
   const borderC   = dark ? E.border  : "rgba(0,0,0,0.07)";
@@ -617,18 +617,36 @@ export function RouteMapBuilder({ dark = true, userBlockades = [], pirataMap = {
     iconSize: [26, 26], iconAnchor: [13, 13], popupAnchor: [0, -16],
   }), []);
 
-  /* ─ Blockades on this route (uses routeDepts to avoid ordering deps) ─ */
+  /* ─ Blockades on this route (uses routeDepts to avoid ordering deps) ─
+     Priority:
+     1. If route drawn → show blockades matching drawn route departments
+     2. If corridor selected (corridorDepts) → show blockades for that corridor
+     3. No route, no corridor → show ALL active/intermittent blockades on map
+  ─────────────────────────────────────────────────────────────────────── */
   const routeBlockades = useMemo(() => {
-    if (!showBlockadesOnMap || routeDepts.length === 0) return [];
-    const canon = routeDepts.map(d => canonicalize(d)).filter(d => d in ARMED);
-    if (canon.length === 0) return [];
-    return userBlockades.filter(b => {
-      if (b.status !== "activo" && b.status !== "intermitente") return false;
-      const bd = canonicalize(b.department ?? "");
-      return canon.some(d => d.toLowerCase().includes(bd.toLowerCase().slice(0,5)) || bd.toLowerCase().includes(d.toLowerCase().slice(0,5)));
-    });
+    if (!showBlockadesOnMap) return [];
+    const activeSrc = userBlockades.filter(b => b.status === "activo" || b.status === "intermitente");
+    // Case 1: user has drawn a route
+    if (routeDepts.length > 0) {
+      const canon = routeDepts.map(d => canonicalize(d)).filter(d => d in ARMED);
+      if (canon.length === 0) return activeSrc;
+      return activeSrc.filter(b => {
+        const bd = canonicalize(b.department ?? "");
+        return canon.some(d => d.toLowerCase().includes(bd.toLowerCase().slice(0,5)) || bd.toLowerCase().includes(d.toLowerCase().slice(0,5)));
+      });
+    }
+    // Case 2: corridor selected but no route drawn → filter by corridor departments
+    if (corridorDepts.length > 0) {
+      const canon = corridorDepts.map(d => canonicalize(d)).filter(d => d in ARMED);
+      return activeSrc.filter(b => {
+        const bd = canonicalize(b.department ?? "");
+        return canon.some(d => d.toLowerCase().includes(bd.toLowerCase().slice(0,5)) || bd.toLowerCase().includes(d.toLowerCase().slice(0,5)));
+      });
+    }
+    // Case 3: show all active blockades
+    return activeSrc;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showBlockadesOnMap, userBlockades, routeDepts.join(",")]);
+  }, [showBlockadesOnMap, userBlockades, routeDepts.join(","), corridorDepts.join(",")]);
 
   /* ─ All waypoints in order (only ones with valid coords) ─ */
   const allWPs = (): WP[] => {

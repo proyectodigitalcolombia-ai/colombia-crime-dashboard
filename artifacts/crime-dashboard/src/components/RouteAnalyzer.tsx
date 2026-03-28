@@ -313,7 +313,7 @@ export function RouteAnalyzer({ dark = true }: Props) {
   const queryClient = useQueryClient();
   const [selectedCorridor, setSelectedCorridor] = useState<Corridor | null>(null);
   const [activeView,       setActiveView]        = useState<"pirateria" | "compuesto">("compuesto");
-  const [activeTab,        setActiveTab]         = useState<"risk" | "blockades">("risk");
+  const [activeTab,        setActiveTab]         = useState<"risk" | "mapaVial" | "blockades">("risk");
   const [hovered,          setHovered]           = useState<{ name: string; pirataCount: number; score: number; ex: number; ey: number } | null>(null);
   const [showForm,         setShowForm]          = useState(false);
   const [formData,         setFormData]          = useState<FormData>(EMPTY_FORM());
@@ -321,6 +321,7 @@ export function RouteAnalyzer({ dark = true }: Props) {
   const [urlInput,         setUrlInput]          = useState("");
   const [urlLoading,       setUrlLoading]        = useState(false);
   const [urlResult,        setUrlResult]         = useState<{ count: number; message: string } | null>(null);
+  const [urlInserted,      setUrlInserted]       = useState<any[]>([]);
   const [urlError,         setUrlError]          = useState("");
   const [customRouteMode,  setCustomRouteMode]   = useState(false);
   const [customDepts,      setCustomDepts]       = useState<string[]>([]);
@@ -386,6 +387,7 @@ export function RouteAnalyzer({ dark = true }: Props) {
       const data = await resp.json();
       if (!resp.ok) { setUrlError(data.error || "Error al procesar la URL"); return; }
       setUrlResult({ count: data.inserted?.length ?? 0, message: data.message });
+      setUrlInserted(data.inserted ?? []);
       if ((data.inserted?.length ?? 0) > 0) {
         queryClient.invalidateQueries({ queryKey: getGetBlockadesQueryKey() });
         setUrlInput("");
@@ -699,6 +701,41 @@ export function RouteAnalyzer({ dark = true }: Props) {
         {urlResult && (
           <div style={{ marginTop: "8px", fontSize: "10px", display: "flex", alignItems: "center", gap: "5px", color: urlResult.count > 0 ? E.emerald : textMuted, fontWeight: urlResult.count > 0 ? 600 : 400 }}>
             <CheckCircle2 style={{ width: 10, height: 10 }} /> {urlResult.message}
+          </div>
+        )}
+        {urlInserted.length > 0 && (
+          <div style={{ marginTop: "10px", display: "flex", flexDirection: "column", gap: "6px" }}>
+            <div style={{ fontSize: "9px", fontWeight: 700, color: textMuted, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+              Bloqueos extraídos — seleccione un corredor para verlos en el mapa
+            </div>
+            {urlInserted.map((b: any, i: number) => {
+              const corridor = CORRIDORS.find(c => c.id === b.corridorId);
+              const statusColor = b.status === "activo" ? E.red : b.status === "intermitente" ? E.amber : E.emerald;
+              const statusLabel = b.status === "activo" ? "Activo" : b.status === "intermitente" ? "Intermitente" : "Levantado";
+              return (
+                <div key={b.id ?? i} style={{ background: "rgba(0,212,255,0.05)", border: "1px solid rgba(0,212,255,0.15)", borderRadius: "8px", padding: "8px 10px", display: "flex", flexDirection: "column", gap: "4px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: "10px", fontWeight: 700, color: textMain }}>
+                      {corridor ? `${corridor.icon} ${corridor.shortName}` : b.corridorId} — {b.department}
+                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                      <span style={{ fontSize: "9px", fontWeight: 700, color: statusColor, background: `${statusColor}20`, padding: "1px 6px", borderRadius: "4px" }}>
+                        {statusLabel}
+                      </span>
+                      {corridor && (
+                        <button
+                          onClick={() => setSelectedCorridor(corridor)}
+                          style={{ fontSize: "9px", fontWeight: 700, color: E.cyan, background: "rgba(0,212,255,0.12)", border: "1px solid rgba(0,212,255,0.25)", borderRadius: "4px", padding: "1px 6px", cursor: "pointer" }}>
+                          Ver en mapa
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: "10px", color: textMuted }}>📍 {b.location}</div>
+                  {b.notes && <div style={{ fontSize: "9px", color: textMuted, fontStyle: "italic", lineHeight: 1.4 }}>{b.notes}</div>}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -1048,9 +1085,14 @@ export function RouteAnalyzer({ dark = true }: Props) {
 
             {/* Tab + view toggles */}
             <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-              {([["risk","📊 Análisis de Riesgo"],["blockades","🛑 Bloqueos Comunitarios"]] as const).map(([id, label]) => (
+              {([["risk","📊 Análisis de Riesgo"],["mapaVial","🗺️ Mapa Vial"],["blockades","🛑 Bloqueos Comunitarios"]] as const).map(([id, label]) => (
                 <button key={id} onClick={() => setActiveTab(id)} style={{ padding: "6px 14px", fontSize: "11px", fontWeight: 600, border: `1px solid ${activeTab===id?E.pink:borderC}`, borderRadius: "7px", background: activeTab===id?"rgba(236,72,153,0.1)":"transparent", color: activeTab===id?E.pink:textMuted, cursor: "pointer" }}>
                   {label}
+                  {id === "mapaVial" && corridorBlockades.filter(b=>b.status==="activo"||b.status==="intermitente").length > 0 && (
+                    <span style={{ marginLeft: "5px", background: E.red, color: "#fff", borderRadius: "10px", padding: "1px 6px", fontSize: "9px" }}>
+                      {corridorBlockades.filter(b=>b.status==="activo"||b.status==="intermitente").length}
+                    </span>
+                  )}
                   {id === "blockades" && (corridorBlockades.length > 0 || officialClosures.length > 0) && (
                     <span style={{ marginLeft: "5px", background: officialClosures.some(c=>c.conditionCode==="cierre_total") ? E.red : E.pink, color: "#fff", borderRadius: "10px", padding: "1px 6px", fontSize: "9px" }}>
                       {corridorBlockades.length + officialClosures.length}
@@ -1068,6 +1110,16 @@ export function RouteAnalyzer({ dark = true }: Props) {
                 </div>
               )}
             </div>
+
+            {/* ── MAPA VIAL TAB — Leaflet + bloqueos automáticos ── */}
+            {activeTab === "mapaVial" && (
+              <RouteMapBuilder
+                dark={dark}
+                userBlockades={userBlockades}
+                pirataMap={pirataMap}
+                corridorDepts={selectedCorridor.departments}
+              />
+            )}
 
             {/* ── RISK TAB ── */}
             {activeTab === "risk" && (
