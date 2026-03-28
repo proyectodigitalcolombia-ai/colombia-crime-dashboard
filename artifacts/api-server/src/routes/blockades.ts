@@ -4,9 +4,7 @@ import { eq, desc } from "drizzle-orm";
 import Anthropic from "@anthropic-ai/sdk";
 import Groq from "groq-sdk";
 import { parse as parseHtml } from "node-html-parser";
-import { createRequire } from "module";
-
-const _require = createRequire(import.meta.url);
+import { PDFParse } from "pdf-parse";
 
 /* ── Nominatim geocoder (OpenStreetMap, free, no key required) ─────────────
    Returns precise lat/lng for a location string like "Oiba, Santander"
@@ -257,24 +255,19 @@ router.post("/analyze/pdf", async (req, res) => {
   try {
     let text: string = req.body?.text ?? "";
 
-    /* If caller sends raw base64 PDF, extract text server-side with pdf-parse.
-       Use createRequire(_require) because pdf-parse is CJS and dynamic import()
-       of CJS modules in an ESM bundle may return undefined for .default.        */
+    /* If caller sends raw base64 PDF, extract text server-side with pdf-parse v2.
+       v2 API: new PDFParse({ data: Buffer }) — then call .getText()             */
     if (!text && req.body?.pdfBase64) {
       try {
         const buf = Buffer.from(req.body.pdfBase64, "base64");
         if (buf.length > 20_000_000) {
           return res.status(400).json({ error: "El PDF es demasiado grande (máx 20 MB). Redúzcalo antes de enviarlo." });
         }
-        const pdfParse: (buf: Buffer, opts?: any) => Promise<{ text: string }> = _require("pdf-parse");
-        if (typeof pdfParse !== "function") throw new Error("pdf-parse no se pudo cargar correctamente");
-        const parsed = await pdfParse(buf, { max: 50 }); // limit to first 50 pages
-        text = parsed.text;
+        const parser = new PDFParse({ data: buf });
+        const parsed = await parser.getText({ first: 1, last: 50 });
+        text = parsed.text ?? "";
       } catch (parseErr: any) {
-        const msg = parseErr instanceof RangeError
-          ? "El PDF es demasiado complejo para procesarlo automáticamente. Copie y pegue el texto manualmente."
-          : `No se pudo extraer texto del PDF: ${parseErr.message}`;
-        return res.status(400).json({ error: msg });
+        return res.status(400).json({ error: `No se pudo extraer texto del PDF: ${parseErr.message}` });
       }
     }
 
