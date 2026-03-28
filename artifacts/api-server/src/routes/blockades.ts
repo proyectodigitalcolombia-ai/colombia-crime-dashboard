@@ -107,6 +107,10 @@ router.post("/blockades", async (req, res) => {
   try {
     const { data, error } = validateBody(req.body);
     if (error) return res.status(400).json({ error });
+
+    /* Geocode the location so the route map can place the marker precisely */
+    const coords = await geocode(data.location, data.department).catch(() => null);
+
     const [inserted] = await db.insert(blockadeTable).values({
       corridorId:    data.corridorId,
       department:    data.department,
@@ -117,6 +121,8 @@ router.post("/blockades", async (req, res) => {
       status:        (data.status ?? "activo") as BlockadeStatus,
       notes:         data.notes ?? null,
       reporter:      data.reporter ?? null,
+      lat:           coords?.lat ?? null,
+      lng:           coords?.lng ?? null,
     }).returning();
     res.status(201).json(inserted);
   } catch (err) {
