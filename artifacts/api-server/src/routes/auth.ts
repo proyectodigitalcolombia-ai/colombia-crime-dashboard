@@ -70,12 +70,21 @@ router.patch("/auth/config", async (req, res) => {
   if (!token) return res.status(401).json({ error: "No autenticado" });
   try {
     const payload = jwt.verify(token, JWT_SECRET) as { userId: number };
-    const { companyName, companySubtitle, analystName, analystEmail, analystPhone, primaryColor, footerDisclaimer } = req.body ?? {};
+    const {
+      companyName, companySubtitle, companyNit, companyAddress, companyCity, companyLogo,
+      analystName, analystCargo, analystEmail, analystPhone,
+      primaryColor, footerDisclaimer,
+    } = req.body ?? {};
     const [updated] = await db.update(usersTable)
       .set({
         ...(companyName      !== undefined && { companyName }),
         ...(companySubtitle  !== undefined && { companySubtitle }),
+        ...(companyNit       !== undefined && { companyNit }),
+        ...(companyAddress   !== undefined && { companyAddress }),
+        ...(companyCity      !== undefined && { companyCity }),
+        ...(companyLogo      !== undefined && { companyLogo }),
         ...(analystName      !== undefined && { analystName }),
+        ...(analystCargo     !== undefined && { analystCargo }),
         ...(analystEmail     !== undefined && { analystEmail }),
         ...(analystPhone     !== undefined && { analystPhone }),
         ...(primaryColor     !== undefined && { primaryColor }),

@@ -4,6 +4,7 @@ import { pool, db, usersTable } from "@workspace/db";
 import { loadDemoIfEmpty, startDailyAutoRefresh } from "./routes/crimes";
 import { startBlockadeAutoExpiry } from "./routes/blockades";
 import { startNewsMonitor } from "./routes/news-monitor";
+import { startRestrictionsSyncMonitor } from "./routes/restrictions-sync";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 
@@ -94,6 +95,24 @@ async function ensureSchema() {
       ALTER TABLE blockades ADD COLUMN IF NOT EXISTS source_url TEXT;
       ALTER TABLE blockades ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP;
       CREATE INDEX IF NOT EXISTS blockades_expires_idx ON blockades (expires_at);
+
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS company_nit TEXT NOT NULL DEFAULT '';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS company_address TEXT NOT NULL DEFAULT '';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS company_city TEXT NOT NULL DEFAULT 'Bogotá D.C.';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS company_logo TEXT;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS analyst_cargo TEXT NOT NULL DEFAULT 'Analista de Seguridad';
+
+      CREATE TABLE IF NOT EXISTS restrictions_sync (
+        id SERIAL PRIMARY KEY,
+        source_url TEXT NOT NULL,
+        bulletin_title TEXT,
+        bulletin_urls TEXT,
+        data_hash TEXT,
+        last_checked TIMESTAMP NOT NULL DEFAULT NOW(),
+        last_changed TIMESTAMP,
+        new_detected BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      );
     `);
 
     logger.info("Database schema ensured (all tables)");
@@ -155,6 +174,7 @@ app.listen(port, (err) => {
     .then(() => startDailyAutoRefresh())
     .then(() => startBlockadeAutoExpiry())
     .then(() => startNewsMonitor())
+    .then(() => startRestrictionsSyncMonitor())
     .catch((err) => {
       logger.error({ err }, "Failed to ensure database schema or load initial data");
     });

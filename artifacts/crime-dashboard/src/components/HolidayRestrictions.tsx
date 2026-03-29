@@ -1,4 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { useAuth } from "@/context/AuthContext";
+import { RefreshCw } from "lucide-react";
 
 /* ───────── PALETTE ───────── */
 const E = {
@@ -348,11 +350,22 @@ function msToCountdown(ms: number) {
    ════════════════════════════════════════════════════════════════ */
 interface Props { dark?: boolean }
 
+type SyncStatus = {
+  lastChecked: string | null;
+  lastChanged: string | null;
+  bulletinTitle: string | null;
+  bulletinUrls: string[];
+  newDetected: boolean;
+  sourceUrl: string;
+};
+
 export function HolidayRestrictions({ dark = true }: Props) {
   const now = new Date();
+  const { user } = useAuth();
   const [expanded, setExpanded] = useState<string | null>(null);
   const [showPrint, setShowPrint] = useState(false);
   const [showVias, setShowVias] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
 
   const panel  = dark ? E.panel : "#ffffff";
   const text   = dark ? "rgba(255,255,255,0.87)" : "#1e293b";
@@ -365,11 +378,19 @@ export function HolidayRestrictions({ dark = true }: Props) {
     pasados:  PUENTES.filter(p => getStatus(p, now) === "pasada"),
   }), []);
 
+  useEffect(() => {
+    const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
+    fetch(`${API_BASE}/api/restrictions/sync-status`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => data && setSyncStatus(data))
+      .catch(() => {});
+  }, []);
+
   const siguiente = proximos[0] ?? null;
   const msHasta   = siguiente ? siguiente.inicio.getTime() - now.getTime() : 0;
 
   /* ── PRINT VIEW ── */
-  if (showPrint) return <PrintView onBack={() => setShowPrint(false)} now={now} activo={activo} proximos={proximos} />;
+  if (showPrint) return <PrintView onBack={() => setShowPrint(false)} now={now} activo={activo} proximos={proximos} user={user} />;
 
   /* ── PUENTE CARD ── */
   function PuenteCard({ p }: { p: Puente }) {
@@ -496,6 +517,28 @@ export function HolidayRestrictions({ dark = true }: Props) {
           </button>
         </div>
       </div>
+
+      {/* Sync status banner */}
+      {syncStatus && (
+        <div style={{
+          background: syncStatus.newDetected
+            ? "rgba(245,158,11,0.1)" : dark ? "rgba(0,212,255,0.05)" : "rgba(0,180,220,0.06)",
+          border: `1px solid ${syncStatus.newDetected ? "rgba(245,158,11,0.35)" : "rgba(0,212,255,0.18)"}`,
+          borderRadius: 10, padding: "10px 16px", marginBottom: 16,
+          display: "flex", alignItems: "center", gap: 10, fontSize: 11,
+        }}>
+          <RefreshCw size={13} color={syncStatus.newDetected ? E.amber : E.cyan} style={{ flexShrink: 0 }} />
+          <span style={{ color: syncStatus.newDetected ? E.amber : E.cyan, fontWeight: 600 }}>
+            {syncStatus.newDetected ? "⚠ Nuevo boletín MinTransporte detectado — " : "Sincronización activa con MinTransporte — "}
+          </span>
+          <span style={{ color: muted }}>
+            Revisado: {syncStatus.lastChecked
+              ? new Date(syncStatus.lastChecked).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })
+              : "pendiente"}
+            {syncStatus.bulletinTitle && <> · {syncStatus.bulletinTitle}</>}
+          </span>
+        </div>
+      )}
 
       {/* Status hero */}
       {activo ? (
@@ -640,162 +683,251 @@ function Section({ title, color, children }: { title:string; color:string; child
 /* ════════════════════════════════════════════════════════════════
    PRINT VIEW
    ════════════════════════════════════════════════════════════════ */
-function PrintView({ onBack, now, activo, proximos }: {
+const CELL = "1px solid #cbd5e1";
+const CELL_DARK = "1px solid #1e293b";
+
+function PrintView({ onBack, now, activo, proximos, user }: {
   onBack: () => void;
   now: Date;
   activo: Puente | null;
   proximos: Puente[];
+  user: import("@/context/AuthContext").UserConfig | null;
 }) {
+  const primaryColor = user?.primaryColor ?? "#0f172a";
+
+  const thStyle: React.CSSProperties = {
+    padding: "9px 12px", textAlign: "left", fontWeight: 800,
+    fontSize: 11, letterSpacing: "0.05em",
+    border: CELL_DARK, borderColor: "rgba(255,255,255,0.25)",
+    color: "#ffffff", background: "transparent",
+  };
+  const tdStyle = (alt: boolean, bold?: boolean): React.CSSProperties => ({
+    padding: "8px 12px", fontSize: 11, border: CELL,
+    background: alt ? "#f0f4f8" : "#ffffff",
+    fontWeight: bold ? 700 : 400,
+    color: "#1e293b",
+    verticalAlign: "top",
+  });
+
+  const sectionHead: React.CSSProperties = {
+    fontSize: 12, fontWeight: 900, color: "#ffffff",
+    background: primaryColor,
+    padding: "7px 14px",
+    letterSpacing: "0.07em",
+    borderBottom: `3px solid ${primaryColor}`,
+    marginBottom: 0,
+  };
+
   return (
-    <div style={{ background:"#fff", color:"#111", fontFamily:"Arial, sans-serif",
-      padding:"36px 48px", minHeight:"100vh" }}>
-      {/* Back btn */}
-      <button onClick={onBack} style={{ marginBottom:24, padding:"7px 16px", borderRadius:6,
+    <div style={{ background:"#fff", color:"#1e293b", fontFamily:"'Segoe UI',Arial,sans-serif",
+      padding:"32px 42px", minHeight:"100vh" }}>
+      {/* Back btn (screen only) */}
+      <button onClick={onBack} className="print:hidden" style={{ marginBottom:24, padding:"7px 16px", borderRadius:6,
         background:"#0f172a", color:"#fff", border:"none", cursor:"pointer", fontSize:12 }}>
         ← Volver al dashboard
       </button>
 
-      {/* Header */}
-      <div style={{ borderBottom:"3px solid #0f172a", paddingBottom:16, marginBottom:24,
-        display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
-        <div>
-          <div style={{ fontSize:20, fontWeight:900, color:"#0f172a", letterSpacing:"-0.02em" }}>
-            RESTRICCIÓN VEHICULAR — PUENTES FESTIVOS 2026
-          </div>
-          <div style={{ fontSize:12, color:"#475569", marginTop:3 }}>
-            Vehículos con peso ≥ 3.4 toneladas · Red Vial Nacional Primaria · Colombia
-          </div>
-          <div style={{ fontSize:10, color:"#94a3b8", marginTop:2 }}>
-            Fuente: Boletín Estratégico MinTransporte 19 mar 2026 · Res. 761/2013 y 2307/2014
+      {/* ── EXECUTIVE HEADER ── */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start",
+        borderBottom:`4px solid ${primaryColor}`, paddingBottom:14, marginBottom:22 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+          {user?.companyLogo && (
+            <img src={user.companyLogo} alt="Logo" style={{ height:52, objectFit:"contain" }} />
+          )}
+          <div>
+            <div style={{ fontSize:9, fontWeight:800, letterSpacing:"0.12em", textTransform:"uppercase",
+              color:primaryColor, marginBottom:2 }}>
+              {user?.companyName ?? "SafeNode S.A.S."}
+              {user?.companyNit ? <span style={{ color:"#64748b", fontWeight:400 }}> · NIT {user.companyNit}</span> : ""}
+            </div>
+            <div style={{ fontSize:18, fontWeight:900, color:"#0f172a", letterSpacing:"-0.02em", lineHeight:1.2 }}>
+              RESTRICCIÓN VEHICULAR — PUENTES FESTIVOS 2026
+            </div>
+            <div style={{ fontSize:11, color:"#475569", marginTop:3 }}>
+              Vehículos con peso ≥ 3.4 toneladas · Red Vial Nacional Primaria · Colombia
+            </div>
+            <div style={{ fontSize:9, color:"#94a3b8", marginTop:2 }}>
+              Fuente: Boletín Estratégico MinTransporte 19 mar 2026 · Res. 761/2013 y 2307/2014
+            </div>
           </div>
         </div>
-        <div style={{ textAlign:"right" }}>
-          <div style={{ fontSize:10, color:"#94a3b8" }}>SafeNode S.A.S · Área de Seguridad</div>
-          <div style={{ fontSize:11, fontWeight:700, color:"#0f172a" }}>
+        <div style={{ textAlign:"right", flexShrink:0, paddingLeft:16 }}>
+          <div style={{ fontSize:10, color:"#64748b" }}>
+            {user?.analystName ?? "Analista de Seguridad"}
+          </div>
+          {user?.analystCargo && (
+            <div style={{ fontSize:9, color:"#94a3b8" }}>{user.analystCargo}</div>
+          )}
+          {user?.analystPhone && (
+            <div style={{ fontSize:9, color:"#94a3b8" }}>{user.analystPhone}</div>
+          )}
+          <div style={{ fontSize:11, fontWeight:800, color:"#0f172a", marginTop:6 }}>
             {now.toLocaleDateString("es-CO",{day:"numeric",month:"long",year:"numeric"})}
           </div>
         </div>
       </div>
 
-      {/* Status */}
+      {/* ── ALERTA ACTIVA ── */}
       {activo && (
-        <div style={{ background:"#fef2f2", border:"2px solid #ef4444", borderRadius:6,
-          padding:"10px 16px", marginBottom:20 }}>
-          <strong style={{ color:"#dc2626" }}>🚫 RESTRICCIÓN ACTIVA: {activo.nombre}</strong>
+        <div style={{ background:"#fef2f2", border:"2px solid #dc2626", borderRadius:6,
+          padding:"10px 16px", marginBottom:18, display:"flex", alignItems:"center", gap:10 }}>
+          <div style={{ width:14, height:14, borderRadius:"50%", background:"#dc2626", flexShrink:0 }} />
+          <strong style={{ color:"#dc2626", fontSize:12 }}>RESTRICCIÓN ACTIVA: {activo.nombre}</strong>
         </div>
       )}
 
-      {/* Main table */}
-      <table style={{ width:"100%", borderCollapse:"collapse", fontSize:11, marginBottom:28 }}>
-        <thead>
-          <tr style={{ background:"#0f172a", color:"#fff" }}>
-            {["Festivo","Inicio restricción","Fin restricción","Fuente"].map(h => (
-              <th key={h} style={{ padding:"9px 12px", textAlign:"left", fontWeight:700 }}>{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {PUENTES.map((p, i) => {
-            const status = (() => {
-              if (now >= p.inicio && now <= p.fin) return "activa";
-              if (now < p.inicio) return "proxima";
-              return "pasada";
-            })();
-            return (
-              <tr key={p.id} style={{ background: i%2===0 ? "#f8fafc" : "#fff",
-                borderBottom:"1px solid #e2e8f0" }}>
-                <td style={{ padding:"8px 12px", fontWeight:700, color:"#0f172a" }}>{p.nombre}</td>
-                <td style={{ padding:"8px 12px", color:"#dc2626", fontWeight:600 }}>
-                  {p.inicio.toLocaleString("es-CO",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}
-                </td>
-                <td style={{ padding:"8px 12px", color:"#16a34a", fontWeight:600 }}>
-                  {p.fin.toLocaleString("es-CO",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}
-                </td>
-                <td style={{ padding:"8px 12px" }}>
-                  <span style={{ padding:"2px 8px", borderRadius:20, fontSize:9, fontWeight:800,
-                    background: p.fuente==="oficial" ? "#f0fdf4" : "#fefce8",
-                    color: p.fuente==="oficial" ? "#15803d" : "#b45309" }}>
-                    {p.fuente==="oficial" ? "✓ OFICIAL" : "~ ESTIMADO"}
-                  </span>
-                  {" "}
-                  <span style={{ padding:"2px 8px", borderRadius:20, fontSize:9, fontWeight:800,
-                    background: status==="activa" ? "#fef2f2" : status==="proxima" ? "#fefce8" : "#f0fdf4",
-                    color: status==="activa" ? "#dc2626" : status==="proxima" ? "#b45309" : "#15803d" }}>
-                    {status==="activa" ? "ACTIVA" : status==="proxima" ? "PRÓXIMA" : "FINALIZADA"}
-                  </span>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      {/* ── TABLA RESUMEN TODOS LOS PUENTES ── */}
+      <div style={{ marginBottom:24 }}>
+        <div style={sectionHead}>CALENDARIO DE RESTRICCIONES 2026</div>
+        <table style={{ width:"100%", borderCollapse:"collapse", fontSize:11 }}>
+          <thead>
+            <tr style={{ background: primaryColor }}>
+              {["#","Festivo","Inicio restricción","Fin restricción","Días","Estado","Fuente"].map(h => (
+                <th key={h} style={thStyle}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {PUENTES.map((p, i) => {
+              const status = (() => {
+                if (now >= p.inicio && now <= p.fin) return "activa";
+                if (now < p.inicio) return "proxima";
+                return "pasada";
+              })();
+              const dias = Math.ceil((p.fin.getTime() - p.inicio.getTime()) / 86400000);
+              const alt = i % 2 === 0;
+              return (
+                <tr key={p.id}>
+                  <td style={{ ...tdStyle(alt), width:28, textAlign:"center", color:"#94a3b8" }}>{i+1}</td>
+                  <td style={{ ...tdStyle(alt, true), color: primaryColor }}>{p.nombre}</td>
+                  <td style={{ ...tdStyle(alt), color:"#dc2626", fontWeight:600 }}>
+                    {p.inicio.toLocaleString("es-CO",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}
+                  </td>
+                  <td style={{ ...tdStyle(alt), color:"#15803d", fontWeight:600 }}>
+                    {p.fin.toLocaleString("es-CO",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}
+                  </td>
+                  <td style={{ ...tdStyle(alt), textAlign:"center" }}>{dias}</td>
+                  <td style={{ ...tdStyle(alt) }}>
+                    <span style={{
+                      padding:"2px 8px", borderRadius:3, fontSize:9, fontWeight:800,
+                      background: status==="activa" ? "#fef2f2" : status==="proxima" ? "#fefce8" : "#f0fdf4",
+                      color: status==="activa" ? "#dc2626" : status==="proxima" ? "#b45309" : "#15803d",
+                      border: `1px solid ${status==="activa" ? "#fca5a5" : status==="proxima" ? "#fde68a" : "#bbf7d0"}`,
+                    }}>
+                      {status==="activa" ? "ACTIVA" : status==="proxima" ? "PRÓXIMA" : "FINALIZADA"}
+                    </span>
+                  </td>
+                  <td style={{ ...tdStyle(alt) }}>
+                    <span style={{
+                      padding:"2px 8px", borderRadius:3, fontSize:9, fontWeight:800,
+                      background: p.fuente==="oficial" ? "#f0fdf4" : "#fefce8",
+                      color: p.fuente==="oficial" ? "#15803d" : "#b45309",
+                      border: `1px solid ${p.fuente==="oficial" ? "#bbf7d0" : "#fde68a"}`,
+                    }}>
+                      {p.fuente==="oficial" ? "✓ OFICIAL" : "~ ESTIMADO"}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
 
-      {/* Detail for upcoming */}
+      {/* ── HORARIOS DETALLADOS DE PRÓXIMOS ── */}
       {proximos.slice(0,3).map(p => (
-        <div key={p.id} style={{ marginBottom:20, pageBreakInside:"avoid" as const }}>
-          <div style={{ fontSize:13, fontWeight:800, color:"#0f172a",
-            borderBottom:"2px solid #0f172a", paddingBottom:5, marginBottom:10 }}>
-            {p.nombre}
-            {p.fuente==="estimado" && <span style={{ fontSize:9, color:"#b45309",
-              marginLeft:8, fontWeight:600 }}>HORARIO ESTIMADO</span>}
+        <div key={p.id} style={{ marginBottom:22, pageBreakInside:"avoid" as const }}>
+          <div style={{ ...sectionHead, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <span>HORARIO DETALLADO — {p.nombre.toUpperCase()}</span>
+            {p.fuente==="estimado" && (
+              <span style={{ fontSize:9, fontWeight:600, color:"rgba(255,255,255,0.7)" }}>HORARIO ESTIMADO</span>
+            )}
           </div>
-          {p.nota && <div style={{ fontSize:10, color:"#92400e", background:"#fef3c7",
-            padding:"6px 10px", borderRadius:4, marginBottom:8 }}>⚠️ {p.nota}</div>}
+          {p.nota && (
+            <div style={{ fontSize:10, color:"#92400e", background:"#fef3c7",
+              border:"1px solid #fde68a", padding:"6px 12px", marginBottom:0 }}>
+              ⚠️ {p.nota}
+            </div>
+          )}
           <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
             <thead>
-              <tr style={{ background:"#f1f5f9" }}>
-                {["Día","Fecha","Horario","Aplicación"].map(h => (
-                  <th key={h} style={{ padding:"5px 8px", textAlign:"left",
-                    fontWeight:700, color:"#475569" }}>{h}</th>
+              <tr style={{ background:"#1e293b" }}>
+                {["Día","Fecha","Horario de restricción","Aplicación geográfica"].map(h => (
+                  <th key={h} style={{ ...thStyle, fontSize:9, padding:"7px 10px" }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {p.horarios.map((r, i) => (
-                <tr key={i} style={{ borderBottom:"1px solid #e2e8f0",
-                  background: r.festivo ? "#fefce8" : i%2===0 ? "#f8fafc" : "#fff" }}>
-                  <td style={{ padding:"5px 8px", fontWeight:700,
-                    color: r.festivo ? "#b45309" : "#0f172a" }}>{r.dia}</td>
-                  <td style={{ padding:"5px 8px", color:"#475569" }}>{r.fecha}</td>
-                  <td style={{ padding:"5px 8px", fontWeight:700,
-                    color: r.noAplica ? "#15803d" : "#dc2626" }}>{r.horario}</td>
-                  <td style={{ padding:"5px 8px", color:"#64748b" }}>{r.aplicacion}</td>
-                </tr>
-              ))}
+              {p.horarios.map((r, i) => {
+                const alt = i % 2 === 0;
+                return (
+                  <tr key={i}>
+                    <td style={{ ...tdStyle(r.festivo ? false : alt, true),
+                      background: r.festivo ? "#fefce8" : alt ? "#f0f4f8" : "#ffffff",
+                      color: r.festivo ? "#b45309" : "#0f172a", whiteSpace:"nowrap", width:80 }}>
+                      {r.dia}
+                    </td>
+                    <td style={{ ...tdStyle(alt), whiteSpace:"nowrap", color:"#475569", width:80 }}>{r.fecha}</td>
+                    <td style={{ ...tdStyle(alt, true), whiteSpace:"nowrap", width:120,
+                      color: r.noAplica ? "#15803d" : "#dc2626" }}>
+                      {r.horario}
+                    </td>
+                    <td style={{ ...tdStyle(alt), color:"#334155" }}>{r.aplicacion}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       ))}
 
-      {/* Exemptions + roads in 2 cols */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:24, marginBottom:20 }}>
+      {/* ── EXENCIONES + VÍAS ── */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:20, marginBottom:20 }}>
         <div>
-          <div style={{ fontSize:12, fontWeight:800, color:"#0f172a",
-            borderBottom:"2px solid #0f172a", paddingBottom:4, marginBottom:8 }}>
-            CARGA EXENTA (no aplica restricción)
-          </div>
-          {EXENCIONES_CARGA.map(ex => (
-            <div key={ex} style={{ fontSize:10, color:"#334155", marginBottom:4 }}>
-              ✓ {ex}
-            </div>
-          ))}
+          <div style={{ ...sectionHead, fontSize:10 }}>CARGA EXENTA — NO APLICA RESTRICCIÓN</div>
+          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:9 }}>
+            <tbody>
+              {EXENCIONES_CARGA.map((ex, i) => (
+                <tr key={ex}>
+                  <td style={{ ...tdStyle(i%2===0), paddingLeft:10 }}>
+                    <span style={{ color:"#15803d", marginRight:5 }}>✓</span>{ex}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
         <div>
-          <div style={{ fontSize:12, fontWeight:800, color:"#0f172a",
-            borderBottom:"2px solid #0f172a", paddingBottom:4, marginBottom:8 }}>
-            VÍAS CON EXCEPCIÓN (NO aplica restricción)
-          </div>
-          {VIAS_EXCEPCION.map(v => (
-            <div key={v} style={{ fontSize:10, color:"#334155", marginBottom:4 }}>✓ {v}</div>
-          ))}
+          <div style={{ ...sectionHead, fontSize:10 }}>VÍAS CON EXCEPCIÓN — SIN RESTRICCIÓN</div>
+          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:9 }}>
+            <tbody>
+              {VIAS_EXCEPCION.map((v, i) => (
+                <tr key={v}>
+                  <td style={{ ...tdStyle(i%2===0), paddingLeft:10 }}>
+                    <span style={{ color:"#15803d", marginRight:5 }}>✓</span>{v}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* Footer */}
-      <div style={{ borderTop:"1px solid #e2e8f0", paddingTop:10,
-        display:"flex", justifyContent:"space-between", fontSize:9, color:"#94a3b8" }}>
-        <div>SafeNode S.A.S · Área de Inteligencia en Seguridad del Transporte</div>
-        <div>Documento informativo — Verificar con resolución oficial MinTransporte antes de programar despachos</div>
+      {/* ── FOOTER EJECUTIVO ── */}
+      <div style={{ borderTop:`3px solid ${primaryColor}`, paddingTop:10, marginTop:8,
+        display:"flex", justifyContent:"space-between", alignItems:"flex-end" }}>
+        <div>
+          <div style={{ fontSize:10, fontWeight:700, color:"#0f172a" }}>
+            {user?.companyName ?? "SafeNode S.A.S."} {user?.companyCity ? `· ${user.companyCity}` : ""}
+          </div>
+          <div style={{ fontSize:9, color:"#64748b" }}>
+            {user?.footerDisclaimer ?? "Documento informativo — Verificar con resolución oficial MinTransporte antes de programar despachos."}
+          </div>
+        </div>
+        <div style={{ fontSize:9, color:"#94a3b8", textAlign:"right" }}>
+          <div>Generado: {now.toLocaleString("es-CO",{dateStyle:"short",timeStyle:"short"})}</div>
+          <div>Fuente: mintransporte.gov.co · Res. 761/2013</div>
+        </div>
       </div>
     </div>
   );

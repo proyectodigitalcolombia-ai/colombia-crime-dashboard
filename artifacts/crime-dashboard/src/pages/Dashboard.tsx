@@ -42,6 +42,7 @@ import { ReportGenerator } from "@/components/ReportGenerator";
 import { DataAlertBanner } from "@/components/DataAlertBanner";
 import { ArmedGroupsPanel } from "@/components/ArmedGroupsPanel";
 import { HolidayRestrictions } from "@/components/HolidayRestrictions";
+import { CompanyProfile } from "@/components/CompanyProfile";
 import { useAuth } from "@/context/AuthContext";
 
 /* ───────── EXECUTIVE PALETTE ───────── */
@@ -233,7 +234,7 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const { user, logout } = useAuth();
   const [isDark, setIsDark] = useState(true);
-  const [activeTab, setActiveTab] = useState<"estadisticas" | "ruta" | "informe" | "grupos" | "puentes">("estadisticas");
+  const [activeTab, setActiveTab] = useState<"estadisticas" | "ruta" | "informe" | "grupos" | "puentes" | "empresa">("estadisticas");
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -575,6 +576,7 @@ export default function Dashboard() {
             { id: "ruta",         label: "🚛  Análisis de Ruta — Piratería Terrestre" },
             { id: "puentes",      label: "🚧  Restricciones Puentes Festivos" },
             { id: "informe",      label: "📄  Informe Gerencial PDF" },
+            { id: "empresa",      label: "🏢  Perfil Empresa" },
           ] as const).map(tab => (
             <button
               key={tab.id}
@@ -622,6 +624,11 @@ export default function Dashboard() {
         {/* ── INFORME GERENCIAL TAB ── */}
         {activeTab === "informe" && (
           <ReportGenerator dark={isDark} user={user} />
+        )}
+
+        {/* ── PERFIL EMPRESA TAB ── */}
+        {activeTab === "empresa" && (
+          <CompanyProfile dark={isDark} />
         )}
 
         {/* ── STATS TAB content starts here ── */}

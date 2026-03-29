@@ -68,7 +68,12 @@ export const usersTable = pgTable("users", {
   passwordHash: text("password_hash").notNull(),
   companyName: text("company_name").notNull().default("SafeNode S.A.S."),
   companySubtitle: text("company_subtitle").notNull().default("Inteligencia en Seguridad Logística y Transporte"),
+  companyNit: text("company_nit").notNull().default(""),
+  companyAddress: text("company_address").notNull().default(""),
+  companyCity: text("company_city").notNull().default("Bogotá D.C."),
+  companyLogo: text("company_logo"),
   analystName: text("analyst_name").notNull().default("Analista de Seguridad"),
+  analystCargo: text("analyst_cargo").notNull().default("Analista de Seguridad"),
   analystEmail: text("analyst_email").notNull().default("seguridad@safenode.com.co"),
   analystPhone: text("analyst_phone").notNull().default("+57 300 000 0000"),
   primaryColor: text("primary_color").notNull().default("#00bcd4"),
@@ -79,6 +84,18 @@ export const usersTable = pgTable("users", {
 }, (table) => [
   index("users_email_idx").on(table.email),
 ]);
+
+export const restrictionsSyncTable = pgTable("restrictions_sync", {
+  id: serial("id").primaryKey(),
+  sourceUrl: text("source_url").notNull(),
+  bulletinTitle: text("bulletin_title"),
+  bulletinUrls: text("bulletin_urls"),
+  dataHash: text("data_hash"),
+  lastChecked: timestamp("last_checked").defaultNow().notNull(),
+  lastChanged: timestamp("last_changed"),
+  newDetected: boolean("new_detected").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
 
 export type User = typeof usersTable.$inferSelect;
 export type InsertUser = typeof usersTable.$inferInsert;

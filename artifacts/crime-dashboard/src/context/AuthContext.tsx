@@ -6,7 +6,12 @@ export interface UserConfig {
   email: string;
   companyName: string;
   companySubtitle: string;
+  companyNit: string;
+  companyAddress: string;
+  companyCity: string;
+  companyLogo: string | null;
   analystName: string;
+  analystCargo: string;
   analystEmail: string;
   analystPhone: string;
   primaryColor: string;
@@ -113,3 +118,5 @@ export function useAuth() {
   if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
   return ctx;
 }
+
+export { apiFetch };

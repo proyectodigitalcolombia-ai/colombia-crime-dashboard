@@ -8,6 +8,7 @@ import authRouter from "./auth";
 import armedGroupsRouter from "./armed-groups";
 import routeRouter from "./route";
 import newsMonitorRouter from "./news-monitor";
+import restrictionsSyncRouter from "./restrictions-sync";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(inviasClosuresRouter);
 router.use(armedGroupsRouter);
 router.use(routeRouter);
 router.use(newsMonitorRouter);
+router.use(restrictionsSyncRouter);
 
 export default router;
