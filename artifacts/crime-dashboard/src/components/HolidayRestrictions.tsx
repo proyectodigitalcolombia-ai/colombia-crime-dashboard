@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
-import { useAuth } from "@/context/AuthContext";
-import { RefreshCw, Download, Eye } from "lucide-react";
+import { useAuth, apiFetch } from "@/context/AuthContext";
+import { RefreshCw, Download, Eye, Building2, ChevronDown } from "lucide-react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -361,6 +361,17 @@ type SyncStatus = {
   sourceUrl: string;
 };
 
+interface ClientCompany {
+  id: number;
+  name: string;
+  nit: string;
+  contact_name: string;
+  contact_phone: string;
+  city: string;
+  logo: string | null;
+  address: string;
+}
+
 export function HolidayRestrictions({ dark = true }: Props) {
   const now = new Date();
   const { user } = useAuth();
@@ -369,6 +380,9 @@ export function HolidayRestrictions({ dark = true }: Props) {
   const [showVias, setShowVias] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [clientCompanies, setClientCompanies] = useState<ClientCompany[]>([]);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(null);
+  const [showCompanyPicker, setShowCompanyPicker] = useState(false);
 
   const panel  = dark ? E.panel : "#ffffff";
   const text   = dark ? "rgba(255,255,255,0.87)" : "#1e293b";
@@ -387,7 +401,27 @@ export function HolidayRestrictions({ dark = true }: Props) {
       .then(r => r.ok ? r.json() : null)
       .then(data => data && setSyncStatus(data))
       .catch(() => {});
+    // Load client companies for the selector
+    apiFetch("/companies")
+      .then(r => r.ok ? r.json() : [])
+      .then((list: ClientCompany[]) => setClientCompanies(list))
+      .catch(() => {});
   }, []);
+
+  /* Resolve which company data to use for the report */
+  const selectedClient = clientCompanies.find(c => c.id === selectedCompanyId) ?? null;
+
+  /* Merge selected client company over the user's profile for report data */
+  const reportCompany = {
+    companyName:      selectedClient?.name       ?? user?.companyName      ?? "SafeNode S.A.S.",
+    companyNit:       selectedClient?.nit        ?? user?.companyNit       ?? "",
+    companyLogo:      selectedClient?.logo       ?? user?.companyLogo      ?? null,
+    companyCity:      selectedClient?.city       ?? user?.companyCity      ?? "",
+    analystName:      user?.analystName          ?? "Analista de Seguridad",
+    analystCargo:     user?.analystCargo         ?? "",
+    analystPhone:     selectedClient?.contact_phone ?? user?.analystPhone  ?? "",
+    footerDisclaimer: user?.footerDisclaimer     ?? "Documento informativo — Verificar con resolución oficial MinTransporte antes de programar despachos.",
+  };
 
   const siguiente = proximos[0] ?? null;
   const msHasta   = siguiente ? siguiente.inicio.getTime() - now.getTime() : 0;
@@ -407,19 +441,18 @@ export function HolidayRestrictions({ dark = true }: Props) {
       let Y = MT;
 
       /* ──── HEADER ──── */
-      // Company name block
-      const companyName = user?.companyName ?? "SafeNode S.A.S.";
-      const companyNit  = user?.companyNit  ?? "";
-      const analystName = user?.analystName ?? "Analista de Seguridad";
-      const analystCargo = user?.analystCargo ?? "";
+      const companyName  = reportCompany.companyName;
+      const companyNit   = reportCompany.companyNit;
+      const analystName  = reportCompany.analystName;
+      const analystCargo = reportCompany.analystCargo;
 
       // Logo (left side)
       let logoW = 0;
-      if (user?.companyLogo) {
+      if (reportCompany.companyLogo) {
         try {
-          const ext = user.companyLogo.startsWith("data:image/png") ? "PNG" : "JPEG";
+          const ext = reportCompany.companyLogo.startsWith("data:image/png") ? "PNG" : "JPEG";
           logoW = 26;
-          doc.addImage(user.companyLogo, ext, ML, Y, logoW, 18);
+          doc.addImage(reportCompany.companyLogo, ext, ML, Y, logoW, 18);
         } catch { logoW = 0; }
       }
       const textX = ML + (logoW > 0 ? logoW + 5 : 0);
@@ -646,11 +679,11 @@ export function HolidayRestrictions({ dark = true }: Props) {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(7.5);
         doc.setTextColor(...PRIMARY);
-        doc.text(companyName + (user?.companyCity ? "  ·  " + user.companyCity : ""), ML, pageH - 9);
+        doc.text(companyName + (reportCompany.companyCity ? "  ·  " + reportCompany.companyCity : ""), ML, pageH - 9);
         doc.setFont("helvetica", "normal");
         doc.setFontSize(7);
         doc.setTextColor(...MUTED);
-        const disclaimer = user?.footerDisclaimer ?? "Documento informativo — Verificar con resolución oficial MinTransporte antes de programar despachos.";
+        const disclaimer = reportCompany.footerDisclaimer;
         doc.text(disclaimer, ML, pageH - 5);
         doc.text(`Pág. ${pg}/${pages}  ·  Generado: ${now.toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" })}`, W - MR, pageH - 5, { align: "right" });
       }
@@ -775,7 +808,69 @@ export function HolidayRestrictions({ dark = true }: Props) {
             {" "}· Res. 761/2013 y 2307/2014
           </p>
         </div>
-        <div style={{ display:"flex", gap:8 }}>
+        <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
+
+          {/* Company selector (only shown when there are client companies) */}
+          {clientCompanies.length > 0 && (
+            <div style={{ position:"relative" }}>
+              <button
+                onClick={() => setShowCompanyPicker(p => !p)}
+                style={{
+                  padding:"8px 12px", borderRadius:8, fontSize:11, fontWeight:700,
+                  background: selectedClient ? "rgba(0,212,255,0.12)" : "transparent",
+                  color: selectedClient ? E.cyan : E.dim,
+                  border:`1px solid ${selectedClient ? E.cyan : E.border}`,
+                  cursor:"pointer", display:"flex", alignItems:"center", gap:6,
+                  maxWidth:200, overflow:"hidden" }}>
+                <Building2 size={12} />
+                <span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                  {selectedClient ? selectedClient.name : "Mi empresa"}
+                </span>
+                <ChevronDown size={11} style={{ flexShrink:0, opacity:0.7 }} />
+              </button>
+
+              {showCompanyPicker && (
+                <div style={{
+                  position:"absolute", top:"calc(100% + 6px)", right:0, zIndex:50,
+                  background: dark ? "#0f1929" : "#fff",
+                  border:`1px solid ${E.border}`, borderRadius:10, padding:"6px 4px",
+                  minWidth:220, boxShadow:"0 8px 32px rgba(0,0,0,0.35)" }}>
+                  {/* "Mi empresa" option */}
+                  <button
+                    onClick={() => { setSelectedCompanyId(null); setShowCompanyPicker(false); }}
+                    style={{
+                      display:"block", width:"100%", padding:"8px 12px",
+                      background: selectedCompanyId === null ? "rgba(0,212,255,0.1)" : "transparent",
+                      color: selectedCompanyId === null ? E.cyan : text,
+                      border:"none", borderRadius:7, cursor:"pointer", fontSize:12,
+                      fontWeight: selectedCompanyId === null ? 700 : 400, textAlign:"left" }}>
+                    Mi empresa
+                  </button>
+                  {/* Divider */}
+                  <div style={{ height:1, background:E.border, margin:"4px 8px" }} />
+                  {/* Client companies */}
+                  {clientCompanies.map(c => (
+                    <button
+                      key={c.id}
+                      onClick={() => { setSelectedCompanyId(c.id); setShowCompanyPicker(false); }}
+                      style={{
+                        display:"block", width:"100%", padding:"8px 12px",
+                        background: selectedCompanyId === c.id ? "rgba(0,212,255,0.1)" : "transparent",
+                        color: selectedCompanyId === c.id ? E.cyan : text,
+                        border:"none", borderRadius:7, cursor:"pointer", fontSize:12,
+                        fontWeight: selectedCompanyId === c.id ? 700 : 400, textAlign:"left",
+                        overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                      {c.name}
+                      {c.nit && (
+                        <span style={{ fontSize:10, opacity:0.55, marginLeft:6 }}>· {c.nit}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <button onClick={() => setShowVias(!showVias)} style={{
             padding:"8px 14px", borderRadius:8, fontSize:11, fontWeight:700,
             background:"transparent", color:E.cyan,
