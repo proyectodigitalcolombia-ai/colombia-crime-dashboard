@@ -138,10 +138,12 @@ async function ensureSchema() {
         enabled BOOLEAN NOT NULL DEFAULT TRUE,
         days_before INTEGER NOT NULL DEFAULT 1,
         send_hour INTEGER NOT NULL DEFAULT 18,
+        include_companies BOOLEAN NOT NULL DEFAULT FALSE,
         last_sent_at TIMESTAMP,
         created_at TIMESTAMP NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMP NOT NULL DEFAULT NOW()
       );
+      ALTER TABLE email_alert_configs ADD COLUMN IF NOT EXISTS include_companies BOOLEAN NOT NULL DEFAULT FALSE;
     `);
 
     logger.info("Database schema ensured (all tables)");

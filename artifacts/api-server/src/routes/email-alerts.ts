@@ -158,7 +158,7 @@ function buildPuenteHtml(puente: Puente, daysBefore: number, isTest = false): st
 router.get("/email-alerts/config", requireAuth, async (req: any, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT id, recipients, enabled, days_before, send_hour, last_sent_at, created_at, updated_at
+      `SELECT id, recipients, enabled, days_before, send_hour, include_companies, last_sent_at, created_at, updated_at
        FROM email_alert_configs WHERE user_id = $1 LIMIT 1`,
       [req.userId]
     );
@@ -169,9 +169,23 @@ router.get("/email-alerts/config", requireAuth, async (req: any, res) => {
   }
 });
 
+/* ── GET company contact count (for UI preview) ── */
+router.get("/email-alerts/company-count", requireAuth, async (req: any, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT COUNT(*) as count FROM client_companies
+       WHERE user_id = $1 AND contact_email != '' AND contact_email IS NOT NULL`,
+      [req.userId]
+    );
+    res.json({ count: Number(rows[0].count) });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 /* ── PUT upsert config ── */
 router.put("/email-alerts/config", requireAuth, async (req: any, res) => {
-  const { recipients, enabled, days_before, send_hour } = req.body ?? {};
+  const { recipients, enabled, days_before, send_hour, include_companies } = req.body ?? {};
   const recipientsArr = Array.isArray(recipients) ? recipients : [];
   const daysB = Number(days_before ?? 1);
   const hour = Number(send_hour ?? 18);
@@ -181,16 +195,17 @@ router.put("/email-alerts/config", requireAuth, async (req: any, res) => {
 
   try {
     const { rows } = await pool.query(
-      `INSERT INTO email_alert_configs (user_id, recipients, enabled, days_before, send_hour)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO email_alert_configs (user_id, recipients, enabled, days_before, send_hour, include_companies)
+       VALUES ($1, $2, $3, $4, $5, $6)
        ON CONFLICT (user_id) DO UPDATE SET
          recipients = EXCLUDED.recipients,
          enabled = EXCLUDED.enabled,
          days_before = EXCLUDED.days_before,
          send_hour = EXCLUDED.send_hour,
+         include_companies = EXCLUDED.include_companies,
          updated_at = NOW()
        RETURNING *`,
-      [req.userId, JSON.stringify(recipientsArr), enabled ?? true, daysB, hour]
+      [req.userId, JSON.stringify(recipientsArr), enabled ?? true, daysB, hour, include_companies ?? false]
     );
     res.json(rows[0]);
   } catch (err: any) {
@@ -265,7 +280,7 @@ export function startEmailAlertScheduler() {
     try {
       // Fetch all enabled configs whose send_hour matches the current hour
       const { rows: configs } = await pool.query(
-        `SELECT id, user_id, recipients, days_before, last_sent_at
+        `SELECT id, user_id, recipients, days_before, include_companies, last_sent_at
          FROM email_alert_configs
          WHERE enabled = true
            AND send_hour = $1
@@ -276,11 +291,26 @@ export function startEmailAlertScheduler() {
       if (configs.length === 0) return;
 
       for (const cfg of configs) {
-        const recipients: string[] = Array.isArray(cfg.recipients)
+        // Start with manually added recipients
+        const manualRecipients: string[] = Array.isArray(cfg.recipients)
           ? cfg.recipients
           : (cfg.recipients ?? []);
 
-        if (recipients.length === 0) continue;
+        // Merge company contact emails if include_companies is enabled
+        let allRecipients = [...manualRecipients];
+        if (cfg.include_companies) {
+          const { rows: companies } = await pool.query(
+            `SELECT contact_email FROM client_companies
+             WHERE user_id = $1 AND contact_email != '' AND contact_email IS NOT NULL`,
+            [cfg.user_id]
+          );
+          const companyEmails = companies.map((c: any) => c.contact_email as string);
+          // Deduplicate — merge manual + company emails
+          const emailSet = new Set([...manualRecipients, ...companyEmails]);
+          allRecipients = Array.from(emailSet);
+        }
+
+        if (allRecipients.length === 0) continue;
 
         // Find a puente starting within days_before days
         const puente = findUpcomingPuente(cfg.days_before, bogotaNow);
@@ -289,13 +319,13 @@ export function startEmailAlertScheduler() {
         const html = buildPuenteHtml(puente, cfg.days_before, false);
         const daysLeft = daysUntil(puente.inicio, bogotaNow);
         const subject = daysLeft <= 1
-          ? `[SafeNode] ⚠ MAÑANA — Restricción vehicular: ${puente.nombre}`
-          : `[SafeNode] Alerta ${daysLeft} días — Restricción vehicular: ${puente.nombre}`;
+          ? `[SafeNode] MANANA — Restriccion vehicular: ${puente.nombre}`
+          : `[SafeNode] Alerta ${daysLeft} dias — Restriccion vehicular: ${puente.nombre}`;
 
         try {
           await resend.emails.send({
             from: process.env["FROM_EMAIL"] ?? "alertas@safenode.com.co",
-            to: recipients,
+            to: allRecipients,
             subject,
             html,
           });
@@ -305,7 +335,10 @@ export function startEmailAlertScheduler() {
             [cfg.id]
           );
 
-          logger.info({ puente: puente.nombre, recipients, daysLeft }, "[EmailAlerts] Alert sent");
+          logger.info(
+            { puente: puente.nombre, totalRecipients: allRecipients.length, daysLeft },
+            "[EmailAlerts] Alert sent"
+          );
         } catch (err) {
           logger.error({ err, cfgId: cfg.id }, "[EmailAlerts] Failed to send alert");
         }

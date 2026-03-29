@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Mail, Bell, BellOff, Plus, Trash2, Send, CheckCircle, AlertCircle, Info } from "lucide-react";
+import { Mail, Bell, BellOff, Plus, Trash2, Send, CheckCircle, AlertCircle, Info, Building2 } from "lucide-react";
 import { apiFetch } from "@/context/AuthContext";
 
 const E = {
@@ -22,6 +22,7 @@ interface AlertConfig {
   enabled: boolean;
   days_before: number;
   send_hour: number;
+  include_companies: boolean;
   last_sent_at?: string | null;
 }
 
@@ -38,12 +39,32 @@ const DAYS_OPTS = [
   { value: 7, label: "1 semana antes" },
 ];
 
+function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!value)}
+      style={{
+        position: "relative", width: 40, height: 22, borderRadius: 11, flexShrink: 0,
+        background: value ? E.cyan : "rgba(255,255,255,0.12)",
+        border: "none", cursor: "pointer", transition: "background 0.2s",
+      }}>
+      <div style={{
+        position: "absolute", top: 3, left: value ? 21 : 3,
+        width: 16, height: 16, borderRadius: "50%", background: "#fff",
+        transition: "left 0.2s", boxShadow: "0 1px 4px rgba(0,0,0,0.3)",
+      }} />
+    </button>
+  );
+}
+
 export function EmailAlerts() {
   const [config, setConfig] = useState<AlertConfig>({
     recipients: [],
     enabled: true,
     days_before: 1,
     send_hour: 18,
+    include_companies: false,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -55,12 +76,14 @@ export function EmailAlerts() {
   const [newEmail, setNewEmail] = useState("");
   const [emailError, setEmailError] = useState<string | null>(null);
   const [providerConfigured, setProviderConfigured] = useState<boolean | null>(null);
+  const [companyCount, setCompanyCount] = useState(0);
 
   useEffect(() => {
     Promise.all([
       apiFetch("/email-alerts/config"),
       apiFetch("/email-alerts/status"),
-    ]).then(async ([cfgRes, statusRes]) => {
+      apiFetch("/email-alerts/company-count"),
+    ]).then(async ([cfgRes, statusRes, countRes]) => {
       if (cfgRes.ok) {
         const data = await cfgRes.json();
         if (data) {
@@ -70,6 +93,7 @@ export function EmailAlerts() {
             enabled: data.enabled ?? true,
             days_before: data.days_before ?? 1,
             send_hour: data.send_hour ?? 18,
+            include_companies: data.include_companies ?? false,
             last_sent_at: data.last_sent_at,
           });
         }
@@ -77,6 +101,10 @@ export function EmailAlerts() {
       if (statusRes.ok) {
         const s = await statusRes.json();
         setProviderConfigured(s.configured);
+      }
+      if (countRes.ok) {
+        const c = await countRes.json();
+        setCompanyCount(c.count ?? 0);
       }
       setLoading(false);
     }).catch(() => setLoading(false));
@@ -101,6 +129,9 @@ export function EmailAlerts() {
   const removeEmail = (email: string) => {
     setConfig(c => ({ ...c, recipients: c.recipients.filter(r => r !== email) }));
   };
+
+  const totalRecipients = config.recipients.length + (config.include_companies ? companyCount : 0);
+  const hasRecipients = totalRecipients > 0;
 
   const handleSave = async () => {
     setSaving(true);
@@ -127,7 +158,7 @@ export function EmailAlerts() {
   };
 
   const handleTest = async () => {
-    if (config.recipients.length === 0) {
+    if (!hasRecipients) {
       setTestErr("Agregue al menos un destinatario antes de enviar la prueba");
       return;
     }
@@ -138,7 +169,7 @@ export function EmailAlerts() {
       const res = await apiFetch("/email-alerts/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recipients: config.recipients }),
+        body: JSON.stringify({ recipients: config.recipients, include_companies: config.include_companies }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -177,50 +208,39 @@ export function EmailAlerts() {
               Proveedor de correo no configurado
             </div>
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", lineHeight: 1.6 }}>
-              Para enviar correos reales, agregue la variable de entorno <code style={{ background: "rgba(255,255,255,0.08)", padding: "1px 6px", borderRadius: 4, fontFamily: "monospace", fontSize: 11 }}>RESEND_API_KEY</code> en
-              las variables de entorno del servicio (Render → Environment Variables). Puede obtener una clave gratuita en{" "}
-              <a href="https://resend.com" target="_blank" rel="noreferrer" style={{ color: E.cyan, textDecoration: "none" }}>resend.com</a>.
+              Agregue la variable <code style={{ background: "rgba(255,255,255,0.08)", padding: "1px 6px", borderRadius: 4, fontFamily: "monospace", fontSize: 11 }}>RESEND_API_KEY</code> en
+              las variables de entorno de Render. Clave gratuita en{" "}
+              <a href="https://resend.com" target="_blank" rel="noreferrer" style={{ color: E.cyan, textDecoration: "none" }}>resend.com</a>{" "}
+              (3.000 correos/mes incluidos).
             </div>
           </div>
         </div>
       )}
 
-      {/* Toggle enabled */}
+      {/* Enabled toggle */}
       <div style={{
-        background: E.panel2, border: `1px solid ${E.border}`, borderRadius: 10, padding: "16px 20px",
+        background: E.panel2, border: `1px solid ${E.border}`, borderRadius: 10, padding: "14px 18px",
         display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {config.enabled
-            ? <Bell size={18} style={{ color: E.cyan }} />
-            : <BellOff size={18} style={{ color: E.muted }} />
+            ? <Bell size={17} style={{ color: E.cyan }} />
+            : <BellOff size={17} style={{ color: E.muted }} />
           }
           <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: E.text }}>Alertas por correo</div>
-            <div style={{ fontSize: 12, color: E.muted, marginTop: 2 }}>
-              {config.enabled ? "Las alertas están activas" : "Las alertas están desactivadas"}
+            <div style={{ fontSize: 13, fontWeight: 600, color: E.text }}>Alertas automáticas</div>
+            <div style={{ fontSize: 11, color: E.muted, marginTop: 1 }}>
+              {config.enabled ? "Activas — el servidor enviará el correo en la hora programada" : "Desactivadas"}
             </div>
           </div>
         </div>
-        <button
-          onClick={() => setConfig(c => ({ ...c, enabled: !c.enabled }))}
-          style={{
-            position: "relative", width: 44, height: 24, borderRadius: 12,
-            background: config.enabled ? E.cyan : "rgba(255,255,255,0.12)",
-            border: "none", cursor: "pointer", transition: "background 0.2s",
-          }}>
-          <div style={{
-            position: "absolute", top: 3, left: config.enabled ? 23 : 3,
-            width: 18, height: 18, borderRadius: "50%", background: "#fff",
-            transition: "left 0.2s", boxShadow: "0 1px 4px rgba(0,0,0,0.3)",
-          }} />
-        </button>
+        <Toggle value={config.enabled} onChange={v => setConfig(c => ({ ...c, enabled: v }))} />
       </div>
 
       {/* Schedule config */}
       <div style={{
-        background: E.panel2, border: `1px solid ${E.border}`, borderRadius: 10, padding: "16px 20px",
-        display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16,
+        background: E.panel2, border: `1px solid ${E.border}`, borderRadius: 10, padding: "16px 18px",
+        display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14,
       }}>
         <div>
           <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: E.muted, display: "block", marginBottom: 8 }}>
@@ -234,12 +254,12 @@ export function EmailAlerts() {
               background: "rgba(255,255,255,0.05)", color: E.text,
               border: `1px solid ${E.border}`, outline: "none", cursor: "pointer",
             }}>
-            {DAYS_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {DAYS_OPTS.map(o => <option key={o.value} value={o.value} style={{ background: "#111827" }}>{o.label}</option>)}
           </select>
         </div>
         <div>
           <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: E.muted, display: "block", marginBottom: 8 }}>
-            Hora de envío
+            Hora de envío (Bogotá)
           </label>
           <select
             value={config.send_hour}
@@ -249,21 +269,64 @@ export function EmailAlerts() {
               background: "rgba(255,255,255,0.05)", color: E.text,
               border: `1px solid ${E.border}`, outline: "none", cursor: "pointer",
             }}>
-            {HOUR_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {HOUR_OPTS.map(o => <option key={o.value} value={o.value} style={{ background: "#111827" }}>{o.label}</option>)}
           </select>
         </div>
       </div>
 
       {/* Recipients */}
       <div style={{
-        background: E.panel2, border: `1px solid ${E.border}`, borderRadius: 10, padding: "16px 20px",
+        background: E.panel2, border: `1px solid ${E.border}`, borderRadius: 10, padding: "16px 18px",
       }}>
-        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: E.muted, marginBottom: 12 }}>
-          Destinatarios ({config.recipients.length})
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: E.muted }}>
+            Destinatarios
+          </div>
+          {hasRecipients && (
+            <div style={{
+              fontSize: 11, fontWeight: 700, color: E.cyan,
+              background: "rgba(0,212,255,0.1)", border: "1px solid rgba(0,212,255,0.2)",
+              borderRadius: 20, padding: "2px 10px",
+            }}>
+              {totalRecipients} destinatario{totalRecipients !== 1 ? "s" : ""}
+            </div>
+          )}
+        </div>
+
+        {/* Include companies toggle */}
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          background: config.include_companies ? "rgba(0,212,255,0.05)" : "rgba(255,255,255,0.03)",
+          border: `1px solid ${config.include_companies ? "rgba(0,212,255,0.2)" : "rgba(255,255,255,0.07)"}`,
+          borderRadius: 8, padding: "10px 14px", marginBottom: 14, transition: "all 0.2s",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <Building2 size={15} style={{ color: config.include_companies ? E.cyan : E.muted, flexShrink: 0 }} />
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: config.include_companies ? E.text : E.muted }}>
+                Incluir todas las empresas clientes
+              </div>
+              <div style={{ fontSize: 11, color: E.muted, marginTop: 1 }}>
+                {companyCount > 0
+                  ? `${companyCount} empresa${companyCount !== 1 ? "s" : ""} con correo de contacto registrado`
+                  : "Sin empresas clientes registradas con correo de contacto"
+                }
+              </div>
+            </div>
+          </div>
+          <Toggle
+            value={config.include_companies}
+            onChange={v => setConfig(c => ({ ...c, include_companies: v }))}
+          />
+        </div>
+
+        {/* Manual recipient list note */}
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: E.muted, marginBottom: 10 }}>
+          Correos adicionales ({config.recipients.length})
         </div>
 
         {/* Add email */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
           <input
             type="email"
             placeholder="correo@empresa.com"
@@ -287,19 +350,20 @@ export function EmailAlerts() {
             <Plus size={14} /> Agregar
           </button>
         </div>
-        {emailError && <div style={{ fontSize: 12, color: E.red, marginBottom: 10 }}>{emailError}</div>}
+        {emailError && <div style={{ fontSize: 12, color: E.red, marginBottom: 8 }}>{emailError}</div>}
 
-        {/* Recipients list */}
+        {/* Manual recipients list */}
         {config.recipients.length === 0 ? (
-          <div style={{ fontSize: 13, color: E.muted, padding: "12px 0", textAlign: "center" }}>
-            Sin destinatarios — agregue al menos uno
+          <div style={{ fontSize: 12, color: E.muted, padding: "10px 0", textAlign: "center" }}>
+            Sin correos adicionales
+            {!config.include_companies && " — agregue al menos uno o active las empresas clientes"}
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {config.recipients.map(email => (
               <div key={email} style={{
                 display: "flex", alignItems: "center", justifyContent: "space-between",
-                background: "rgba(255,255,255,0.03)", borderRadius: 8, padding: "8px 12px",
+                background: "rgba(255,255,255,0.03)", borderRadius: 8, padding: "7px 12px",
               }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <Mail size={13} style={{ color: E.cyan }} />
@@ -312,6 +376,19 @@ export function EmailAlerts() {
                 </button>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Summary when both sources active */}
+        {config.include_companies && companyCount > 0 && (
+          <div style={{
+            marginTop: 12, padding: "10px 14px", borderRadius: 8,
+            background: "rgba(16,185,129,0.07)", border: "1px solid rgba(16,185,129,0.2)",
+            fontSize: 12, color: "#6ee7b7", display: "flex", alignItems: "center", gap: 7,
+          }}>
+            <CheckCircle size={13} />
+            El sistema enviará a <strong style={{ color: E.green }}>{totalRecipients} destinatarios</strong> en total
+            {config.recipients.length > 0 && ` (${config.recipients.length} manuales + ${companyCount} empresas)`}
           </div>
         )}
       </div>
@@ -327,13 +404,13 @@ export function EmailAlerts() {
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <button
           onClick={handleTest}
-          disabled={testing || config.recipients.length === 0}
+          disabled={testing || !hasRecipients}
           style={{
             flex: 1, minWidth: 150, padding: "10px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
             background: "rgba(167,139,250,0.12)", color: E.violet,
             border: `1px solid rgba(167,139,250,0.25)`,
-            cursor: testing || config.recipients.length === 0 ? "not-allowed" : "pointer",
-            opacity: testing || config.recipients.length === 0 ? 0.6 : 1,
+            cursor: testing || !hasRecipients ? "not-allowed" : "pointer",
+            opacity: testing || !hasRecipients ? 0.6 : 1,
             display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
           }}>
           <Send size={14} />
