@@ -112,9 +112,9 @@
   --chart-4: 0 84% 56%;
   --chart-5: 270 80% 60%;
 
-  --app-font-sans: 'IBM Plex Sans', sans-serif;
+  --app-font-sans: 'Inter', sans-serif;
   --app-font-serif: Georgia, serif;
-  --app-font-mono: 'IBM Plex Mono', 'Menlo', monospace;
+  --app-font-mono: 'Inter', 'Menlo', monospace;
   --radius: .5rem;
 
   --shadow-2xs: 0 1px 1px 0 rgb(0 0 0 / 0);
@@ -197,6 +197,35 @@
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0), 0 4px 6px -4px rgb(0 0 0 / 0);
   --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0), 0 8px 10px -6px rgb(0 0 0 / 0);
   --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0);
+}
+
+/* ── Skeleton shimmer animation ── */
+@keyframes skeleton-shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.04) 0%,
+    rgba(255,255,255,0.10) 40%,
+    rgba(255,255,255,0.04) 80%
+  );
+  background-size: 800px 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+/* Light-mode override */
+:root:not(.dark) .skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(0,0,0,0.04) 0%,
+    rgba(0,0,0,0.09) 40%,
+    rgba(0,0,0,0.04) 80%
+  );
+  background-size: 800px 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
 }
 
 @layer base {

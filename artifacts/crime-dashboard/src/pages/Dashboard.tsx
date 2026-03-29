@@ -169,7 +169,7 @@ function KpiCard({ label, value, sub, icon: Icon, accentColor, dark, loading }: 
           </div>
         ) : (
           <>
-            <div style={{ fontSize: "32px", fontWeight: 800, color: accentColor, fontFamily: "IBM Plex Mono, monospace", lineHeight: 1.1, letterSpacing: "-0.02em", textShadow: dark ? `0 0 24px ${accentColor}55` : "none" }}>
+            <div style={{ fontSize: "32px", fontWeight: 800, color: accentColor, fontFamily: "Inter, sans-serif", fontVariantNumeric: "tabular-nums", lineHeight: 1.1, letterSpacing: "-0.03em", textShadow: dark ? `0 0 24px ${accentColor}55` : "none" }}>
               {value}
             </div>
             {sub && <div style={{ fontSize: "12px", color: dark ? E.textDim : E.textDimLight, marginTop: "6px", fontWeight: 500 }}>{sub}</div>}
@@ -667,38 +667,38 @@ export default function Dashboard() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px", marginBottom: "16px" }}>
           <KpiCard
             label="Total de Delitos"
-            value={loading ? "—" : totalCrimes.toLocaleString("es-CO")}
+            value={totalCrimes.toLocaleString("es-CO")}
             icon={Activity}
             accentColor={E.cyan}
             dark={isDark}
-            loading={false}
+            loading={loading}
           />
           <KpiCard
             label="Depto con Más Delitos"
-            value={loading ? "—" : deptWithMostCrimes.department}
-            sub={loading ? undefined : `${deptWithMostCrimes.totalCount.toLocaleString("es-CO")} casos`}
+            value={deptWithMostCrimes.department}
+            sub={`${deptWithMostCrimes.totalCount.toLocaleString("es-CO")} casos`}
             icon={MapPin}
             accentColor={E.amber}
             dark={isDark}
-            loading={false}
+            loading={loading}
           />
           <KpiCard
             label="Delito Más Frecuente"
-            value={loading ? "—" : mostFrequentCrime.name}
-            sub={loading ? undefined : `${mostFrequentCrime.count.toLocaleString("es-CO")} casos`}
+            value={mostFrequentCrime.name}
+            sub={`${mostFrequentCrime.count.toLocaleString("es-CO")} casos`}
             icon={AlertTriangle}
             accentColor={E.red}
             dark={isDark}
-            loading={false}
+            loading={loading}
           />
           <KpiCard
             label="Variación vs Año Anterior"
-            value={loading ? "—" : `${yoyChange > 0 ? "+" : ""}${yoyChange.toFixed(1)}%`}
+            value={`${yoyChange > 0 ? "+" : ""}${yoyChange.toFixed(1)}%`}
             sub={selectedYear === "all" ? "N/A — todos los años" : undefined}
             icon={yoyChange >= 0 ? TrendingUp : TrendingDown}
             accentColor={yoyChange > 0 ? E.red : yoyChange < 0 ? E.emerald : E.cyan}
             dark={isDark}
-            loading={false}
+            loading={loading}
           />
         </div>
 
