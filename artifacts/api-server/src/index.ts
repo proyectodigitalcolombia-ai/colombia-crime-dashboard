@@ -5,6 +5,7 @@ import { loadDemoIfEmpty, startDailyAutoRefresh } from "./routes/crimes";
 import { startBlockadeAutoExpiry } from "./routes/blockades";
 import { startNewsMonitor } from "./routes/news-monitor";
 import { startRestrictionsSyncMonitor } from "./routes/restrictions-sync";
+import { startEmailAlertScheduler } from "./routes/email-alerts";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 
@@ -203,6 +204,7 @@ app.listen(port, (err) => {
     .then(() => startBlockadeAutoExpiry())
     .then(() => startNewsMonitor())
     .then(() => startRestrictionsSyncMonitor())
+    .then(() => startEmailAlertScheduler())
     .catch((err) => {
       logger.error({ err }, "Failed to ensure database schema or load initial data");
     });
