@@ -1,6 +1,8 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Download, Eye } from "lucide-react";
+import { jsPDF } from "jspdf";
+import html2canvas from "html2canvas";
 
 /* ───────── PALETTE ───────── */
 const E = {
@@ -366,6 +368,8 @@ export function HolidayRestrictions({ dark = true }: Props) {
   const [showPrint, setShowPrint] = useState(false);
   const [showVias, setShowVias] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const printRef = useRef<HTMLDivElement>(null);
 
   const panel  = dark ? E.panel : "#ffffff";
   const text   = dark ? "rgba(255,255,255,0.87)" : "#1e293b";
@@ -388,6 +392,43 @@ export function HolidayRestrictions({ dark = true }: Props) {
 
   const siguiente = proximos[0] ?? null;
   const msHasta   = siguiente ? siguiente.inicio.getTime() - now.getTime() : 0;
+
+  /* ── PDF DOWNLOAD ── */
+  const downloadPDF = async () => {
+    setIsDownloading(true);
+    try {
+      await new Promise(r => setTimeout(r, 150));
+      const el = printRef.current;
+      if (!el) return;
+      const canvas = await html2canvas(el, {
+        scale: 2, useCORS: true, logging: false, backgroundColor: "#ffffff",
+        width: 794, windowWidth: 794,
+      });
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const totalImgH = (canvas.height / canvas.width) * pageW;
+      const pxPerMm = canvas.height / totalImgH;
+      let yMm = 0;
+      let page = 0;
+      while (yMm < totalImgH) {
+        if (page > 0) pdf.addPage();
+        const sliceH = Math.min(pageH, totalImgH - yMm);
+        const srcY = Math.round(yMm * pxPerMm);
+        const srcH = Math.round(sliceH * pxPerMm);
+        const tmp = document.createElement("canvas");
+        tmp.width = canvas.width;
+        tmp.height = srcH;
+        tmp.getContext("2d")!.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH);
+        pdf.addImage(tmp.toDataURL("image/jpeg", 0.93), "JPEG", 0, 0, pageW, sliceH);
+        yMm += sliceH;
+        page++;
+      }
+      pdf.save(`restricciones-vehiculares-${now.toISOString().slice(0, 10)}.pdf`);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   /* ── PRINT VIEW ── */
   if (showPrint) return <PrintView onBack={() => setShowPrint(false)} now={now} activo={activo} proximos={proximos} user={user} />;
@@ -511,9 +552,18 @@ export function HolidayRestrictions({ dark = true }: Props) {
             {showVias ? "Ocultar vías" : "🛣️ Ver 38 vías"}
           </button>
           <button onClick={() => setShowPrint(true)} style={{
+            padding:"8px 14px", borderRadius:8, fontSize:11, fontWeight:700,
+            background:"transparent", color:E.cyan,
+            border:`1px solid ${E.cyan}`, cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
+            <Eye size={13} /> Vista previa
+          </button>
+          <button onClick={downloadPDF} disabled={isDownloading} style={{
             padding:"8px 16px", borderRadius:8, fontSize:11, fontWeight:700,
-            background:E.cyan, color:"#060a10", border:"none", cursor:"pointer" }}>
-            🖨️ Informe cliente
+            background: isDownloading ? "#334155" : E.cyan,
+            color:"#060a10", border:"none", cursor: isDownloading ? "wait" : "pointer",
+            display:"flex", alignItems:"center", gap:6, opacity: isDownloading ? 0.75 : 1 }}>
+            <Download size={13} />
+            {isDownloading ? "Generando PDF..." : "Descargar PDF"}
           </button>
         </div>
       </div>
@@ -665,6 +715,12 @@ export function HolidayRestrictions({ dark = true }: Props) {
         borderRadius:10, padding:"12px 16px", fontSize:12, color:muted, marginTop:8 }}>
         <strong style={{ color:E.cyan }}>Criterio oficial:</strong> La restricción aplica a vehículos con <strong style={{ color:text }}>peso bruto vehicular ≥ 3.4 toneladas (3.400 kg)</strong> en la red vial nacional. Incluye tractomulas, camiones de carga, volquetas y similares. Basado en Resoluciones MinTransporte <strong style={{ color:text }}>761/2013</strong> y <strong style={{ color:text }}>2307/2014</strong>. Los horarios del segundo semestre son estimados — verificar con el boletín oficial cuando sea publicado.
       </div>
+      {/* Hidden off-screen PrintView for PDF capture */}
+      <div style={{ position:"fixed", left:"-9999px", top:0, width:794, zIndex:-1, pointerEvents:"none" }}>
+        <div ref={printRef}>
+          <PrintViewContent now={now} activo={activo} proximos={proximos} user={user} />
+        </div>
+      </div>
     </div>
   );
 }
@@ -681,13 +737,12 @@ function Section({ title, color, children }: { title:string; color:string; child
 }
 
 /* ════════════════════════════════════════════════════════════════
-   PRINT VIEW
+   PRINT VIEW  (content shared by preview + PDF capture)
    ════════════════════════════════════════════════════════════════ */
-const CELL = "1px solid #cbd5e1";
-const CELL_DARK = "1px solid #1e293b";
+const CELL      = "2px solid #1e293b";
+const CELL_DARK = "2px solid #0f172a";
 
-function PrintView({ onBack, now, activo, proximos, user }: {
-  onBack: () => void;
+function PrintViewContent({ now, activo, proximos, user }: {
   now: Date;
   activo: Puente | null;
   proximos: Puente[];
@@ -698,68 +753,63 @@ function PrintView({ onBack, now, activo, proximos, user }: {
   const thStyle: React.CSSProperties = {
     padding: "9px 12px", textAlign: "left", fontWeight: 800,
     fontSize: 11, letterSpacing: "0.05em",
-    border: CELL_DARK, borderColor: "rgba(255,255,255,0.25)",
+    border: CELL_DARK,
     color: "#ffffff", background: "transparent",
   };
   const tdStyle = (alt: boolean, bold?: boolean): React.CSSProperties => ({
     padding: "8px 12px", fontSize: 11, border: CELL,
     background: alt ? "#f0f4f8" : "#ffffff",
     fontWeight: bold ? 700 : 400,
-    color: "#1e293b",
+    color: "#0f172a",
     verticalAlign: "top",
   });
 
   const sectionHead: React.CSSProperties = {
     fontSize: 12, fontWeight: 900, color: "#ffffff",
-    background: primaryColor,
-    padding: "7px 14px",
+    background: "#0f172a",
+    padding: "9px 14px",
     letterSpacing: "0.07em",
-    borderBottom: `3px solid ${primaryColor}`,
+    border: CELL_DARK,
     marginBottom: 0,
   };
 
   return (
-    <div style={{ background:"#fff", color:"#1e293b", fontFamily:"'Segoe UI',Arial,sans-serif",
-      padding:"32px 42px", minHeight:"100vh" }}>
-      {/* Back btn (screen only) */}
-      <button onClick={onBack} className="print:hidden" style={{ marginBottom:24, padding:"7px 16px", borderRadius:6,
-        background:"#0f172a", color:"#fff", border:"none", cursor:"pointer", fontSize:12 }}>
-        ← Volver al dashboard
-      </button>
+    <div style={{ background:"#fff", color:"#0f172a", fontFamily:"'Segoe UI',Arial,sans-serif",
+      padding:"32px 42px" }}>
 
       {/* ── EXECUTIVE HEADER ── */}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start",
-        borderBottom:`4px solid ${primaryColor}`, paddingBottom:14, marginBottom:22 }}>
+        borderBottom:`3px solid #0f172a`, paddingBottom:14, marginBottom:22 }}>
         <div style={{ display:"flex", alignItems:"center", gap:16 }}>
           {user?.companyLogo && (
             <img src={user.companyLogo} alt="Logo" style={{ height:52, objectFit:"contain" }} />
           )}
           <div>
             <div style={{ fontSize:9, fontWeight:800, letterSpacing:"0.12em", textTransform:"uppercase",
-              color:primaryColor, marginBottom:2 }}>
+              color:"#0f172a", marginBottom:2 }}>
               {user?.companyName ?? "SafeNode S.A.S."}
-              {user?.companyNit ? <span style={{ color:"#64748b", fontWeight:400 }}> · NIT {user.companyNit}</span> : ""}
+              {user?.companyNit ? <span style={{ fontWeight:400 }}> · NIT {user.companyNit}</span> : ""}
             </div>
             <div style={{ fontSize:18, fontWeight:900, color:"#0f172a", letterSpacing:"-0.02em", lineHeight:1.2 }}>
               RESTRICCIÓN VEHICULAR — PUENTES FESTIVOS 2026
             </div>
-            <div style={{ fontSize:11, color:"#475569", marginTop:3 }}>
+            <div style={{ fontSize:11, color:"#334155", marginTop:3 }}>
               Vehículos con peso ≥ 3.4 toneladas · Red Vial Nacional Primaria · Colombia
             </div>
-            <div style={{ fontSize:9, color:"#94a3b8", marginTop:2 }}>
+            <div style={{ fontSize:9, color:"#475569", marginTop:2 }}>
               Fuente: Boletín Estratégico MinTransporte 19 mar 2026 · Res. 761/2013 y 2307/2014
             </div>
           </div>
         </div>
         <div style={{ textAlign:"right", flexShrink:0, paddingLeft:16 }}>
-          <div style={{ fontSize:10, color:"#64748b" }}>
+          <div style={{ fontSize:10, color:"#334155" }}>
             {user?.analystName ?? "Analista de Seguridad"}
           </div>
           {user?.analystCargo && (
-            <div style={{ fontSize:9, color:"#94a3b8" }}>{user.analystCargo}</div>
+            <div style={{ fontSize:9, color:"#475569" }}>{user.analystCargo}</div>
           )}
           {user?.analystPhone && (
-            <div style={{ fontSize:9, color:"#94a3b8" }}>{user.analystPhone}</div>
+            <div style={{ fontSize:9, color:"#475569" }}>{user.analystPhone}</div>
           )}
           <div style={{ fontSize:11, fontWeight:800, color:"#0f172a", marginTop:6 }}>
             {now.toLocaleDateString("es-CO",{day:"numeric",month:"long",year:"numeric"})}
@@ -769,10 +819,10 @@ function PrintView({ onBack, now, activo, proximos, user }: {
 
       {/* ── ALERTA ACTIVA ── */}
       {activo && (
-        <div style={{ background:"#fef2f2", border:"2px solid #dc2626", borderRadius:6,
+        <div style={{ background:"#f1f5f9", border:CELL, borderRadius:4,
           padding:"10px 16px", marginBottom:18, display:"flex", alignItems:"center", gap:10 }}>
-          <div style={{ width:14, height:14, borderRadius:"50%", background:"#dc2626", flexShrink:0 }} />
-          <strong style={{ color:"#dc2626", fontSize:12 }}>RESTRICCIÓN ACTIVA: {activo.nombre}</strong>
+          <div style={{ width:10, height:10, borderRadius:"50%", background:"#0f172a", flexShrink:0 }} />
+          <strong style={{ color:"#0f172a", fontSize:12 }}>RESTRICCIÓN ACTIVA: {activo.nombre}</strong>
         </div>
       )}
 
@@ -781,7 +831,7 @@ function PrintView({ onBack, now, activo, proximos, user }: {
         <div style={sectionHead}>CALENDARIO DE RESTRICCIONES 2026</div>
         <table style={{ width:"100%", borderCollapse:"collapse", fontSize:11 }}>
           <thead>
-            <tr style={{ background: primaryColor }}>
+            <tr style={{ background:"#0f172a" }}>
               {["#","Festivo","Inicio restricción","Fin restricción","Días","Estado","Fuente"].map(h => (
                 <th key={h} style={thStyle}>{h}</th>
               ))}
@@ -798,21 +848,21 @@ function PrintView({ onBack, now, activo, proximos, user }: {
               const alt = i % 2 === 0;
               return (
                 <tr key={p.id}>
-                  <td style={{ ...tdStyle(alt), width:28, textAlign:"center", color:"#94a3b8" }}>{i+1}</td>
-                  <td style={{ ...tdStyle(alt, true), color: primaryColor }}>{p.nombre}</td>
-                  <td style={{ ...tdStyle(alt), color:"#dc2626", fontWeight:600 }}>
+                  <td style={{ ...tdStyle(alt), width:28, textAlign:"center" }}>{i+1}</td>
+                  <td style={{ ...tdStyle(alt, true) }}>{p.nombre}</td>
+                  <td style={{ ...tdStyle(alt), fontWeight:600 }}>
                     {p.inicio.toLocaleString("es-CO",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}
                   </td>
-                  <td style={{ ...tdStyle(alt), color:"#15803d", fontWeight:600 }}>
+                  <td style={{ ...tdStyle(alt), fontWeight:600 }}>
                     {p.fin.toLocaleString("es-CO",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}
                   </td>
                   <td style={{ ...tdStyle(alt), textAlign:"center" }}>{dias}</td>
                   <td style={{ ...tdStyle(alt) }}>
                     <span style={{
                       padding:"2px 8px", borderRadius:3, fontSize:9, fontWeight:800,
-                      background: status==="activa" ? "#fef2f2" : status==="proxima" ? "#fefce8" : "#f0fdf4",
-                      color: status==="activa" ? "#dc2626" : status==="proxima" ? "#b45309" : "#15803d",
-                      border: `1px solid ${status==="activa" ? "#fca5a5" : status==="proxima" ? "#fde68a" : "#bbf7d0"}`,
+                      background: status==="activa" ? "#1e293b" : status==="proxima" ? "#334155" : "#f1f5f9",
+                      color: "#ffffff",
+                      border: `1px solid #0f172a`,
                     }}>
                       {status==="activa" ? "ACTIVA" : status==="proxima" ? "PRÓXIMA" : "FINALIZADA"}
                     </span>
@@ -820,9 +870,9 @@ function PrintView({ onBack, now, activo, proximos, user }: {
                   <td style={{ ...tdStyle(alt) }}>
                     <span style={{
                       padding:"2px 8px", borderRadius:3, fontSize:9, fontWeight:800,
-                      background: p.fuente==="oficial" ? "#f0fdf4" : "#fefce8",
-                      color: p.fuente==="oficial" ? "#15803d" : "#b45309",
-                      border: `1px solid ${p.fuente==="oficial" ? "#bbf7d0" : "#fde68a"}`,
+                      background: p.fuente==="oficial" ? "#0f172a" : "#f1f5f9",
+                      color: p.fuente==="oficial" ? "#ffffff" : "#0f172a",
+                      border: "1px solid #1e293b",
                     }}>
                       {p.fuente==="oficial" ? "✓ OFICIAL" : "~ ESTIMADO"}
                     </span>
@@ -844,14 +894,14 @@ function PrintView({ onBack, now, activo, proximos, user }: {
             )}
           </div>
           {p.nota && (
-            <div style={{ fontSize:10, color:"#92400e", background:"#fef3c7",
-              border:"1px solid #fde68a", padding:"6px 12px", marginBottom:0 }}>
-              ⚠️ {p.nota}
+            <div style={{ fontSize:10, color:"#0f172a", background:"#f1f5f9",
+              border:CELL, padding:"6px 12px", marginBottom:0 }}>
+              ⚠ {p.nota}
             </div>
           )}
           <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
             <thead>
-              <tr style={{ background:"#1e293b" }}>
+              <tr style={{ background:"#0f172a" }}>
                 {["Día","Fecha","Horario de restricción","Aplicación geográfica"].map(h => (
                   <th key={h} style={{ ...thStyle, fontSize:9, padding:"7px 10px" }}>{h}</th>
                 ))}
@@ -863,16 +913,15 @@ function PrintView({ onBack, now, activo, proximos, user }: {
                 return (
                   <tr key={i}>
                     <td style={{ ...tdStyle(r.festivo ? false : alt, true),
-                      background: r.festivo ? "#fefce8" : alt ? "#f0f4f8" : "#ffffff",
-                      color: r.festivo ? "#b45309" : "#0f172a", whiteSpace:"nowrap", width:80 }}>
+                      background: r.festivo ? "#e2e8f0" : alt ? "#f0f4f8" : "#ffffff",
+                      color:"#0f172a", whiteSpace:"nowrap", width:80 }}>
                       {r.dia}
                     </td>
-                    <td style={{ ...tdStyle(alt), whiteSpace:"nowrap", color:"#475569", width:80 }}>{r.fecha}</td>
-                    <td style={{ ...tdStyle(alt, true), whiteSpace:"nowrap", width:120,
-                      color: r.noAplica ? "#15803d" : "#dc2626" }}>
+                    <td style={{ ...tdStyle(alt), whiteSpace:"nowrap", color:"#0f172a", width:80 }}>{r.fecha}</td>
+                    <td style={{ ...tdStyle(alt, true), whiteSpace:"nowrap", width:120, color:"#0f172a" }}>
                       {r.horario}
                     </td>
-                    <td style={{ ...tdStyle(alt), color:"#334155" }}>{r.aplicacion}</td>
+                    <td style={{ ...tdStyle(alt), color:"#0f172a" }}>{r.aplicacion}</td>
                   </tr>
                 );
               })}
@@ -890,7 +939,7 @@ function PrintView({ onBack, now, activo, proximos, user }: {
               {EXENCIONES_CARGA.map((ex, i) => (
                 <tr key={ex}>
                   <td style={{ ...tdStyle(i%2===0), paddingLeft:10 }}>
-                    <span style={{ color:"#15803d", marginRight:5 }}>✓</span>{ex}
+                    <span style={{ fontWeight:800, marginRight:5 }}>✓</span>{ex}
                   </td>
                 </tr>
               ))}
@@ -904,7 +953,7 @@ function PrintView({ onBack, now, activo, proximos, user }: {
               {VIAS_EXCEPCION.map((v, i) => (
                 <tr key={v}>
                   <td style={{ ...tdStyle(i%2===0), paddingLeft:10 }}>
-                    <span style={{ color:"#15803d", marginRight:5 }}>✓</span>{v}
+                    <span style={{ fontWeight:800, marginRight:5 }}>✓</span>{v}
                   </td>
                 </tr>
               ))}
@@ -914,21 +963,39 @@ function PrintView({ onBack, now, activo, proximos, user }: {
       </div>
 
       {/* ── FOOTER EJECUTIVO ── */}
-      <div style={{ borderTop:`3px solid ${primaryColor}`, paddingTop:10, marginTop:8,
+      <div style={{ borderTop:`3px solid #0f172a`, paddingTop:10, marginTop:8,
         display:"flex", justifyContent:"space-between", alignItems:"flex-end" }}>
         <div>
           <div style={{ fontSize:10, fontWeight:700, color:"#0f172a" }}>
             {user?.companyName ?? "SafeNode S.A.S."} {user?.companyCity ? `· ${user.companyCity}` : ""}
           </div>
-          <div style={{ fontSize:9, color:"#64748b" }}>
+          <div style={{ fontSize:9, color:"#334155" }}>
             {user?.footerDisclaimer ?? "Documento informativo — Verificar con resolución oficial MinTransporte antes de programar despachos."}
           </div>
         </div>
-        <div style={{ fontSize:9, color:"#94a3b8", textAlign:"right" }}>
+        <div style={{ fontSize:9, color:"#475569", textAlign:"right" }}>
           <div>Generado: {now.toLocaleString("es-CO",{dateStyle:"short",timeStyle:"short"})}</div>
           <div>Fuente: mintransporte.gov.co · Res. 761/2013</div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function PrintView({ onBack, now, activo, proximos, user }: {
+  onBack: () => void;
+  now: Date;
+  activo: Puente | null;
+  proximos: Puente[];
+  user: import("@/context/AuthContext").UserConfig | null;
+}) {
+  return (
+    <div>
+      <button onClick={onBack} className="print:hidden" style={{ margin:"16px 42px 0", padding:"7px 16px", borderRadius:6,
+        background:"#0f172a", color:"#fff", border:"none", cursor:"pointer", fontSize:12 }}>
+        ← Volver al dashboard
+      </button>
+      <PrintViewContent now={now} activo={activo} proximos={proximos} user={user} />
     </div>
   );
 }

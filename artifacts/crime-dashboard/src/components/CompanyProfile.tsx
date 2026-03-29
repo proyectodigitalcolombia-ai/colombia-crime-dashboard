@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth, apiFetch } from "@/context/AuthContext";
 import { Building2, User, Upload, Save, RefreshCw, CheckCircle, AlertCircle, X, Palette } from "lucide-react";
+import { ClientCompanies } from "./ClientCompanies";
 
 const E = {
   bg:     "#070c15",
@@ -371,6 +372,11 @@ export function CompanyProfile({ dark }: Props) {
       </div>
 
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+
+      {/* ── CLIENT COMPANIES ── */}
+      <div style={{ borderTop:`1px solid ${E.border}`, marginTop:32, paddingTop:28 }}>
+        <ClientCompanies dark={dark} />
+      </div>
     </div>
   );
 }

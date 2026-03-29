@@ -9,6 +9,7 @@ import armedGroupsRouter from "./armed-groups";
 import routeRouter from "./route";
 import newsMonitorRouter from "./news-monitor";
 import restrictionsSyncRouter from "./restrictions-sync";
+import companiesRouter from "./companies";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(armedGroupsRouter);
 router.use(routeRouter);
 router.use(newsMonitorRouter);
 router.use(restrictionsSyncRouter);
+router.use(companiesRouter);
 
 export default router;
