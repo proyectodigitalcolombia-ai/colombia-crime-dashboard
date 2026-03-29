@@ -426,266 +426,345 @@ export function HolidayRestrictions({ dark = true }: Props) {
   const siguiente = proximos[0] ?? null;
   const msHasta   = siguiente ? siguiente.inicio.getTime() - now.getTime() : 0;
 
-  /* ── PDF DOWNLOAD (programmatic vector — sharp, professional) ── */
+  /* ── PDF DOWNLOAD — professional vector layout ── */
   const downloadPDF = () => {
     setIsDownloading(true);
     try {
-      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const W = doc.internal.pageSize.getWidth();    // 210
-      const ML = 14, MR = 14, MT = 14;
-      const IW = W - ML - MR;                        // 182
-      const PRIMARY = [15, 23, 42] as [number, number, number];    // #0f172a
-      const MUTED   = [71, 85, 105] as [number, number, number];   // #475569
-      const ALT_ROW = [241, 245, 249] as [number, number, number]; // #f1f5f9
+      const doc  = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const W    = doc.internal.pageSize.getWidth();   // 210
+      const ML   = 14, MR = 14, MT = 14;
+      const IW   = W - ML - MR;                        // 182
+
+      /* ── palette ── */
+      const NAVY    = [15,  23,  42]  as [number,number,number]; // #0f172a
+      const SLATE   = [30,  41,  59]  as [number,number,number]; // #1e293b
+      const MUTED   = [71,  85, 105]  as [number,number,number]; // #475569
+      const ALT_ROW = [241,245, 249]  as [number,number,number]; // #f1f5f9
+      const WHITE   = [255,255, 255]  as [number,number,number];
+      const RED_FG  = [185,  28,  28] as [number,number,number];
+      const AMB_FG  = [146,  64,  14] as [number,number,number];
+      const GRN_FG  = [21,  128,  61] as [number,number,number];
+
+      /* ── report identity ── */
+      const companyName  = reportCompany.companyName;
+      const companyNit   = reportCompany.companyNit;
+      const companyCity  = reportCompany.companyCity;
+      const analystName  = reportCompany.analystName;
+      const analystCargo = reportCompany.analystCargo;
+      const disclaimer   = reportCompany.footerDisclaimer;
+
+      const dateStr = now.toLocaleDateString("es-CO", {
+        day: "numeric", month: "long", year: "numeric" });
 
       let Y = MT;
 
-      /* ──── HEADER ──── */
-      const companyName  = reportCompany.companyName;
-      const companyNit   = reportCompany.companyNit;
-      const analystName  = reportCompany.analystName;
-      const analystCargo = reportCompany.analystCargo;
+      /* ═══════════════════════════════════════════════
+         HEADER — two-zone layout
+         Zone A (left ~60%): logo + company name/NIT
+         Zone B (right ~40%): date + analyst info
+         Full-width title bar below both zones
+         ═══════════════════════════════════════════════ */
+      const LOGO_W = 22, LOGO_H = 14;
+      const LEFT_W = IW * 0.60;    // ≈109mm
+      const RIGHT_X = ML + LEFT_W + 4;
+      const RIGHT_W = IW - LEFT_W - 4;
 
-      // Logo (left side)
-      let logoW = 0;
+      // Logo (optional)
+      let textX = ML;
       if (reportCompany.companyLogo) {
         try {
           const ext = reportCompany.companyLogo.startsWith("data:image/png") ? "PNG" : "JPEG";
-          logoW = 26;
-          doc.addImage(reportCompany.companyLogo, ext, ML, Y, logoW, 18);
-        } catch { logoW = 0; }
+          doc.addImage(reportCompany.companyLogo, ext, ML, Y, LOGO_W, LOGO_H);
+          textX = ML + LOGO_W + 4;
+        } catch { /* skip on error */ }
       }
-      const textX = ML + (logoW > 0 ? logoW + 5 : 0);
 
+      // Company name & NIT — left zone row 1
       doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(...NAVY);
+      doc.text(companyName, textX, Y + 5);
+
+      doc.setFont("helvetica", "normal");
       doc.setFontSize(7.5);
       doc.setTextColor(...MUTED);
-      doc.text(`${companyName}${companyNit ? "  ·  NIT " + companyNit : ""}`.toUpperCase(), textX, Y + 4);
+      const nitLine = companyNit ? `NIT ${companyNit}${companyCity ? "   |   " + companyCity : ""}` : companyCity;
+      if (nitLine) doc.text(nitLine, textX, Y + 11);
 
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(14);
-      doc.setTextColor(...PRIMARY);
-      doc.text("RESTRICCIÓN VEHICULAR — PUENTES FESTIVOS 2026", textX, Y + 11);
-
+      // Date — right zone row 1
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
+      doc.setFontSize(7.5);
       doc.setTextColor(...MUTED);
-      doc.text("Vehículos con peso ≥ 3.4 t · Red Vial Nacional Primaria · Colombia", textX, Y + 17);
-      doc.text("Fuente: Boletín MinTransporte 19 mar 2026 · Res. 761/2013 y 2307/2014", textX, Y + 22);
+      doc.text(dateStr, RIGHT_X + RIGHT_W, Y + 5, { align: "right" });
 
-      // Analyst block (right)
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(...MUTED);
-      const dateStr = now.toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" });
-      doc.text(dateStr, W - MR, Y + 4, { align: "right" });
+      // Analyst — right zone row 2
       doc.setFont("helvetica", "bold");
-      doc.setTextColor(...PRIMARY);
-      doc.text(analystName, W - MR, Y + 10, { align: "right" });
+      doc.setFontSize(8);
+      doc.setTextColor(...NAVY);
+      doc.text(analystName, RIGHT_X + RIGHT_W, Y + 11, { align: "right" });
+
       if (analystCargo) {
         doc.setFont("helvetica", "normal");
         doc.setFontSize(7);
         doc.setTextColor(...MUTED);
-        doc.text(analystCargo, W - MR, Y + 15, { align: "right" });
+        doc.text(analystCargo, RIGHT_X + RIGHT_W, Y + 16, { align: "right" });
       }
 
-      Y += 28;
+      Y += LOGO_H + 5;  // ≈ 33mm from top
 
-      // Divider line
-      doc.setDrawColor(...PRIMARY);
-      doc.setLineWidth(0.7);
-      doc.line(ML, Y, W - MR, Y);
-      Y += 6;
+      // Full-width dark title bar
+      doc.setFillColor(...SLATE);
+      doc.rect(ML, Y, IW, 10, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(...WHITE);
+      doc.text("RESTRICCION VEHICULAR — PUENTES FESTIVOS 2026", ML + 4, Y + 7);
+      Y += 10;
 
-      /* ──── ACTIVE ALERT ──── */
-      if (activo) {
-        doc.setFillColor(241, 245, 249);
-        doc.setDrawColor(...PRIMARY);
-        doc.setLineWidth(0.5);
-        doc.roundedRect(ML, Y, IW, 9, 1, 1, "FD");
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(9);
-        doc.setTextColor(...PRIMARY);
-        doc.text(`⚑  RESTRICCIÓN ACTIVA: ${activo.nombre.toUpperCase()}`, ML + 4, Y + 6);
-        Y += 14;
-      }
+      // Subtitle line (on white bg)
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.setTextColor(...MUTED);
+      doc.text(
+        "Vehiculos con peso >= 3.4 t  |  Red Vial Nacional Primaria  |  Colombia  |  " +
+        "Fuente: Boletin MinTransporte 19 mar 2026  |  Res. 761/2013 y 2307/2014",
+        ML, Y + 4);
+      Y += 8;
 
-      /* ──── SECTION LABEL ──── */
-      function sectionLabel(title: string) {
-        doc.setFillColor(...PRIMARY);
+      /* ═══ helpers ═══ */
+      const sectionBar = (title: string) => {
+        doc.setFillColor(...NAVY);
         doc.rect(ML, Y, IW, 7, "F");
         doc.setFont("helvetica", "bold");
         doc.setFontSize(8);
-        doc.setTextColor(255, 255, 255);
+        doc.setTextColor(...WHITE);
         doc.text(title, ML + 3, Y + 5);
         Y += 7;
+      };
+
+      /* ═══════════════════════════════════════════════
+         ACTIVE RESTRICTION ALERT (left-accent stripe)
+         ═══════════════════════════════════════════════ */
+      if (activo) {
+        const alertH = 10;
+        // light-red fill
+        doc.setFillColor(254, 242, 242);
+        doc.rect(ML, Y, IW, alertH, "F");
+        // left red accent stripe
+        doc.setFillColor(...RED_FG);
+        doc.rect(ML, Y, 3, alertH, "F");
+        // border
+        doc.setDrawColor(252, 165, 165);
+        doc.setLineWidth(0.4);
+        doc.rect(ML, Y, IW, alertH, "S");
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(...RED_FG);
+        doc.text(
+          `RESTRICCION ACTIVA: ${activo.nombre.toUpperCase()}`,
+          ML + 7, Y + alertH / 2 + 1.5);
+        Y += alertH + 5;
       }
 
-      /* ──── MAIN CALENDAR TABLE ──── */
-      sectionLabel("CALENDARIO DE RESTRICCIONES 2026");
+      /* ═══════════════════════════════════════════════
+         CALENDAR TABLE
+         Column widths total = 182mm exactly:
+           #(9) | Festivo(40) | Inicio(32) | Fin(32) | D(9) | Estado(28) | Fuente(32)
+         ═══════════════════════════════════════════════ */
+      sectionBar("CALENDARIO DE RESTRICCIONES 2026");
+
       const calRows = PUENTES.map((p, i) => {
-        const status = now >= p.inicio && now <= p.fin ? "ACTIVA"
-          : now < p.inicio ? "PRÓXIMA" : "FINALIZADA";
+        const s = now >= p.inicio && now <= p.fin ? "ACTIVA"
+                : now < p.inicio ? "PROXIMA" : "PASADA";
         const dias = Math.ceil((p.fin.getTime() - p.inicio.getTime()) / 86400000);
-        return [
-          String(i + 1),
-          p.nombre,
-          p.inicio.toLocaleString("es-CO", { weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }),
-          p.fin.toLocaleString("es-CO", { weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }),
-          String(dias),
-          status,
-          p.fuente === "oficial" ? "OFICIAL" : "ESTIMADO",
-        ];
+        const fmt = (d: Date) => d.toLocaleString("es-CO", {
+          weekday: "short", day: "2-digit", month: "short",
+          hour: "2-digit", minute: "2-digit" });
+        return [String(i + 1), p.nombre, fmt(p.inicio), fmt(p.fin), String(dias), s,
+                p.fuente === "oficial" ? "OFICIAL" : "ESTIMADO"];
       });
 
       autoTable(doc, {
         startY: Y,
-        head: [["#", "Festivo", "Inicio restricción", "Fin restricción", "Días", "Estado", "Fuente"]],
+        head: [["#", "Festivo", "Inicio restriccion", "Fin restriccion", "D", "Estado", "Fuente"]],
         body: calRows,
         margin: { left: ML, right: MR },
         theme: "plain",
         styles: {
-          fontSize: 7.5, cellPadding: { top: 2.5, bottom: 2.5, left: 2.5, right: 2.5 },
-          lineColor: PRIMARY, lineWidth: 0.4, textColor: PRIMARY, valign: "middle",
+          fontSize: 7, cellPadding: { top: 2.5, bottom: 2.5, left: 2, right: 2 },
+          lineColor: [203, 213, 225], lineWidth: 0.3,
+          textColor: NAVY, valign: "middle", overflow: "linebreak",
         },
         headStyles: {
-          fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: "bold",
-          fontSize: 7.5, lineColor: PRIMARY, lineWidth: 0.4,
+          fillColor: [51, 65, 85], textColor: WHITE, fontStyle: "bold",
+          fontSize: 7, lineColor: [51, 65, 85], lineWidth: 0.3,
         },
         alternateRowStyles: { fillColor: ALT_ROW },
         columnStyles: {
-          0: { cellWidth: 7, halign: "center" },
-          1: { cellWidth: 36, fontStyle: "bold" },
+          0: { cellWidth: 9,  halign: "center" },
+          1: { cellWidth: 40, fontStyle: "bold" },
           2: { cellWidth: 32 },
           3: { cellWidth: 32 },
-          4: { cellWidth: 10, halign: "center" },
-          5: { cellWidth: 20, halign: "center", fontStyle: "bold" },
-          6: { cellWidth: 22, halign: "center" },
+          4: { cellWidth: 9,  halign: "center" },
+          5: { cellWidth: 28, halign: "center", fontStyle: "bold" },
+          6: { cellWidth: 32, halign: "center" },
         },
-        tableLineColor: PRIMARY,
-        tableLineWidth: 0.4,
+        tableLineColor: [203, 213, 225],
+        tableLineWidth: 0.3,
         didDrawCell: (data) => {
           if (data.column.index === 5 && data.section === "body") {
             const v = String(data.cell.raw ?? "");
-            const fg = v === "ACTIVA" ? [220, 38, 38] : v === "PRÓXIMA" ? [146, 64, 14] : [30, 130, 76];
+            const fg = v === "ACTIVA"  ? RED_FG
+                     : v === "PROXIMA" ? AMB_FG : GRN_FG;
             doc.setTextColor(fg[0], fg[1], fg[2]);
             doc.setFont("helvetica", "bold");
-            doc.setFontSize(7);
-            doc.text(v, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 + 0.5, { align: "center" });
+            doc.setFontSize(6.5);
+            doc.text(v,
+              data.cell.x + data.cell.width / 2,
+              data.cell.y + data.cell.height / 2 + 0.7,
+              { align: "center" });
           }
         },
       });
 
       Y = (doc as any).lastAutoTable.finalY + 8;
 
-      /* ──── DETAILED SCHEDULES ──── */
+      /* ═══════════════════════════════════════════════
+         DETAILED SCHEDULES — next 3 holidays
+         Col widths: Dia(24) | Fecha(26) | Horario(36) | Aplicacion(96) = 182
+         ═══════════════════════════════════════════════ */
       for (const p of proximos.slice(0, 3)) {
         if (Y > 230) { doc.addPage(); Y = MT; }
 
-        sectionLabel(`HORARIO DETALLADO — ${p.nombre.toUpperCase()}`);
+        sectionBar(`HORARIO DETALLADO — ${p.nombre.toUpperCase()}`);
+
         if (p.nota) {
-          doc.setFillColor(241, 245, 249);
-          doc.setDrawColor(...PRIMARY);
+          doc.setFillColor(248, 250, 252);
+          doc.setDrawColor(203, 213, 225);
           doc.setLineWidth(0.3);
           doc.rect(ML, Y, IW, 7, "FD");
+          // left accent
+          doc.setFillColor(...MUTED);
+          doc.rect(ML, Y, 2, 7, "F");
           doc.setFont("helvetica", "italic");
-          doc.setFontSize(7.5);
+          doc.setFontSize(7);
           doc.setTextColor(...MUTED);
-          doc.text(`Nota: ${p.nota}`, ML + 3, Y + 5);
+          doc.text(`Nota: ${p.nota}`, ML + 5, Y + 5);
           Y += 8;
         }
 
-        const detRows = p.horarios.map(r => [r.dia, r.fecha, r.horario, r.aplicacion]);
         autoTable(doc, {
           startY: Y,
-          head: [["Día", "Fecha", "Horario de restricción", "Aplicación geográfica"]],
-          body: detRows,
+          head: [["Dia", "Fecha", "Horario de restriccion", "Aplicacion geografica"]],
+          body: p.horarios.map(r => [r.dia, r.fecha, r.horario, r.aplicacion]),
           margin: { left: ML, right: MR },
           theme: "plain",
           styles: {
-            fontSize: 7.5, cellPadding: { top: 2.5, bottom: 2.5, left: 2.5, right: 2.5 },
-            lineColor: PRIMARY, lineWidth: 0.4, textColor: PRIMARY, valign: "middle",
+            fontSize: 7, cellPadding: { top: 2.5, bottom: 2.5, left: 2, right: 2 },
+            lineColor: [203, 213, 225], lineWidth: 0.3,
+            textColor: NAVY, valign: "middle", overflow: "linebreak",
           },
-          headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: "bold", lineColor: PRIMARY, lineWidth: 0.4 },
+          headStyles: {
+            fillColor: [51, 65, 85], textColor: WHITE, fontStyle: "bold",
+            fontSize: 7, lineColor: [51, 65, 85], lineWidth: 0.3,
+          },
           alternateRowStyles: { fillColor: ALT_ROW },
           columnStyles: {
-            0: { cellWidth: 22, fontStyle: "bold" },
-            1: { cellWidth: 24 },
+            0: { cellWidth: 24, fontStyle: "bold" },
+            1: { cellWidth: 26 },
             2: { cellWidth: 36, fontStyle: "bold" },
-            3: { cellWidth: IW - 82 },
+            3: { cellWidth: 96 },
           },
-          tableLineColor: PRIMARY,
-          tableLineWidth: 0.4,
+          tableLineColor: [203, 213, 225],
+          tableLineWidth: 0.3,
         });
         Y = (doc as any).lastAutoTable.finalY + 8;
       }
 
-      /* ──── EXEMPTIONS + ROADS (two-column) ──── */
-      if (Y > 220) { doc.addPage(); Y = MT; }
+      /* ═══════════════════════════════════════════════
+         EXEMPTIONS + EXCEPTION ROADS — two columns
+         Each col = (182 - 5) / 2 = 88.5mm
+         ═══════════════════════════════════════════════ */
+      if (Y > 210) { doc.addPage(); Y = MT; }
 
-      const colW = (IW - 6) / 2;
+      const GAP  = 5;
+      const COLW = (IW - GAP) / 2;      // ≈ 88.5mm
+      const COL2 = ML + COLW + GAP;
 
-      // Exemptions
-      doc.setFillColor(...PRIMARY);
-      doc.rect(ML, Y, colW, 7, "F");
+      /* left header */
+      doc.setFillColor(...NAVY);
+      doc.rect(ML, Y, COLW, 7, "F");
       doc.setFont("helvetica", "bold");
       doc.setFontSize(7.5);
-      doc.setTextColor(255, 255, 255);
-      doc.text("CARGA EXENTA — NO APLICA RESTRICCIÓN", ML + 3, Y + 5);
+      doc.setTextColor(...WHITE);
+      doc.text("CARGA EXENTA — SIN RESTRICCION", ML + 3, Y + 5);
 
-      autoTable(doc, {
-        startY: Y + 7,
-        body: EXENCIONES_CARGA.map(ex => [`✓  ${ex}`]),
-        margin: { left: ML, right: ML + colW + 6 },
-        theme: "plain",
-        styles: { fontSize: 7, cellPadding: { top: 2, bottom: 2, left: 3, right: 2 }, lineColor: PRIMARY, lineWidth: 0.3, textColor: PRIMARY },
-        alternateRowStyles: { fillColor: ALT_ROW },
-        tableLineColor: PRIMARY,
-        tableLineWidth: 0.3,
-      });
-
-      const exY = (doc as any).lastAutoTable.finalY;
-
-      // Roads exception
-      const col2X = ML + colW + 6;
-      doc.setFillColor(...PRIMARY);
-      doc.rect(col2X, Y, colW, 7, "F");
+      /* right header */
+      doc.setFillColor(...NAVY);
+      doc.rect(COL2, Y, COLW, 7, "F");
       doc.setFont("helvetica", "bold");
       doc.setFontSize(7.5);
-      doc.setTextColor(255, 255, 255);
-      doc.text("VÍAS CON EXCEPCIÓN — SIN RESTRICCIÓN", col2X + 3, Y + 5);
+      doc.setTextColor(...WHITE);
+      doc.text("VIAS CON EXCEPCION — SIN RESTRICCION", COL2 + 3, Y + 5);
+
+      const tblY = Y + 7;
 
       autoTable(doc, {
-        startY: Y + 7,
-        body: VIAS_EXCEPCION.map(v => [`✓  ${v}`]),
-        margin: { left: col2X, right: MR },
+        startY: tblY,
+        body: EXENCIONES_CARGA.map(ex => [`- ${ex}`]),
+        margin: { left: ML, right: COL2 - 1 },
         theme: "plain",
-        styles: { fontSize: 7, cellPadding: { top: 2, bottom: 2, left: 3, right: 2 }, lineColor: PRIMARY, lineWidth: 0.3, textColor: PRIMARY },
+        styles: { fontSize: 7, cellPadding: { top: 2, bottom: 2, left: 3, right: 2 },
+          lineColor: [203, 213, 225], lineWidth: 0.25, textColor: NAVY },
         alternateRowStyles: { fillColor: ALT_ROW },
-        tableLineColor: PRIMARY,
-        tableLineWidth: 0.3,
+        tableLineColor: [203, 213, 225],
+        tableLineWidth: 0.25,
       });
+      const leftFinalY = (doc as any).lastAutoTable.finalY;
 
-      Y = Math.max(exY, (doc as any).lastAutoTable.finalY) + 10;
+      autoTable(doc, {
+        startY: tblY,
+        body: VIAS_EXCEPCION.map(v => [`- ${v}`]),
+        margin: { left: COL2, right: MR },
+        theme: "plain",
+        styles: { fontSize: 7, cellPadding: { top: 2, bottom: 2, left: 3, right: 2 },
+          lineColor: [203, 213, 225], lineWidth: 0.25, textColor: NAVY },
+        alternateRowStyles: { fillColor: ALT_ROW },
+        tableLineColor: [203, 213, 225],
+        tableLineWidth: 0.25,
+      });
+      const rightFinalY = (doc as any).lastAutoTable.finalY;
 
-      /* ──── FOOTER ──── */
+      Y = Math.max(leftFinalY, rightFinalY) + 8;
+
+      /* ═══════════════════════════════════════════════
+         FOOTER — every page
+         ═══════════════════════════════════════════════ */
       const pages = doc.getNumberOfPages();
       for (let pg = 1; pg <= pages; pg++) {
         doc.setPage(pg);
-        const pageH = doc.internal.pageSize.getHeight();
-        doc.setDrawColor(...PRIMARY);
-        doc.setLineWidth(0.6);
-        doc.line(ML, pageH - 14, W - MR, pageH - 14);
+        const pH = doc.internal.pageSize.getHeight();
+
+        doc.setDrawColor(...SLATE);
+        doc.setLineWidth(0.5);
+        doc.line(ML, pH - 14, W - MR, pH - 14);
+
         doc.setFont("helvetica", "bold");
         doc.setFontSize(7.5);
-        doc.setTextColor(...PRIMARY);
-        doc.text(companyName + (reportCompany.companyCity ? "  ·  " + reportCompany.companyCity : ""), ML, pageH - 9);
+        doc.setTextColor(...NAVY);
+        doc.text(
+          companyName + (companyCity ? "  |  " + companyCity : ""),
+          ML, pH - 9);
+
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(7);
+        doc.setFontSize(6.5);
         doc.setTextColor(...MUTED);
-        const disclaimer = reportCompany.footerDisclaimer;
-        doc.text(disclaimer, ML, pageH - 5);
-        doc.text(`Pág. ${pg}/${pages}  ·  Generado: ${now.toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" })}`, W - MR, pageH - 5, { align: "right" });
+        const disc = disclaimer ?? "Documento informativo — Verificar con resolucion oficial MinTransporte antes de programar despachos.";
+        doc.text(disc, ML, pH - 5);
+        doc.text(
+          `Pag. ${pg}/${pages}  |  Generado: ${now.toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" })}`,
+          W - MR, pH - 5, { align: "right" });
       }
 
       doc.save(`restricciones-vehiculares-${now.toISOString().slice(0, 10)}.pdf`);
