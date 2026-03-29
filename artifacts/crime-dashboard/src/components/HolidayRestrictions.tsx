@@ -2,672 +2,800 @@ import { useMemo, useState } from "react";
 
 /* ───────── PALETTE ───────── */
 const E = {
-  cyan:    "#00d4ff",
-  amber:   "#f59e0b",
-  green:   "#10b981",
-  red:     "#ef4444",
-  purple:  "#a855f7",
-  orange:  "#fb923c",
-  bg:      "#070c15",
-  panel:   "#0c1220",
-  border:  "rgba(255,255,255,0.07)",
-  textDim: "rgba(255,255,255,0.45)",
+  cyan:   "#00d4ff",
+  amber:  "#f59e0b",
+  green:  "#10b981",
+  red:    "#ef4444",
+  purple: "#a855f7",
+  bg:     "#070c15",
+  panel:  "#0c1220",
+  border: "rgba(255,255,255,0.07)",
+  dim:    "rgba(255,255,255,0.45)",
 };
 
 /* ───────── TYPES ───────── */
+interface HorarioRow {
+  dia: string;
+  fecha: string;
+  festivo?: boolean;
+  horario: string;
+  aplicacion: string;
+  noAplica?: boolean;
+}
+
 interface Puente {
   id: string;
   nombre: string;
-  festivo: Date;
-  restriccionInicio: Date;
-  restriccionFin: Date;
-  dias: number;
-  tipo: "lunes" | "viernes" | "semana_santa" | "martes_jueves";
+  inicio: Date;
+  fin: Date;
+  fuente: "oficial" | "estimado";
+  horarios: HorarioRow[];
   nota?: string;
 }
 
-/* ───────── DATA: PUENTES 2026 ───────── */
-const PUENTES_2026: Puente[] = [
-  /* ── Ya pasados en 2026 (anteriores a hoy) ── */
+/* ────────────────────────────────────────────────────────────────
+   DATOS OFICIALES — Boletín MinTransporte 19 marzo 2026
+   Fuente: mintransporte.gov.co/publicaciones/12311/
+   Aplica a: vehículos ≥ 3.4 toneladas (3.400 kg)
+   ──────────────────────────────────────────────────────────────── */
+const PUENTES: Puente[] = [
+  /* ══ YA PASADOS ══ */
   {
     id: "reyes-2026",
     nombre: "Reyes Magos",
-    festivo: new Date("2026-01-12T00:00:00"),
-    restriccionInicio: new Date("2026-01-09T18:00:00"),
-    restriccionFin: new Date("2026-01-13T05:00:00"),
-    dias: 3,
-    tipo: "lunes",
+    inicio: new Date("2026-01-09T15:00:00"),
+    fin:    new Date("2026-01-13T23:00:00"),
+    fuente: "estimado",
+    horarios: [
+      { dia:"VIERNES",   fecha:"9 ene 2026",  horario:"15:00–22:00", aplicacion:"Cundinamarca (éxodo Bogotá) + Bogotá–Ibagué (ambos sentidos)" },
+      { dia:"SÁBADO",    fecha:"10 ene 2026", horario:"06:00–15:00", aplicacion:"Todas las vías (ambos sentidos) excl. Rumichaca–Popayán · Medellín–Caño Alegre: 12:00–19:00" },
+      { dia:"DOMINGO",   fecha:"11 ene 2026", horario:"15:00–23:00", aplicacion:"Solo retorno Ibagué–Melgar–Fusagasugá–Bogotá" },
+      { dia:"LUNES (F)", fecha:"12 ene 2026", festivo:true, horario:"10:00–23:00", aplicacion:"Todas las vías (ambos sentidos) · Bogotá–Villavicencio sin excepción · Bogotá–Ibagué: 08:00–01:00" },
+    ],
   },
   {
     id: "san-jose-2026",
-    nombre: "San José",
-    festivo: new Date("2026-03-23T00:00:00"),
-    restriccionInicio: new Date("2026-03-20T18:00:00"),
-    restriccionFin: new Date("2026-03-24T05:00:00"),
-    dias: 3,
-    tipo: "lunes",
+    nombre: "Día de San José",
+    inicio: new Date("2026-03-20T15:00:00"),
+    fin:    new Date("2026-03-23T23:00:00"),
+    fuente: "oficial",
+    horarios: [
+      { dia:"VIERNES",   fecha:"20 mar 2026", horario:"15:00–22:00", aplicacion:"Cundinamarca (éxodo Bogotá) + Bogotá–Fusagasugá–Melgar–Ibagué e Ibagué–Calarcá–La Paila (ambos sentidos)" },
+      { dia:"SÁBADO",    fecha:"21 mar 2026", horario:"06:00–15:00", aplicacion:"Todas las vías (ambos sentidos) excl. Rumichaca–Popayán · Medellín–Caño Alegre: 12:00–19:00" },
+      { dia:"DOMINGO",   fecha:"22 mar 2026", horario:"15:00–23:00", aplicacion:"Solo retorno: Ibagué–Melgar–Fusagasugá–Soacha–Bogotá" },
+      { dia:"LUNES (F)", fecha:"23 mar 2026", festivo:true, horario:"10:00–23:00", aplicacion:"Todas las vías (ambos sentidos) · Bogotá–Villavicencio sin excepción · Bogotá–Ibagué: 08:00–01:00 del martes" },
+    ],
   },
   {
     id: "semana-santa-2026",
     nombre: "Semana Santa",
-    festivo: new Date("2026-04-03T00:00:00"),
-    restriccionInicio: new Date("2026-04-01T18:00:00"),
-    restriccionFin: new Date("2026-04-06T05:00:00"),
-    dias: 5,
-    tipo: "semana_santa",
-    nota: "Restricción ampliada miércoles–lunes",
+    inicio: new Date("2026-03-27T15:00:00"),
+    fin:    new Date("2026-04-05T23:00:00"),
+    fuente: "oficial",
+    nota: "Dom 29, Lun 30, Mar 31 mar y Vie 3 abr: NO APLICA restricción a nivel nacional",
+    horarios: [
+      { dia:"VIERNES",   fecha:"27 mar 2026", horario:"15:00–22:00", aplicacion:"Cundinamarca éxodo + Bogotá–Ibagué (ambos sentidos) + Popayán–Pasto–Rumichaca (ambos sentidos)" },
+      { dia:"SÁBADO",    fecha:"28 mar 2026", horario:"06:00–15:00", aplicacion:"Todas las vías (ambos sentidos) · Medellín–Caño Alegre: 12:00–19:00" },
+      { dia:"DOMINGO",   fecha:"29 mar 2026", horario:"NO APLICA",   aplicacion:"Sin restricción nacional — garantía de abastecimiento", noAplica:true },
+      { dia:"LUNES",     fecha:"30 mar 2026", horario:"NO APLICA",   aplicacion:"Sin restricción nacional", noAplica:true },
+      { dia:"MARTES",    fecha:"31 mar 2026", horario:"NO APLICA",   aplicacion:"Sin restricción nacional", noAplica:true },
+      { dia:"MIÉRCOLES", fecha:"1 abr 2026",  horario:"12:00–23:00", aplicacion:"Cundinamarca éxodo + Bogotá–Ibagué + Popayán–Pasto–Rumichaca (ambos sentidos)" },
+      { dia:"JUE (F)",   fecha:"2 abr 2026",  festivo:true, horario:"06:00–15:00", aplicacion:"Todas las vías (ambos sentidos) · Bogotá–Ibagué: 06:00–18:00" },
+      { dia:"VIE (F)",   fecha:"3 abr 2026",  festivo:true, horario:"NO APLICA",   aplicacion:"Sin restricción nacional — Viernes Santo", noAplica:true },
+      { dia:"SÁBADO",    fecha:"4 abr 2026",  horario:"14:00–23:00", aplicacion:"Solo: Bogotá–Fusagasugá–Melgar–Ibagué" },
+      { dia:"DOMINGO",   fecha:"5 abr 2026",  horario:"10:00–23:00", aplicacion:"Todas las vías (ambos sentidos) · Bogotá–Villavicencio sin excepción · Bogotá–Ibagué: 08:00–01:00 del lunes" },
+    ],
   },
-  /* ── Próximos ── */
+  /* ══ PRÓXIMOS — DATOS OFICIALES ══ */
   {
     id: "trabajo-2026",
     nombre: "Día del Trabajo",
-    festivo: new Date("2026-05-01T00:00:00"),
-    restriccionInicio: new Date("2026-04-30T18:00:00"),
-    restriccionFin: new Date("2026-05-04T05:00:00"),
-    dias: 3,
-    tipo: "viernes",
+    inicio: new Date("2026-04-30T15:00:00"),
+    fin:    new Date("2026-05-03T23:00:00"),
+    fuente: "oficial",
+    horarios: [
+      { dia:"JUEVES",    fecha:"30 abr 2026", horario:"15:00–22:00", aplicacion:"Cundinamarca éxodo desde Bogotá + Bogotá–Ibagué (ambos sentidos)" },
+      { dia:"VIE (F)",   fecha:"1 may 2026",  festivo:true, horario:"06:00–15:00", aplicacion:"Todas las vías (ambos sentidos) excl. Rumichaca–Popayán · Medellín–Caño Alegre: 12:00–19:00" },
+      { dia:"SÁBADO",    fecha:"2 may 2026",  horario:"15:00–23:00", aplicacion:"Solo retorno: Ibagué–Melgar–Fusagasugá–Soacha–Bogotá" },
+      { dia:"DOMINGO",   fecha:"3 may 2026",  horario:"10:00–23:00", aplicacion:"Todas las vías (ambos sentidos) · Bogotá–Villavicencio sin excepción · Bogotá–Ibagué: 08:00–01:00 del lunes" },
+    ],
   },
   {
     id: "ascension-2026",
-    nombre: "Ascensión del Señor",
-    festivo: new Date("2026-05-18T00:00:00"),
-    restriccionInicio: new Date("2026-05-15T18:00:00"),
-    restriccionFin: new Date("2026-05-19T05:00:00"),
-    dias: 3,
-    tipo: "lunes",
+    nombre: "Día de la Ascensión",
+    inicio: new Date("2026-05-15T15:00:00"),
+    fin:    new Date("2026-05-18T23:00:00"),
+    fuente: "oficial",
+    horarios: [
+      { dia:"VIERNES",   fecha:"15 may 2026", horario:"15:00–22:00", aplicacion:"Cundinamarca éxodo + Bogotá–Fusagasugá–Melgar–Ibagué e Ibagué–Calarcá–La Paila (ambos sentidos)" },
+      { dia:"SÁBADO",    fecha:"16 may 2026", horario:"06:00–15:00", aplicacion:"Todas las vías (ambos sentidos) excl. Rumichaca–Popayán · Medellín–Caño Alegre: 12:00–19:00" },
+      { dia:"DOMINGO",   fecha:"17 may 2026", horario:"15:00–23:00", aplicacion:"Solo retorno: Ibagué–Melgar–Fusagasugá–Soacha–Bogotá" },
+      { dia:"LUNES (F)", fecha:"18 may 2026", festivo:true, horario:"10:00–23:00", aplicacion:"Todas las vías (ambos sentidos) · Bogotá–Villavicencio sin excepción · Bogotá–Ibagué: 08:00–01:00 del martes" },
+    ],
   },
   {
     id: "corpus-2026",
     nombre: "Corpus Christi",
-    festivo: new Date("2026-06-08T00:00:00"),
-    restriccionInicio: new Date("2026-06-05T18:00:00"),
-    restriccionFin: new Date("2026-06-09T05:00:00"),
-    dias: 3,
-    tipo: "lunes",
+    inicio: new Date("2026-06-05T15:00:00"),
+    fin:    new Date("2026-06-08T23:00:00"),
+    fuente: "oficial",
+    horarios: [
+      { dia:"VIERNES",   fecha:"5 jun 2026",  horario:"15:00–22:00", aplicacion:"Cundinamarca éxodo + Bogotá–Ibagué (ambos sentidos)" },
+      { dia:"SÁBADO",    fecha:"6 jun 2026",  horario:"06:00–15:00", aplicacion:"Todas las vías (ambos sentidos) excl. Rumichaca–Popayán · Medellín–Caño Alegre: 12:00–19:00" },
+      { dia:"DOMINGO",   fecha:"7 jun 2026",  horario:"15:00–23:00", aplicacion:"Solo retorno: Ibagué–Melgar–Fusagasugá–Soacha–Bogotá" },
+      { dia:"LUNES (F)", fecha:"8 jun 2026",  festivo:true, horario:"10:00–23:00", aplicacion:"Todas las vías (ambos sentidos) · Bogotá–Villavicencio sin excepción · Bogotá–Ibagué: 08:00–01:00 del martes" },
+    ],
   },
   {
     id: "sagrado-2026",
-    nombre: "Sagrado Corazón",
-    festivo: new Date("2026-06-15T00:00:00"),
-    restriccionInicio: new Date("2026-06-12T18:00:00"),
-    restriccionFin: new Date("2026-06-16T05:00:00"),
-    dias: 3,
-    tipo: "lunes",
+    nombre: "Sagrado Corazón de Jesús",
+    inicio: new Date("2026-06-12T15:00:00"),
+    fin:    new Date("2026-06-15T23:00:00"),
+    fuente: "oficial",
+    horarios: [
+      { dia:"VIERNES",   fecha:"12 jun 2026", horario:"15:00–22:00", aplicacion:"Cundinamarca éxodo + Bogotá–Ibagué (ambos sentidos)" },
+      { dia:"SÁBADO",    fecha:"13 jun 2026", horario:"06:00–15:00", aplicacion:"Todas las vías (ambos sentidos) excl. Rumichaca–Popayán · Medellín–Caño Alegre: 12:00–19:00" },
+      { dia:"DOMINGO",   fecha:"14 jun 2026", horario:"15:00–23:00", aplicacion:"Solo retorno: Ibagué–Melgar–Fusagasugá–Soacha–Bogotá" },
+      { dia:"LUNES (F)", fecha:"15 jun 2026", festivo:true, horario:"10:00–23:00", aplicacion:"Todas las vías (ambos sentidos) · Bogotá–Villavicencio sin excepción · Bogotá–Ibagué: 08:00–01:00 del martes" },
+    ],
   },
   {
     id: "san-pedro-2026",
     nombre: "San Pedro y San Pablo",
-    festivo: new Date("2026-06-29T00:00:00"),
-    restriccionInicio: new Date("2026-06-26T18:00:00"),
-    restriccionFin: new Date("2026-06-30T05:00:00"),
-    dias: 3,
-    tipo: "lunes",
+    inicio: new Date("2026-06-26T14:00:00"),
+    fin:    new Date("2026-06-29T23:00:00"),
+    fuente: "oficial",
+    nota: "Viernes inicia a las 14:00 (no 15:00). Sábado Bogotá–Ibagué amplía hasta las 18:00.",
+    horarios: [
+      { dia:"VIERNES",   fecha:"26 jun 2026", horario:"14:00–22:00", aplicacion:"Cundinamarca éxodo + Bogotá–Ibagué (ambos sentidos)" },
+      { dia:"SÁBADO",    fecha:"27 jun 2026", horario:"06:00–15:00", aplicacion:"Todas las vías excl. Rumichaca–Popayán · Bogotá–Ibagué: 06:00–18:00 · Medellín–Caño Alegre: 12:00–19:00" },
+      { dia:"DOMINGO",   fecha:"28 jun 2026", horario:"15:00–23:00", aplicacion:"Solo retorno: Ibagué–Melgar–Fusagasugá–Soacha–Bogotá" },
+      { dia:"LUNES (F)", fecha:"29 jun 2026", festivo:true, horario:"10:00–23:00", aplicacion:"Todas las vías (ambos sentidos) · Bogotá–Villavicencio: 10:00–01:00 del martes · Bogotá–Ibagué: 08:00–01:00 del martes" },
+    ],
   },
   {
     id: "independencia-2026",
     nombre: "Independencia de Colombia",
-    festivo: new Date("2026-07-20T00:00:00"),
-    restriccionInicio: new Date("2026-07-17T18:00:00"),
-    restriccionFin: new Date("2026-07-21T05:00:00"),
-    dias: 3,
-    tipo: "lunes",
+    inicio: new Date("2026-07-17T15:00:00"),
+    fin:    new Date("2026-07-20T23:00:00"),
+    fuente: "oficial",
+    horarios: [
+      { dia:"VIERNES",   fecha:"17 jul 2026", horario:"15:00–22:00", aplicacion:"Cundinamarca éxodo + Bogotá–Ibagué (ambos sentidos)" },
+      { dia:"SÁBADO",    fecha:"18 jul 2026", horario:"06:00–15:00", aplicacion:"Todas las vías excl. Rumichaca–Popayán · Medellín–Caño Alegre: 12:00–19:00" },
+      { dia:"DOMINGO",   fecha:"19 jul 2026", horario:"15:00–23:00", aplicacion:"Solo retorno: Ibagué–Melgar–Fusagasugá–Soacha–Bogotá" },
+      { dia:"LUNES (F)", fecha:"20 jul 2026", festivo:true, horario:"10:00–23:00", aplicacion:"Todas las vías (ambos sentidos) · Bogotá–Villavicencio sin excepción · Bogotá–Ibagué: 08:00–01:00 del martes" },
+    ],
   },
+  /* ══ SEGUNDO SEMESTRE — Estimado (patrón histórico, pendiente boletín oficial) ══ */
   {
     id: "boyaca-2026",
     nombre: "Batalla de Boyacá",
-    festivo: new Date("2026-08-07T00:00:00"),
-    restriccionInicio: new Date("2026-08-06T18:00:00"),
-    restriccionFin: new Date("2026-08-10T05:00:00"),
-    dias: 3,
-    tipo: "viernes",
+    inicio: new Date("2026-08-06T15:00:00"),
+    fin:    new Date("2026-08-09T23:00:00"),
+    fuente: "estimado",
+    nota: "Festivo en viernes. Horarios estimados con base en patrón histórico MinTransporte.",
+    horarios: [
+      { dia:"JUEVES",    fecha:"6 ago 2026",  horario:"15:00–22:00", aplicacion:"Cundinamarca éxodo + Bogotá–Ibagué (ambos sentidos)" },
+      { dia:"VIE (F)",   fecha:"7 ago 2026",  festivo:true, horario:"06:00–15:00", aplicacion:"Todas las vías (ambos sentidos) excl. Rumichaca–Popayán · Medellín–Caño Alegre: 12:00–19:00" },
+      { dia:"SÁBADO",    fecha:"8 ago 2026",  horario:"15:00–23:00", aplicacion:"Solo retorno: Ibagué–Bogotá" },
+      { dia:"DOMINGO",   fecha:"9 ago 2026",  horario:"10:00–23:00", aplicacion:"Todas las vías (ambos sentidos) · Bogotá–Villavicencio sin excepción" },
+    ],
   },
   {
     id: "asuncion-2026",
     nombre: "Asunción de la Virgen",
-    festivo: new Date("2026-08-17T00:00:00"),
-    restriccionInicio: new Date("2026-08-14T18:00:00"),
-    restriccionFin: new Date("2026-08-18T05:00:00"),
-    dias: 3,
-    tipo: "lunes",
+    inicio: new Date("2026-08-14T15:00:00"),
+    fin:    new Date("2026-08-17T23:00:00"),
+    fuente: "estimado",
+    nota: "Horarios estimados — pendiente boletín oficial segundo semestre MinTransporte.",
+    horarios: [
+      { dia:"VIERNES",   fecha:"14 ago 2026", horario:"15:00–22:00", aplicacion:"Cundinamarca éxodo + Bogotá–Ibagué (ambos sentidos)" },
+      { dia:"SÁBADO",    fecha:"15 ago 2026", horario:"06:00–15:00", aplicacion:"Todas las vías (ambos sentidos) · Medellín–Caño Alegre: 12:00–19:00" },
+      { dia:"DOMINGO",   fecha:"16 ago 2026", horario:"15:00–23:00", aplicacion:"Solo retorno: Ibagué–Bogotá" },
+      { dia:"LUNES (F)", fecha:"17 ago 2026", festivo:true, horario:"10:00–23:00", aplicacion:"Todas las vías (ambos sentidos) · Bogotá–Villavicencio sin excepción" },
+    ],
   },
   {
     id: "raza-2026",
     nombre: "Día de la Raza",
-    festivo: new Date("2026-10-12T00:00:00"),
-    restriccionInicio: new Date("2026-10-09T18:00:00"),
-    restriccionFin: new Date("2026-10-13T05:00:00"),
-    dias: 3,
-    tipo: "lunes",
+    inicio: new Date("2026-10-09T15:00:00"),
+    fin:    new Date("2026-10-12T23:00:00"),
+    fuente: "estimado",
+    nota: "Horarios estimados — pendiente boletín oficial.",
+    horarios: [
+      { dia:"VIERNES",   fecha:"9 oct 2026",  horario:"15:00–22:00", aplicacion:"Cundinamarca éxodo + Bogotá–Ibagué (ambos sentidos)" },
+      { dia:"SÁBADO",    fecha:"10 oct 2026", horario:"06:00–15:00", aplicacion:"Todas las vías (ambos sentidos) · Medellín–Caño Alegre: 12:00–19:00" },
+      { dia:"DOMINGO",   fecha:"11 oct 2026", horario:"15:00–23:00", aplicacion:"Solo retorno: Ibagué–Bogotá" },
+      { dia:"LUNES (F)", fecha:"12 oct 2026", festivo:true, horario:"10:00–23:00", aplicacion:"Todas las vías (ambos sentidos) · Bogotá–Villavicencio sin excepción" },
+    ],
   },
   {
     id: "santos-2026",
     nombre: "Todos los Santos",
-    festivo: new Date("2026-11-02T00:00:00"),
-    restriccionInicio: new Date("2026-10-30T18:00:00"),
-    restriccionFin: new Date("2026-11-03T05:00:00"),
-    dias: 3,
-    tipo: "lunes",
+    inicio: new Date("2026-10-30T15:00:00"),
+    fin:    new Date("2026-11-02T23:00:00"),
+    fuente: "estimado",
+    nota: "Horarios estimados — pendiente boletín oficial.",
+    horarios: [
+      { dia:"VIERNES",   fecha:"30 oct 2026", horario:"15:00–22:00", aplicacion:"Cundinamarca éxodo + Bogotá–Ibagué (ambos sentidos)" },
+      { dia:"SÁBADO",    fecha:"31 oct 2026", horario:"06:00–15:00", aplicacion:"Todas las vías (ambos sentidos) · Medellín–Caño Alegre: 12:00–19:00" },
+      { dia:"DOMINGO",   fecha:"1 nov 2026",  horario:"15:00–23:00", aplicacion:"Solo retorno: Ibagué–Bogotá" },
+      { dia:"LUNES (F)", fecha:"2 nov 2026",  festivo:true, horario:"10:00–23:00", aplicacion:"Todas las vías (ambos sentidos) · Bogotá–Villavicencio sin excepción" },
+    ],
   },
   {
     id: "cartagena-2026",
     nombre: "Independencia de Cartagena",
-    festivo: new Date("2026-11-16T00:00:00"),
-    restriccionInicio: new Date("2026-11-13T18:00:00"),
-    restriccionFin: new Date("2026-11-17T05:00:00"),
-    dias: 3,
-    tipo: "lunes",
+    inicio: new Date("2026-11-13T15:00:00"),
+    fin:    new Date("2026-11-16T23:00:00"),
+    fuente: "estimado",
+    nota: "Horarios estimados — pendiente boletín oficial.",
+    horarios: [
+      { dia:"VIERNES",   fecha:"13 nov 2026", horario:"15:00–22:00", aplicacion:"Cundinamarca éxodo + Bogotá–Ibagué (ambos sentidos)" },
+      { dia:"SÁBADO",    fecha:"14 nov 2026", horario:"06:00–15:00", aplicacion:"Todas las vías (ambos sentidos) · Medellín–Caño Alegre: 12:00–19:00" },
+      { dia:"DOMINGO",   fecha:"15 nov 2026", horario:"15:00–23:00", aplicacion:"Solo retorno: Ibagué–Bogotá" },
+      { dia:"LUNES (F)", fecha:"16 nov 2026", festivo:true, horario:"10:00–23:00", aplicacion:"Todas las vías (ambos sentidos) · Bogotá–Villavicencio sin excepción" },
+    ],
   },
   {
     id: "inmaculada-2026",
     nombre: "Inmaculada Concepción",
-    festivo: new Date("2026-12-08T00:00:00"),
-    restriccionInicio: new Date("2026-12-07T18:00:00"),
-    restriccionFin: new Date("2026-12-09T05:00:00"),
-    dias: 1,
-    tipo: "martes_jueves",
-    nota: "Festivo en martes — restricción lunes–miércoles",
+    inicio: new Date("2026-12-07T15:00:00"),
+    fin:    new Date("2026-12-08T23:00:00"),
+    fuente: "estimado",
+    nota: "Festivo en martes. Horarios estimados — pendiente boletín oficial.",
+    horarios: [
+      { dia:"LUNES",     fecha:"7 dic 2026",  horario:"15:00–22:00", aplicacion:"Cundinamarca éxodo + Bogotá–Ibagué (ambos sentidos)" },
+      { dia:"MAR (F)",   fecha:"8 dic 2026",  festivo:true, horario:"06:00–23:00", aplicacion:"Todas las vías (ambos sentidos)" },
+    ],
   },
   {
     id: "navidad-2026",
     nombre: "Navidad",
-    festivo: new Date("2026-12-25T00:00:00"),
-    restriccionInicio: new Date("2026-12-24T18:00:00"),
-    restriccionFin: new Date("2026-12-28T05:00:00"),
-    dias: 3,
-    tipo: "viernes",
+    inicio: new Date("2026-12-24T15:00:00"),
+    fin:    new Date("2026-12-28T23:00:00"),
+    fuente: "estimado",
+    nota: "Festivo en viernes. Horarios estimados — pendiente boletín oficial.",
+    horarios: [
+      { dia:"JUEVES",    fecha:"24 dic 2026", horario:"15:00–22:00", aplicacion:"Cundinamarca éxodo + Bogotá–Ibagué (ambos sentidos)" },
+      { dia:"VIE (F)",   fecha:"25 dic 2026", festivo:true, horario:"06:00–15:00", aplicacion:"Todas las vías (ambos sentidos)" },
+      { dia:"SÁBADO",    fecha:"26 dic 2026", horario:"15:00–23:00", aplicacion:"Solo retorno: Ibagué–Bogotá" },
+      { dia:"DOMINGO",   fecha:"27 dic 2026", horario:"10:00–23:00", aplicacion:"Todas las vías (ambos sentidos)" },
+    ],
   },
 ];
 
-const DIAS_SEMANA = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
-const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+/* ───────── VÍAS OFICIALES (Boletín MinTransporte) ───────── */
+const VIAS_RESTRINGIDAS = [
+  "Armenia – Montenegro – Quimbaya",
+  "Barranquilla – Cartagena (Vía al Mar)",
+  "Barbosa (Ant.) – Cisneros – San José del Nus",
+  "Bogotá (cll 245) – Chía – Ubaté – Chiquinquirá – San Gil – Bucaramanga",
+  "Bogotá – Choachí",
+  "Bogotá (Peaje Patios) – La Calera – Guasca – Guatavita – Sesquilé",
+  "Bogotá (Puente de Guadua) – La Vega – Villeta – Guaduas – Honda",
+  "Bogotá (Límite Soacha) – Fusagasugá – Melgar – Ibagué ⚡",
+  "Bogotá (cll 245) – Tocancipá – Tunja",
+  "Bogotá (Uval Km.0) – Villavicencio – Acacías ⚡⚡",
+  "Bosconia – Zambrano – Carmen de Bolívar – Cartagena",
+  "Bucaramanga – Pamplona – Cúcuta",
+  "Bucaramanga – El Playón – San Alberto",
+  "Cali – Popayán",
+  "Carreto – Calamar – Santo Tomás – Sabanagrande (Atl.)",
+  "Medellín – Cruce Ruta 45 (Caño Alegre) ⚡",
+  "Ibagué – Cajamarca – Calarcá – La Paila ⚡",
+  "Ibagué – Alvarado – Armero – Mariquita",
+  "Manizales – Mariquita – Honda",
+  "Montería – Cereté – Lorica – Coveñas – Tolú – Cruz del Viso",
+  "Mosquera (Peaje Río Bogotá) – Facatativá – Los Alpes",
+  "Neiva – Garzón – Pitalito",
+  "Neiva – Espinal – Girardot",
+  "Popayán – Mojarras – Pasto – Ipiales – Rumichaca (solo Semana Santa)",
+  "Primavera – Amagá – Bolombolo – Ciudad Bolívar",
+  "Primavera – La Pintada – La Felisa – La Manuela",
+  "Puerto Araujo – Puerto Boyacá",
+  "Puerta de Hierro – Magangué – Mompós – El Banco",
+  "Santa Marta – Palomino",
+  "Sincelejo – El Carmen de Bolívar",
+  "Sogamoso – Toquilla",
+  "Tunja – Barbosa",
+  "Tunja – Chiquinquirá",
+  "Tunja – Duitama – Sogamoso (incluye variante Tunja)",
+  "Villavicencio – Cumaral",
+  "Villavicencio – Puerto López",
+  "Ye de Ciénaga – Fundación – San Roque – Aguachica",
+  "Ye de Hatillo (Barbosa-Ant.) – Yarumal – Caucasia",
+];
 
-function formatDate(d: Date) {
-  return `${DIAS_SEMANA[d.getDay()]} ${d.getDate()} ${MESES[d.getMonth()]}`;
-}
-function formatDateTime(d: Date) {
-  const h = d.getHours().toString().padStart(2, "0");
-  const m = d.getMinutes().toString().padStart(2, "0");
-  return `${DIAS_SEMANA[d.getDay()]} ${d.getDate()} ${MESES[d.getMonth()]} ${h}:${m}`;
-}
+const VIAS_EXCEPCION = [
+  "Barranquilla – Ye de Ciénaga",
+  "Bucaramanga – La Lizama",
+  "Cúcuta – Ye de Astilleros – Sardinata – Ocaña",
+  "Girardot – Nariño – Guataquí – Cambao",
+  "Medellín – Santa Fe de Antioquia – Mutatá",
+  "Palmira – Ye de Villa Rica",
+  "Pereira – Cartago – La Paila",
+];
 
-function getStatus(puente: Puente, now: Date) {
-  if (now >= puente.restriccionInicio && now <= puente.restriccionFin) return "activa";
-  if (now < puente.restriccionInicio) return "proxima";
+const EXENCIONES_CARGA = [
+  "Alimentos perecederos",
+  "Combustible (vacío o lleno)",
+  "Medicamentos y material hospitalario",
+  "Vehículos de emergencia y socorro",
+  "Animales vivos",
+  "Correo oficial",
+  "Fuerzas Militares y Policía Nacional",
+  "Servicio público urbano de pasajeros",
+];
+
+/* ───────── HELPERS ───────── */
+function getStatus(p: Puente, now: Date) {
+  if (now >= p.inicio && now <= p.fin) return "activa";
+  if (now < p.inicio) return "proxima";
   return "pasada";
 }
-
 function msToCountdown(ms: number) {
-  if (ms <= 0) return "00:00:00";
+  if (ms <= 0) return "—";
   const d = Math.floor(ms / 86400000);
   const h = Math.floor((ms % 86400000) / 3600000);
   const m = Math.floor((ms % 3600000) / 60000);
-  const s = Math.floor((ms % 60000) / 1000);
   if (d > 0) return `${d}d ${h}h ${m}m`;
-  return `${h.toString().padStart(2,"0")}h ${m.toString().padStart(2,"0")}m ${s.toString().padStart(2,"0")}s`;
+  return `${h.toString().padStart(2,"0")}h ${m.toString().padStart(2,"0")}m`;
 }
 
-/* ───────── VEHICLE CATEGORIES ───────── */
-const VEHICULOS_RESTRINGIDOS = [
-  { cat: "Cat. III", desc: "Camión simple 3 ejes (2S1, 3S0)", ejemplo: "Camión rígido con remolque" },
-  { cat: "Cat. IV",  desc: "Tractocamión 4 ejes (2S2)", ejemplo: "Tractomula con semirremolque eje simple" },
-  { cat: "Cat. V",   desc: "Tractocamión 5 ejes (3S2)", ejemplo: "Tractomula estándar" },
-  { cat: "Cat. VI",  desc: "Tractocamión 6 ejes (3S3)", ejemplo: "Doble remolque / B-train" },
-];
-
-const VEHICULOS_EXENTOS = [
-  "Vehículos que transporten alimentos perecederos",
-  "Tanques de combustible (vacíos o llenos)",
-  "Transporte de medicamentos y material hospitalario",
-  "Vehículos de emergencia y socorro",
-  "Transporte de animales vivos",
-  "Servicio público urbano de pasajeros",
-  "Vehículos del Estado (Fuerzas Militares, Policía, etc.)",
-  "Transporte de correo oficial",
-];
-
-const CORREDORES = [
-  { ruta: "Ruta 45 — Bogotá–Medellín", tramos: "Villeta, La Pintada, Bolombolo" },
-  { ruta: "Ruta 40 — Bogotá–Buenaventura", tramos: "Buga, Tuluá, Palmira" },
-  { ruta: "Ruta 25 — Cali–Pasto", tramos: "Popayán, Chachagüí" },
-  { ruta: "Ruta 55 — Bogotá–Cúcuta", tramos: "Tunja, Bucaramanga, Pamplona" },
-  { ruta: "Ruta 60 — Bogotá–Villavicencio", tramos: "Alto del Cable, Puerto López" },
-  { ruta: "Ruta 45A — Bogotá–Cartagena", tramos: "Honda, Barrancabermeja, Magangué" },
-  { ruta: "Ruta 90 — Bogotá–Costa Atlántica", tramos: "Barranquilla–Cartagena" },
-];
-
-/* ────────────────────────────────────────────────────────────────
-   MAIN COMPONENT
-   ──────────────────────────────────────────────────────────────── */
+/* ════════════════════════════════════════════════════════════════
+   COMPONENT
+   ════════════════════════════════════════════════════════════════ */
 interface Props { dark?: boolean }
 
 export function HolidayRestrictions({ dark = true }: Props) {
   const now = new Date();
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [showPrint, setShowPrint] = useState(false);
-  const [selectedPuente, setSelectedPuente] = useState<string | null>(null);
+  const [showVias, setShowVias] = useState(false);
 
-  const panel = dark ? E.panel : "#ffffff";
-  const bg    = dark ? E.bg    : "#f1f5f9";
-  const text  = dark ? "rgba(255,255,255,0.87)" : "#1e293b";
-  const muted = dark ? E.textDim : "#6b7280";
-  const border= dark ? E.border : "rgba(0,0,0,0.08)";
+  const panel  = dark ? E.panel : "#ffffff";
+  const text   = dark ? "rgba(255,255,255,0.87)" : "#1e293b";
+  const muted  = dark ? E.dim : "#6b7280";
+  const border = dark ? E.border : "rgba(0,0,0,0.08)";
 
-  /* classify puentes */
-  const { activo, proximos, pasados } = useMemo(() => {
-    const activo   = PUENTES_2026.find(p => getStatus(p, now) === "activa") ?? null;
-    const proximos = PUENTES_2026.filter(p => getStatus(p, now) === "proxima");
-    const pasados  = PUENTES_2026.filter(p => getStatus(p, now) === "pasada");
-    return { activo, proximos, pasados };
-  }, []);
+  const { activo, proximos, pasados } = useMemo(() => ({
+    activo:   PUENTES.find(p => getStatus(p, now) === "activa") ?? null,
+    proximos: PUENTES.filter(p => getStatus(p, now) === "proxima"),
+    pasados:  PUENTES.filter(p => getStatus(p, now) === "pasada"),
+  }), []);
 
   const siguiente = proximos[0] ?? null;
-  const msHasta = siguiente ? siguiente.restriccionInicio.getTime() - now.getTime() : 0;
+  const msHasta   = siguiente ? siguiente.inicio.getTime() - now.getTime() : 0;
 
-  /* ── STATUS BADGE ── */
-  function StatusBadge() {
-    if (activo) return (
-      <div style={{
-        display: "flex", alignItems: "center", gap: 12,
-        background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.4)",
-        borderRadius: 12, padding: "20px 28px",
-      }}>
-        <div style={{ width: 20, height: 20, borderRadius: "50%", background: E.red,
-          boxShadow: `0 0 16px ${E.red}`, animation: "pulse 1.5s infinite" }} />
-        <div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: E.red, letterSpacing: "-0.02em" }}>
-            🚫 RESTRICCIÓN ACTIVA — {activo.nombre.toUpperCase()}
-          </div>
-          <div style={{ fontSize: 13, color: muted, marginTop: 4 }}>
-            Finaliza el {formatDateTime(activo.restriccionFin)} · Vehículos Cat. III–VI RESTRINGIDOS
-          </div>
-        </div>
-      </div>
-    );
+  /* ── PRINT VIEW ── */
+  if (showPrint) return <PrintView onBack={() => setShowPrint(false)} now={now} activo={activo} proximos={proximos} />;
 
-    if (siguiente) return (
-      <div style={{
-        display: "flex", alignItems: "center", gap: 20,
-        background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.3)",
-        borderRadius: 12, padding: "20px 28px", flexWrap: "wrap",
-      }}>
-        <div style={{ width: 20, height: 20, borderRadius: "50%", background: E.green }} />
-        <div style={{ flex: 1, minWidth: 200 }}>
-          <div style={{ fontSize: 16, fontWeight: 800, color: E.green }}>
-            ✅ Sin restricción activa
-          </div>
-          <div style={{ fontSize: 13, color: muted, marginTop: 4 }}>
-            Próxima: <strong style={{ color: text }}>{siguiente.nombre}</strong> — inicia el {formatDateTime(siguiente.restriccionInicio)}
-          </div>
-        </div>
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 11, color: muted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Tiempo restante</div>
-          <div style={{ fontSize: 26, fontWeight: 900, color: E.amber, fontVariantNumeric: "tabular-nums" }}>
-            {msToCountdown(msHasta)}
-          </div>
-        </div>
-      </div>
-    );
-
-    return (
-      <div style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${border}`, borderRadius: 12, padding: "20px 28px", color: muted }}>
-        No hay más puentes programados para 2026.
-      </div>
-    );
-  }
-
-  /* ── PUENTE ROW ── */
-  function PuenteRow({ p }: { p: Puente }) {
+  /* ── PUENTE CARD ── */
+  function PuenteCard({ p }: { p: Puente }) {
     const status = getStatus(p, now);
-    const isSelected = selectedPuente === p.id;
-    const statusColor = status === "activa" ? E.red : status === "proxima" ? E.amber : muted;
-    const statusLabel = status === "activa" ? "ACTIVA" : status === "proxima" ? "PRÓXIMA" : "FINALIZADA";
+    const isOpen = expanded === p.id;
+    const sc = status === "activa" ? E.red : status === "proxima" ? E.amber : muted;
+    const sl = status === "activa" ? "ACTIVA" : status === "proxima" ? "PRÓXIMA" : "FINALIZADA";
 
     return (
       <div
-        onClick={() => setSelectedPuente(isSelected ? null : p.id)}
+        onClick={() => setExpanded(isOpen ? null : p.id)}
         style={{
-          background: isSelected
-            ? (dark ? "rgba(0,212,255,0.06)" : "#f0f9ff")
-            : (dark ? "rgba(255,255,255,0.02)" : "#f8fafc"),
-          border: `1px solid ${isSelected ? "rgba(0,212,255,0.25)" : border}`,
-          borderRadius: 10,
-          padding: "14px 18px",
-          cursor: "pointer",
-          transition: "all 0.15s",
-          marginBottom: 8,
+          background: isOpen ? (dark ? "rgba(0,212,255,0.05)" : "#f0f9ff") : panel,
+          border: `1px solid ${isOpen ? "rgba(0,212,255,0.2)" : border}`,
+          borderRadius: 10, padding: "14px 18px", cursor: "pointer",
+          transition: "all 0.15s", marginBottom: 8,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-          {/* status dot */}
-          <div style={{
-            width: 10, height: 10, borderRadius: "50%", background: statusColor, flexShrink: 0,
-            boxShadow: status === "activa" ? `0 0 10px ${E.red}` : "none",
-          }} />
-
-          {/* nombre */}
-          <div style={{ flex: 1, minWidth: 160 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: text }}>{p.nombre}</div>
-            <div style={{ fontSize: 11, color: muted, marginTop: 2 }}>
-              Festivo: {formatDate(p.festivo)}
+        {/* Header row */}
+        <div style={{ display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>
+          <div style={{ width:9, height:9, borderRadius:"50%", background:sc, flexShrink:0,
+            boxShadow: status==="activa" ? `0 0 10px ${E.red}` : "none" }} />
+          <div style={{ flex:1, minWidth:150 }}>
+            <div style={{ fontSize:14, fontWeight:700, color:text }}>{p.nombre}</div>
+            <div style={{ fontSize:11, color:muted, marginTop:2 }}>
+              {p.inicio.toLocaleDateString("es-CO",{day:"numeric",month:"short"})} →{" "}
+              {p.fin.toLocaleDateString("es-CO",{day:"numeric",month:"short",year:"numeric"})}
             </div>
           </div>
-
-          {/* fechas restricción */}
-          <div style={{ textAlign: "center", minWidth: 200 }}>
-            <div style={{ fontSize: 11, color: muted, textTransform: "uppercase", letterSpacing: "0.08em" }}>Restricción</div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: text, marginTop: 2 }}>
-              {formatDateTime(p.restriccionInicio)}
-            </div>
-            <div style={{ fontSize: 11, color: muted }}>al {formatDateTime(p.restriccionFin)}</div>
-          </div>
-
-          {/* dias */}
-          <div style={{ textAlign: "center", minWidth: 70 }}>
-            <div style={{ fontSize: 20, fontWeight: 900, color: E.cyan }}>{p.dias}</div>
-            <div style={{ fontSize: 10, color: muted }}>días</div>
-          </div>
-
-          {/* badge */}
-          <div style={{
-            padding: "4px 12px", borderRadius: 20, fontSize: 10, fontWeight: 800,
-            letterSpacing: "0.1em", textTransform: "uppercase",
-            background: status === "activa" ? "rgba(239,68,68,0.15)"
-              : status === "proxima" ? "rgba(245,158,11,0.12)" : "rgba(255,255,255,0.05)",
-            color: statusColor,
-          }}>
-            {statusLabel}
+          <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+            {p.fuente === "oficial" ? (
+              <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:10,
+                background:"rgba(16,185,129,0.12)", color:E.green }}>✓ OFICIAL</span>
+            ) : (
+              <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:10,
+                background:"rgba(245,158,11,0.1)", color:E.amber }}>~ ESTIMADO</span>
+            )}
+            <span style={{ fontSize:10, fontWeight:800, padding:"2px 10px", borderRadius:20,
+              textTransform:"uppercase", letterSpacing:"0.08em",
+              background: status==="activa" ? "rgba(239,68,68,0.15)"
+                : status==="proxima" ? "rgba(245,158,11,0.12)" : "rgba(255,255,255,0.05)",
+              color:sc }}>
+              {sl}
+            </span>
+            <span style={{ fontSize:16, color:muted, transition:"transform 0.15s",
+              transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
           </div>
         </div>
 
-        {/* expanded detail */}
-        {isSelected && (
-          <div style={{
-            marginTop: 16, paddingTop: 16,
-            borderTop: `1px solid ${border}`,
-            display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16,
-          }}>
-            <div>
-              <div style={{ fontSize: 11, color: muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
-                Vehículos restringidos
+        {/* Expanded: schedule table */}
+        {isOpen && (
+          <div style={{ marginTop:14, paddingTop:14, borderTop:`1px solid ${border}` }}>
+            {p.nota && (
+              <div style={{ fontSize:12, color:E.amber, background:"rgba(245,158,11,0.08)",
+                border:"1px solid rgba(245,158,11,0.2)", borderRadius:6, padding:"8px 12px", marginBottom:12 }}>
+                ⚠️ {p.nota}
               </div>
-              {VEHICULOS_RESTRINGIDOS.map(v => (
-                <div key={v.cat} style={{ display: "flex", gap: 8, marginBottom: 6, alignItems: "flex-start" }}>
-                  <div style={{ background: "rgba(239,68,68,0.2)", color: E.red, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, flexShrink: 0 }}>
-                    {v.cat}
-                  </div>
-                  <div style={{ fontSize: 12, color: muted }}>{v.desc}</div>
-                </div>
-              ))}
-            </div>
-            <div>
-              <div style={{ fontSize: 11, color: muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
-                Información adicional
-              </div>
-              {p.nota && (
-                <div style={{ fontSize: 12, color: E.amber, background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 6, padding: "8px 12px", marginBottom: 10 }}>
-                  ⚠️ {p.nota}
-                </div>
-              )}
-              <div style={{ fontSize: 12, color: muted }}>
-                <div style={{ marginBottom: 4 }}>📅 Festivo: <strong style={{ color: text }}>{formatDate(p.festivo)}</strong></div>
-                <div style={{ marginBottom: 4 }}>🚫 Inicio: <strong style={{ color: text }}>{formatDateTime(p.restriccionInicio)}</strong></div>
-                <div>✅ Fin: <strong style={{ color: text }}>{formatDateTime(p.restriccionFin)}</strong></div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  /* ── PRINT VIEW ── */
-  if (showPrint) {
-    return (
-      <div style={{ background: "#fff", color: "#111", padding: "40px 48px", minHeight: "100vh", fontFamily: "Arial, sans-serif" }}>
-        {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 32, borderBottom: "3px solid #0f172a", paddingBottom: 20 }}>
-          <div>
-            <div style={{ fontSize: 22, fontWeight: 900, color: "#0f172a", letterSpacing: "-0.02em" }}>
-              RESTRICCIONES DE TRÁNSITO — PUENTES FESTIVOS 2026
-            </div>
-            <div style={{ fontSize: 13, color: "#475569", marginTop: 4 }}>
-              Colombia · Vehículos de carga 3 o más ejes · Red Vial Nacional Primaria
-            </div>
-            <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
-              Generado por SafeNode S.A.S · Área de Seguridad · {now.toLocaleDateString("es-CO")}
-            </div>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 11, color: "#94a3b8" }}>Fuente normativa</div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#0f172a" }}>MinTransporte / INVIAS</div>
-          </div>
-        </div>
-
-        {/* Alert banner */}
-        {activo && (
-          <div style={{ background: "#fef2f2", border: "2px solid #ef4444", borderRadius: 8, padding: "12px 20px", marginBottom: 24 }}>
-            <div style={{ fontWeight: 800, color: "#dc2626", fontSize: 14 }}>
-              🚫 RESTRICCIÓN ACTIVA: {activo.nombre} — finaliza {formatDateTime(activo.restriccionFin)}
-            </div>
-          </div>
-        )}
-
-        {/* Table */}
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginBottom: 32 }}>
-          <thead>
-            <tr style={{ background: "#0f172a", color: "#fff" }}>
-              <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 700 }}>FESTIVO</th>
-              <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 700 }}>FECHA FESTIVO</th>
-              <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 700 }}>INICIO RESTRICCIÓN</th>
-              <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 700 }}>FIN RESTRICCIÓN</th>
-              <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 700 }}>DÍAS</th>
-              <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 700 }}>ESTADO</th>
-            </tr>
-          </thead>
-          <tbody>
-            {PUENTES_2026.map((p, i) => {
-              const status = getStatus(p, now);
-              return (
-                <tr key={p.id} style={{ background: i % 2 === 0 ? "#f8fafc" : "#fff", borderBottom: "1px solid #e2e8f0" }}>
-                  <td style={{ padding: "9px 14px", fontWeight: 700, color: "#0f172a" }}>{p.nombre}</td>
-                  <td style={{ padding: "9px 14px", color: "#334155" }}>{formatDate(p.festivo)}</td>
-                  <td style={{ padding: "9px 14px", color: "#dc2626", fontWeight: 600 }}>{formatDateTime(p.restriccionInicio)}</td>
-                  <td style={{ padding: "9px 14px", color: "#16a34a", fontWeight: 600 }}>{formatDateTime(p.restriccionFin)}</td>
-                  <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 700 }}>{p.dias}</td>
-                  <td style={{ padding: "9px 14px", textAlign: "center" }}>
-                    <span style={{
-                      padding: "2px 10px", borderRadius: 20, fontSize: 10, fontWeight: 800,
-                      background: status === "activa" ? "#fef2f2" : status === "proxima" ? "#fefce8" : "#f0fdf4",
-                      color: status === "activa" ? "#dc2626" : status === "proxima" ? "#b45309" : "#15803d",
-                    }}>
-                      {status === "activa" ? "ACTIVA" : status === "proxima" ? "PRÓXIMA" : "FINALIZADA"}
-                    </span>
-                  </td>
+            )}
+            <div style={{ fontSize:11, fontWeight:700, color:muted, textTransform:"uppercase",
+              letterSpacing:"0.08em", marginBottom:8 }}>Horario detallado</div>
+            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+              <thead>
+                <tr>
+                  {["Día","Fecha","Horario","Aplicación"].map(h => (
+                    <th key={h} style={{ textAlign:"left", padding:"6px 10px", fontSize:10,
+                      fontWeight:700, textTransform:"uppercase", letterSpacing:"0.07em",
+                      color:muted, borderBottom:`1px solid ${border}` }}>{h}</th>
+                  ))}
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-
-        {/* Rules section */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32, marginBottom: 32 }}>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 800, color: "#0f172a", marginBottom: 12, borderBottom: "2px solid #0f172a", paddingBottom: 6 }}>
-              VEHÍCULOS RESTRINGIDOS
-            </div>
-            {VEHICULOS_RESTRINGIDOS.map(v => (
-              <div key={v.cat} style={{ display: "flex", gap: 10, marginBottom: 8 }}>
-                <span style={{ background: "#fef2f2", color: "#dc2626", fontWeight: 700, fontSize: 10, padding: "2px 8px", borderRadius: 4, flexShrink: 0 }}>{v.cat}</span>
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: "#0f172a" }}>{v.desc}</div>
-                  <div style={{ fontSize: 10, color: "#64748b" }}>{v.ejemplo}</div>
-                </div>
-              </div>
-            ))}
+              </thead>
+              <tbody>
+                {p.horarios.map((r, i) => (
+                  <tr key={i} style={{ background: i%2===0
+                    ? (dark ? "rgba(255,255,255,0.02)" : "#f8fafc") : "transparent" }}>
+                    <td style={{ padding:"7px 10px", fontWeight:700, color:r.festivo ? E.amber : text,
+                      whiteSpace:"nowrap" }}>{r.dia}</td>
+                    <td style={{ padding:"7px 10px", color:muted, whiteSpace:"nowrap" }}>{r.fecha}</td>
+                    <td style={{ padding:"7px 10px", fontWeight:700, whiteSpace:"nowrap",
+                      color: r.noAplica ? E.green : r.horario.includes("06:00") ? E.cyan : E.red }}>
+                      {r.horario}
+                    </td>
+                    <td style={{ padding:"7px 10px", color:muted, fontSize:11 }}>{r.aplicacion}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 800, color: "#0f172a", marginBottom: 12, borderBottom: "2px solid #0f172a", paddingBottom: 6 }}>
-              EXENCIONES (NO APLICA RESTRICCIÓN)
-            </div>
-            {VEHICULOS_EXENTOS.map(ex => (
-              <div key={ex} style={{ display: "flex", gap: 8, marginBottom: 6, fontSize: 11, color: "#334155" }}>
-                <span style={{ color: "#16a34a", flexShrink: 0 }}>✓</span> {ex}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Corridors */}
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "#0f172a", marginBottom: 10, borderBottom: "2px solid #0f172a", paddingBottom: 6 }}>
-            CORREDORES VIALES AFECTADOS (RED PRIMARIA NACIONAL)
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            {CORREDORES.map(c => (
-              <div key={c.ruta} style={{ fontSize: 11, color: "#334155" }}>
-                <span style={{ fontWeight: 700, color: "#0f172a" }}>{c.ruta}:</span> {c.tramos}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: 12, display: "flex", justifyContent: "space-between", fontSize: 10, color: "#94a3b8" }}>
-          <div>SafeNode S.A.S · Área de Inteligencia en Seguridad del Transporte</div>
-          <div>Documento informativo — No reemplaza la resolución oficial de MinTransporte</div>
-        </div>
+        )}
       </div>
     );
   }
 
-  /* ── MAIN DASHBOARD VIEW ── */
+  /* ── MAIN VIEW ── */
   return (
-    <div style={{ color: text }}>
+    <div style={{ color:text }}>
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start",
+        marginBottom:24, flexWrap:"wrap", gap:12 }}>
         <div>
-          <h2 style={{ fontSize: 20, fontWeight: 800, color: text, margin: 0, letterSpacing: "-0.02em" }}>
-            🚧 Restricciones — Puentes Festivos 2026
+          <h2 style={{ fontSize:20, fontWeight:800, color:text, margin:0, letterSpacing:"-0.02em" }}>
+            🚧 Restricciones Puentes Festivos 2026
           </h2>
-          <p style={{ fontSize: 13, color: muted, margin: "6px 0 0" }}>
-            Red Vial Primaria Nacional · Vehículos de carga 3 o más ejes · Fuente: MinTransporte / INVIAS
+          <p style={{ fontSize:12, color:muted, margin:"5px 0 0" }}>
+            Vehículos ≥ 3.4 t · Red Vial Nacional ·{" "}
+            <a href="https://mintransporte.gov.co/publicaciones/12311/boletin-estrategico-de-seguridad-y-movilidad/"
+              target="_blank" rel="noreferrer"
+              style={{ color:E.cyan, textDecoration:"none" }}>
+              Boletín MinTransporte 19 mar 2026 ↗
+            </a>
+            {" "}· Res. 761/2013 y 2307/2014
           </p>
         </div>
-        <button
-          onClick={() => setShowPrint(true)}
-          style={{
-            padding: "9px 20px", borderRadius: 8, fontSize: 12, fontWeight: 700,
-            background: E.cyan, color: "#060a10", border: "none", cursor: "pointer",
-            display: "flex", alignItems: "center", gap: 6,
-          }}
-        >
-          🖨️ Generar informe cliente
-        </button>
+        <div style={{ display:"flex", gap:8 }}>
+          <button onClick={() => setShowVias(!showVias)} style={{
+            padding:"8px 14px", borderRadius:8, fontSize:11, fontWeight:700,
+            background:"transparent", color:E.cyan,
+            border:`1px solid ${E.cyan}`, cursor:"pointer" }}>
+            {showVias ? "Ocultar vías" : "🛣️ Ver 38 vías"}
+          </button>
+          <button onClick={() => setShowPrint(true)} style={{
+            padding:"8px 16px", borderRadius:8, fontSize:11, fontWeight:700,
+            background:E.cyan, color:"#060a10", border:"none", cursor:"pointer" }}>
+            🖨️ Informe cliente
+          </button>
+        </div>
       </div>
 
       {/* Status hero */}
-      <div style={{ marginBottom: 24 }}>
-        <StatusBadge />
-      </div>
+      {activo ? (
+        <div style={{ display:"flex", alignItems:"center", gap:14,
+          background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.35)",
+          borderRadius:12, padding:"18px 24px", marginBottom:20 }}>
+          <div style={{ width:18, height:18, borderRadius:"50%", background:E.red,
+            boxShadow:`0 0 14px ${E.red}`, flexShrink:0 }} />
+          <div>
+            <div style={{ fontSize:16, fontWeight:800, color:E.red }}>
+              🚫 RESTRICCIÓN ACTIVA — {activo.nombre.toUpperCase()}
+            </div>
+            <div style={{ fontSize:12, color:muted, marginTop:3 }}>
+              Aplica hasta el {activo.fin.toLocaleString("es-CO")} · Vehículos ≥ 3.4 toneladas restringidos
+            </div>
+          </div>
+        </div>
+      ) : siguiente ? (
+        <div style={{ display:"flex", alignItems:"center", gap:20,
+          background:"rgba(16,185,129,0.07)", border:"1px solid rgba(16,185,129,0.25)",
+          borderRadius:12, padding:"18px 24px", marginBottom:20, flexWrap:"wrap" }}>
+          <div style={{ width:14, height:14, borderRadius:"50%", background:E.green }} />
+          <div style={{ flex:1, minWidth:180 }}>
+            <div style={{ fontSize:14, fontWeight:800, color:E.green }}>✅ Sin restricción activa</div>
+            <div style={{ fontSize:12, color:muted, marginTop:3 }}>
+              Próxima: <strong style={{ color:text }}>{siguiente.nombre}</strong>{" — "}
+              inicia {siguiente.inicio.toLocaleDateString("es-CO",{weekday:"long",day:"numeric",month:"long"})} a las{" "}
+              {siguiente.inicio.toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"})}
+            </div>
+          </div>
+          <div style={{ textAlign:"right" }}>
+            <div style={{ fontSize:10, color:muted, textTransform:"uppercase", letterSpacing:"0.1em" }}>Faltan</div>
+            <div style={{ fontSize:24, fontWeight:900, color:E.amber, fontVariantNumeric:"tabular-nums" }}>
+              {msToCountdown(msHasta)}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
-      {/* KPI row */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 28 }}>
+      {/* KPIs */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12, marginBottom:24 }}>
         {[
-          { label: "Total puentes 2026", value: PUENTES_2026.length, color: E.cyan, icon: "📅" },
-          { label: "Próximos", value: proximos.length, color: E.amber, icon: "⏳" },
-          { label: "Finalizados", value: pasados.length, color: E.green, icon: "✅" },
-          { label: "Activo ahora", value: activo ? 1 : 0, color: activo ? E.red : muted, icon: "🚫" },
+          { label:"Total 2026",  val:PUENTES.length,    col:E.cyan,  icon:"📅" },
+          { label:"Próximas",    val:proximos.length,   col:E.amber, icon:"⏳" },
+          { label:"Finalizadas", val:pasados.length,    col:E.green, icon:"✅" },
+          { label:"Activa ahora",val:activo ? 1 : 0,    col:activo ? E.red : muted, icon:"🚫" },
         ].map(k => (
-          <div key={k.label} style={{
-            background: panel, border: `1px solid ${border}`, borderRadius: 10,
-            padding: "16px 18px", textAlign: "center",
-          }}>
-            <div style={{ fontSize: 22 }}>{k.icon}</div>
-            <div style={{ fontSize: 28, fontWeight: 900, color: k.color, lineHeight: 1.1 }}>{k.value}</div>
-            <div style={{ fontSize: 11, color: muted, marginTop: 4 }}>{k.label}</div>
+          <div key={k.label} style={{ background:panel, border:`1px solid ${border}`, borderRadius:10,
+            padding:"14px 16px", textAlign:"center" }}>
+            <div style={{ fontSize:20 }}>{k.icon}</div>
+            <div style={{ fontSize:26, fontWeight:900, color:k.col, lineHeight:1.1 }}>{k.val}</div>
+            <div style={{ fontSize:10, color:muted, marginTop:3 }}>{k.label}</div>
           </div>
         ))}
       </div>
 
-      {/* Active / Upcoming */}
-      {activo && (
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: E.red, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>
-            ● Restricción activa
-          </div>
-          <PuenteRow p={activo} />
-        </div>
-      )}
-
-      {proximos.length > 0 && (
-        <div style={{ marginBottom: 28 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: E.amber, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>
-            Próximas restricciones
-          </div>
-          {proximos.map(p => <PuenteRow key={p.id} p={p} />)}
-        </div>
-      )}
-
-      {pasados.length > 0 && (
-        <div style={{ marginBottom: 28 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: muted, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>
-            Restricciones finalizadas 2026
-          </div>
-          {pasados.map(p => <PuenteRow key={p.id} p={p} />)}
-        </div>
-      )}
-
-      {/* Rules panels */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24 }}>
-        {/* Restricted vehicles */}
-        <div style={{ background: panel, border: `1px solid ${border}`, borderRadius: 12, padding: "20px 22px" }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: E.red, marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
-            🚫 Vehículos restringidos
-          </div>
-          {VEHICULOS_RESTRINGIDOS.map(v => (
-            <div key={v.cat} style={{ display: "flex", gap: 10, marginBottom: 10, alignItems: "flex-start" }}>
-              <span style={{ background: "rgba(239,68,68,0.15)", color: E.red, fontWeight: 700, fontSize: 10, padding: "3px 8px", borderRadius: 4, flexShrink: 0, lineHeight: "16px" }}>
-                {v.cat}
-              </span>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: text }}>{v.desc}</div>
-                <div style={{ fontSize: 11, color: muted }}>{v.ejemplo}</div>
+      {/* Road network panel */}
+      {showVias && (
+        <div style={{ background:panel, border:`1px solid ${border}`, borderRadius:12,
+          padding:"18px 20px", marginBottom:20 }}>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:20 }}>
+            <div>
+              <div style={{ fontSize:12, fontWeight:800, color:E.red, marginBottom:10 }}>
+                🚫 38 Vías restringidas (Red Vial Nacional)
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr", gap:4 }}>
+                {VIAS_RESTRINGIDAS.map((v,i) => (
+                  <div key={i} style={{ fontSize:11, color:muted, display:"flex", gap:6 }}>
+                    <span style={{ color: v.includes("⚡") ? E.amber : E.red, flexShrink:0 }}>
+                      {(i+1).toString().padStart(2,"0")}.
+                    </span>
+                    <span style={{ color: v.includes("⚡⚡") ? E.red : v.includes("⚡") ? E.amber : muted }}>
+                      {v.replace("⚡⚡","").replace("⚡","")}
+                      {v.includes("⚡⚡") && <span style={{ color:E.red, fontWeight:700 }}> ★ sin excepción</span>}
+                      {v.includes("⚡") && !v.includes("⚡⚡") && <span style={{ color:E.amber, fontWeight:700 }}> ★ horario especial</span>}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
-          ))}
-        </div>
-
-        {/* Exemptions */}
-        <div style={{ background: panel, border: `1px solid ${border}`, borderRadius: 12, padding: "20px 22px" }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: E.green, marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
-            ✅ Exenciones (no aplica restricción)
+            <div>
+              <div style={{ fontSize:12, fontWeight:800, color:E.green, marginBottom:10 }}>
+                ✅ 7 Vías con excepción (NO aplica restricción)
+              </div>
+              {VIAS_EXCEPCION.map((v,i) => (
+                <div key={i} style={{ fontSize:11, color:muted, display:"flex", gap:6, marginBottom:5 }}>
+                  <span style={{ color:E.green }}>✓</span> {v}
+                </div>
+              ))}
+              <div style={{ marginTop:20 }}>
+                <div style={{ fontSize:12, fontWeight:800, color:E.cyan, marginBottom:10 }}>
+                  📦 Carga exenta (no aplica restricción)
+                </div>
+                {EXENCIONES_CARGA.map(ex => (
+                  <div key={ex} style={{ fontSize:11, color:muted, display:"flex", gap:6, marginBottom:5 }}>
+                    <span style={{ color:E.cyan }}>✓</span> {ex}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-          {VEHICULOS_EXENTOS.map(ex => (
-            <div key={ex} style={{ display: "flex", gap: 8, marginBottom: 8, fontSize: 12, color: muted, alignItems: "flex-start" }}>
-              <span style={{ color: E.green, flexShrink: 0, marginTop: 1 }}>✓</span>
-              <span>{ex}</span>
+        </div>
+      )}
+
+      {/* Puente lists */}
+      {activo && (
+        <Section title="● Restricción activa" color={E.red}>
+          <PuenteCard p={activo} />
+        </Section>
+      )}
+      {proximos.length > 0 && (
+        <Section title="Próximas restricciones" color={E.amber}>
+          {proximos.map(p => <PuenteCard key={p.id} p={p} />)}
+        </Section>
+      )}
+      {pasados.length > 0 && (
+        <Section title="Finalizadas 2026" color={muted}>
+          {pasados.map(p => <PuenteCard key={p.id} p={p} />)}
+        </Section>
+      )}
+
+      {/* Weight note */}
+      <div style={{ background:"rgba(0,212,255,0.05)", border:"1px solid rgba(0,212,255,0.15)",
+        borderRadius:10, padding:"12px 16px", fontSize:12, color:muted, marginTop:8 }}>
+        <strong style={{ color:E.cyan }}>Criterio oficial:</strong> La restricción aplica a vehículos con <strong style={{ color:text }}>peso bruto vehicular ≥ 3.4 toneladas (3.400 kg)</strong> en la red vial nacional. Incluye tractomulas, camiones de carga, volquetas y similares. Basado en Resoluciones MinTransporte <strong style={{ color:text }}>761/2013</strong> y <strong style={{ color:text }}>2307/2014</strong>. Los horarios del segundo semestre son estimados — verificar con el boletín oficial cuando sea publicado.
+      </div>
+    </div>
+  );
+}
+
+/* ── SECTION WRAPPER ── */
+function Section({ title, color, children }: { title:string; color:string; children:React.ReactNode }) {
+  return (
+    <div style={{ marginBottom:24 }}>
+      <div style={{ fontSize:11, fontWeight:700, color, textTransform:"uppercase",
+        letterSpacing:"0.1em", marginBottom:10 }}>{title}</div>
+      {children}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════
+   PRINT VIEW
+   ════════════════════════════════════════════════════════════════ */
+function PrintView({ onBack, now, activo, proximos }: {
+  onBack: () => void;
+  now: Date;
+  activo: Puente | null;
+  proximos: Puente[];
+}) {
+  return (
+    <div style={{ background:"#fff", color:"#111", fontFamily:"Arial, sans-serif",
+      padding:"36px 48px", minHeight:"100vh" }}>
+      {/* Back btn */}
+      <button onClick={onBack} style={{ marginBottom:24, padding:"7px 16px", borderRadius:6,
+        background:"#0f172a", color:"#fff", border:"none", cursor:"pointer", fontSize:12 }}>
+        ← Volver al dashboard
+      </button>
+
+      {/* Header */}
+      <div style={{ borderBottom:"3px solid #0f172a", paddingBottom:16, marginBottom:24,
+        display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+        <div>
+          <div style={{ fontSize:20, fontWeight:900, color:"#0f172a", letterSpacing:"-0.02em" }}>
+            RESTRICCIÓN VEHICULAR — PUENTES FESTIVOS 2026
+          </div>
+          <div style={{ fontSize:12, color:"#475569", marginTop:3 }}>
+            Vehículos con peso ≥ 3.4 toneladas · Red Vial Nacional Primaria · Colombia
+          </div>
+          <div style={{ fontSize:10, color:"#94a3b8", marginTop:2 }}>
+            Fuente: Boletín Estratégico MinTransporte 19 mar 2026 · Res. 761/2013 y 2307/2014
+          </div>
+        </div>
+        <div style={{ textAlign:"right" }}>
+          <div style={{ fontSize:10, color:"#94a3b8" }}>SafeNode S.A.S · Área de Seguridad</div>
+          <div style={{ fontSize:11, fontWeight:700, color:"#0f172a" }}>
+            {now.toLocaleDateString("es-CO",{day:"numeric",month:"long",year:"numeric"})}
+          </div>
+        </div>
+      </div>
+
+      {/* Status */}
+      {activo && (
+        <div style={{ background:"#fef2f2", border:"2px solid #ef4444", borderRadius:6,
+          padding:"10px 16px", marginBottom:20 }}>
+          <strong style={{ color:"#dc2626" }}>🚫 RESTRICCIÓN ACTIVA: {activo.nombre}</strong>
+        </div>
+      )}
+
+      {/* Main table */}
+      <table style={{ width:"100%", borderCollapse:"collapse", fontSize:11, marginBottom:28 }}>
+        <thead>
+          <tr style={{ background:"#0f172a", color:"#fff" }}>
+            {["Festivo","Inicio restricción","Fin restricción","Fuente"].map(h => (
+              <th key={h} style={{ padding:"9px 12px", textAlign:"left", fontWeight:700 }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {PUENTES.map((p, i) => {
+            const status = (() => {
+              if (now >= p.inicio && now <= p.fin) return "activa";
+              if (now < p.inicio) return "proxima";
+              return "pasada";
+            })();
+            return (
+              <tr key={p.id} style={{ background: i%2===0 ? "#f8fafc" : "#fff",
+                borderBottom:"1px solid #e2e8f0" }}>
+                <td style={{ padding:"8px 12px", fontWeight:700, color:"#0f172a" }}>{p.nombre}</td>
+                <td style={{ padding:"8px 12px", color:"#dc2626", fontWeight:600 }}>
+                  {p.inicio.toLocaleString("es-CO",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}
+                </td>
+                <td style={{ padding:"8px 12px", color:"#16a34a", fontWeight:600 }}>
+                  {p.fin.toLocaleString("es-CO",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}
+                </td>
+                <td style={{ padding:"8px 12px" }}>
+                  <span style={{ padding:"2px 8px", borderRadius:20, fontSize:9, fontWeight:800,
+                    background: p.fuente==="oficial" ? "#f0fdf4" : "#fefce8",
+                    color: p.fuente==="oficial" ? "#15803d" : "#b45309" }}>
+                    {p.fuente==="oficial" ? "✓ OFICIAL" : "~ ESTIMADO"}
+                  </span>
+                  {" "}
+                  <span style={{ padding:"2px 8px", borderRadius:20, fontSize:9, fontWeight:800,
+                    background: status==="activa" ? "#fef2f2" : status==="proxima" ? "#fefce8" : "#f0fdf4",
+                    color: status==="activa" ? "#dc2626" : status==="proxima" ? "#b45309" : "#15803d" }}>
+                    {status==="activa" ? "ACTIVA" : status==="proxima" ? "PRÓXIMA" : "FINALIZADA"}
+                  </span>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      {/* Detail for upcoming */}
+      {proximos.slice(0,3).map(p => (
+        <div key={p.id} style={{ marginBottom:20, pageBreakInside:"avoid" as const }}>
+          <div style={{ fontSize:13, fontWeight:800, color:"#0f172a",
+            borderBottom:"2px solid #0f172a", paddingBottom:5, marginBottom:10 }}>
+            {p.nombre}
+            {p.fuente==="estimado" && <span style={{ fontSize:9, color:"#b45309",
+              marginLeft:8, fontWeight:600 }}>HORARIO ESTIMADO</span>}
+          </div>
+          {p.nota && <div style={{ fontSize:10, color:"#92400e", background:"#fef3c7",
+            padding:"6px 10px", borderRadius:4, marginBottom:8 }}>⚠️ {p.nota}</div>}
+          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
+            <thead>
+              <tr style={{ background:"#f1f5f9" }}>
+                {["Día","Fecha","Horario","Aplicación"].map(h => (
+                  <th key={h} style={{ padding:"5px 8px", textAlign:"left",
+                    fontWeight:700, color:"#475569" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {p.horarios.map((r, i) => (
+                <tr key={i} style={{ borderBottom:"1px solid #e2e8f0",
+                  background: r.festivo ? "#fefce8" : i%2===0 ? "#f8fafc" : "#fff" }}>
+                  <td style={{ padding:"5px 8px", fontWeight:700,
+                    color: r.festivo ? "#b45309" : "#0f172a" }}>{r.dia}</td>
+                  <td style={{ padding:"5px 8px", color:"#475569" }}>{r.fecha}</td>
+                  <td style={{ padding:"5px 8px", fontWeight:700,
+                    color: r.noAplica ? "#15803d" : "#dc2626" }}>{r.horario}</td>
+                  <td style={{ padding:"5px 8px", color:"#64748b" }}>{r.aplicacion}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ))}
+
+      {/* Exemptions + roads in 2 cols */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:24, marginBottom:20 }}>
+        <div>
+          <div style={{ fontSize:12, fontWeight:800, color:"#0f172a",
+            borderBottom:"2px solid #0f172a", paddingBottom:4, marginBottom:8 }}>
+            CARGA EXENTA (no aplica restricción)
+          </div>
+          {EXENCIONES_CARGA.map(ex => (
+            <div key={ex} style={{ fontSize:10, color:"#334155", marginBottom:4 }}>
+              ✓ {ex}
             </div>
+          ))}
+        </div>
+        <div>
+          <div style={{ fontSize:12, fontWeight:800, color:"#0f172a",
+            borderBottom:"2px solid #0f172a", paddingBottom:4, marginBottom:8 }}>
+            VÍAS CON EXCEPCIÓN (NO aplica restricción)
+          </div>
+          {VIAS_EXCEPCION.map(v => (
+            <div key={v} style={{ fontSize:10, color:"#334155", marginBottom:4 }}>✓ {v}</div>
           ))}
         </div>
       </div>
 
-      {/* Corridors */}
-      <div style={{ background: panel, border: `1px solid ${border}`, borderRadius: 12, padding: "20px 22px", marginBottom: 24 }}>
-        <div style={{ fontSize: 13, fontWeight: 800, color: E.cyan, marginBottom: 14 }}>
-          🛣️ Corredores viales afectados — Red Primaria Nacional
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 10 }}>
-          {CORREDORES.map(c => (
-            <div key={c.ruta} style={{ background: dark ? "rgba(255,255,255,0.03)" : "#f8fafc", border: `1px solid ${border}`, borderRadius: 8, padding: "10px 14px" }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: text }}>{c.ruta}</div>
-              <div style={{ fontSize: 11, color: muted, marginTop: 3 }}>{c.tramos}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Legal note */}
-      <div style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 10, padding: "14px 18px", fontSize: 12, color: muted }}>
-        <strong style={{ color: E.amber }}>⚠️ Nota legal:</strong> Las fechas y horarios son basados en el patrón histórico de resoluciones de MinTransporte. Las horas exactas pueden variar según la resolución oficial publicada para cada festivo. Siempre verifique con la resolución vigente del Ministerio de Transporte de Colombia antes de programar despachos.
+      {/* Footer */}
+      <div style={{ borderTop:"1px solid #e2e8f0", paddingTop:10,
+        display:"flex", justifyContent:"space-between", fontSize:9, color:"#94a3b8" }}>
+        <div>SafeNode S.A.S · Área de Inteligencia en Seguridad del Transporte</div>
+        <div>Documento informativo — Verificar con resolución oficial MinTransporte antes de programar despachos</div>
       </div>
     </div>
   );
