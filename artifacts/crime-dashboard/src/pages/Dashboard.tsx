@@ -43,6 +43,7 @@ import { DataAlertBanner } from "@/components/DataAlertBanner";
 import { ArmedGroupsPanel } from "@/components/ArmedGroupsPanel";
 import { HolidayRestrictions } from "@/components/HolidayRestrictions";
 import { CompanyProfile } from "@/components/CompanyProfile";
+import { MapIntelligence } from "@/components/MapIntelligence";
 import { useAuth } from "@/context/AuthContext";
 
 /* ───────── EXECUTIVE PALETTE ───────── */
@@ -234,7 +235,7 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const { user, logout } = useAuth();
   const [isDark, setIsDark] = useState(true);
-  const [activeTab, setActiveTab] = useState<"estadisticas" | "ruta" | "informe" | "grupos" | "puentes" | "empresa">("estadisticas");
+  const [activeTab, setActiveTab] = useState<"estadisticas" | "ruta" | "informe" | "grupos" | "puentes" | "empresa" | "mapa">("estadisticas");
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -584,6 +585,7 @@ export default function Dashboard() {
           {([
             { id: "estadisticas", label: "📊  Estadísticas Delictivas" },
             { id: "grupos",       label: "⚠️  Grupos Armados" },
+            { id: "mapa",         label: "🗺️  Mapa de Inteligencia" },
             { id: "ruta",         label: "🚛  Análisis de Ruta — Piratería Terrestre" },
             { id: "puentes",      label: "🚧  Restricciones Puentes Festivos" },
             { id: "informe",      label: "📄  Informe Gerencial PDF" },
@@ -616,6 +618,11 @@ export default function Dashboard() {
 
         {/* ── GLOBAL ALERT BANNERS ── */}
         <DataAlertBanner dark={isDark} />
+
+        {/* ── MAPA DE INTELIGENCIA TAB ── */}
+        {activeTab === "mapa" && (
+          <MapIntelligence dark={isDark} />
+        )}
 
         {/* ── GRUPOS ARMADOS TAB ── */}
         {activeTab === "grupos" && (
