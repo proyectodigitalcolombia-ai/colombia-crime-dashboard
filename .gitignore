@@ -3,6 +3,11 @@
 # compiled output
 dist
 tmp
+
+# Exception: include the pre-built crime-dashboard for Render static deploy
+!artifacts/crime-dashboard/dist/
+!artifacts/crime-dashboard/dist/public/
+!artifacts/crime-dashboard/dist/public/**
 out-tsc
 *.tsbuildinfo
 .expo
