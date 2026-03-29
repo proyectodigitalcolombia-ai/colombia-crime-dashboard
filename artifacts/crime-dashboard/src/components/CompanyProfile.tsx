@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useAuth, apiFetch } from "@/context/AuthContext";
 import { Building2, User, Upload, Save, RefreshCw, CheckCircle, AlertCircle, X, Palette } from "lucide-react";
 import { ClientCompanies } from "./ClientCompanies";
+import { EmailAlerts } from "./EmailAlerts";
 
 const E = {
   bg:     "#070c15",
@@ -376,6 +377,25 @@ export function CompanyProfile({ dark }: Props) {
       {/* ── CLIENT COMPANIES ── */}
       <div style={{ borderTop:`1px solid ${E.border}`, marginTop:32, paddingTop:28 }}>
         <ClientCompanies dark={dark} />
+      </div>
+
+      {/* ── EMAIL ALERTS ── */}
+      <div style={{ borderTop:`1px solid ${E.border}`, marginTop:32, paddingTop:28 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:20 }}>
+          <div style={{
+            width:36, height:36, borderRadius:10, background:"rgba(167,139,250,0.12)",
+            display:"flex", alignItems:"center", justifyContent:"center",
+          }}>
+            <span style={{ fontSize:18 }}>🔔</span>
+          </div>
+          <div>
+            <h2 style={{ fontSize:16, fontWeight:700, color:E.text, margin:0 }}>Alertas de Restricciones por Correo</h2>
+            <p style={{ fontSize:12, color:E.muted, margin:0, marginTop:2 }}>
+              Notificaciones automáticas antes de puentes festivos con restricciones vehiculares
+            </p>
+          </div>
+        </div>
+        <EmailAlerts />
       </div>
     </div>
   );

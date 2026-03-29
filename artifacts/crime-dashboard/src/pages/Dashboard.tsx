@@ -243,6 +243,7 @@ export default function Dashboard() {
   const [selectedYear, setSelectedYear] = useState<number | "all">("all");
   const [selectedCrimeType, setSelectedCrimeType] = useState<string>("all");
   const [selectedDepartment, setSelectedDepartment] = useState<string>("all");
+  const [showComparison, setShowComparison] = useState(false);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -383,20 +384,30 @@ export default function Dashboard() {
 
   const formattedMonthlyData = useMemo(() => {
     const months = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+    // Prev year totals by month (for comparison overlay)
+    const prevByMonth = Array(12).fill(0);
+    prevMonthlyData.forEach((d: any) => { prevByMonth[d.month - 1] += d.count; });
+
     if (selectedCrimeType !== "all") {
       const grouped = monthlyData.reduce((acc, curr) => {
         acc[curr.month - 1] = (acc[curr.month - 1] || 0) + curr.count;
         return acc;
       }, Array(12).fill(0));
-      return months.map((m, i) => ({ month: m, count: grouped[i] })).filter(d => d.count > 0 || totalCrimes > 0);
+      return months.map((m, i) => ({
+        month: m,
+        count: grouped[i],
+        prevCount: prevByMonth[i],
+      })).filter(d => d.count > 0 || totalCrimes > 0);
     } else {
       const pivot: Record<string, any>[] = months.map(m => ({ month: m }));
       monthlyData.forEach(d => {
         if (pivot[d.month - 1]) pivot[d.month - 1][d.crimeTypeName] = d.count;
       });
+      // Add total prev year per month as __prev__ key
+      pivot.forEach((row, i) => { row["__prev__"] = prevByMonth[i]; });
       return pivot;
     }
-  }, [monthlyData, selectedCrimeType, totalCrimes]);
+  }, [monthlyData, prevMonthlyData, selectedCrimeType, totalCrimes]);
 
   const crimeTypesInMonthlyData = useMemo(() => {
     if (selectedCrimeType !== "all") return [];
@@ -661,6 +672,29 @@ export default function Dashboard() {
               </Select>
             </div>
           ))}
+
+          {/* Comparison toggle — only meaningful when a specific year is selected */}
+          {selectedYear !== "all" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+              <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: mutedText }}>Comparativa</span>
+              <button
+                onClick={() => setShowComparison(p => !p)}
+                style={{
+                  height: "34px", padding: "0 14px", borderRadius: "8px", fontSize: "12px", fontWeight: 600,
+                  background: showComparison
+                    ? (isDark ? "rgba(168,85,247,0.18)" : "rgba(109,40,217,0.1)")
+                    : (isDark ? "rgba(255,255,255,0.05)" : "#ffffff"),
+                  color: showComparison ? (isDark ? "#c084fc" : "#7c3aed") : (isDark ? "rgba(255,255,255,0.55)" : "#6b7280"),
+                  border: `1px solid ${showComparison
+                    ? (isDark ? "rgba(192,132,252,0.4)" : "rgba(124,58,237,0.3)")
+                    : (isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)")}`,
+                  cursor: "pointer", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6,
+                }}>
+                <TrendingUp style={{ width: 13, height: 13 }} />
+                vs {selectedYear - 1}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* ── KPI CARDS ── */}
@@ -720,7 +754,11 @@ export default function Dashboard() {
                     <XAxis dataKey="month" tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} />
                     <YAxis tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} />
                     <Tooltip content={<ExecTooltip dark={isDark} />} isAnimationActive={false} cursor={{ stroke: isDark ? E.cyan : "#0369a1", strokeWidth: 1, strokeOpacity: 0.3 }} />
-                    <Area type="monotone" dataKey="count" name="Casos" fill="url(#cyanGrad)" stroke={CHART_COLORS[0]} strokeWidth={2.5} dot={false} activeDot={{ r: 5, fill: CHART_COLORS[0], stroke: isDark ? E.bg : "#fff", strokeWidth: 2 }} isAnimationActive={false} />
+                    {showComparison && <Legend content={<ExecLegend dark={isDark} />} />}
+                    <Area type="monotone" dataKey="count" name={`Casos ${selectedYear}`} fill="url(#cyanGrad)" stroke={CHART_COLORS[0]} strokeWidth={2.5} dot={false} activeDot={{ r: 5, fill: CHART_COLORS[0], stroke: isDark ? E.bg : "#fff", strokeWidth: 2 }} isAnimationActive={false} />
+                    {showComparison && (
+                      <Line type="monotone" dataKey="prevCount" name={`Casos ${(selectedYear as number) - 1}`} stroke={isDark ? "#a78bfa" : "#7c3aed"} strokeWidth={1.8} strokeDasharray="5 3" dot={false} activeDot={{ r: 4, fill: isDark ? "#a78bfa" : "#7c3aed", strokeWidth: 0 }} isAnimationActive={false} />
+                    )}
                   </AreaChart>
                 ) : (
                   <LineChart data={formattedMonthlyData}>
@@ -732,6 +770,9 @@ export default function Dashboard() {
                     {crimeTypesInMonthlyData.map((type, idx) => (
                       <Line key={type} type="monotone" dataKey={type} name={type} stroke={CHART_COLORS[idx % CHART_COLORS.length]} strokeWidth={2} dot={false} activeDot={{ r: 4, fill: CHART_COLORS[idx % CHART_COLORS.length], stroke: isDark ? E.bg : "#fff", strokeWidth: 2 }} isAnimationActive={false} />
                     ))}
+                    {showComparison && selectedYear !== "all" && (
+                      <Line type="monotone" dataKey="__prev__" name={`Total ${(selectedYear as number) - 1}`} stroke={isDark ? "#a78bfa" : "#7c3aed"} strokeWidth={1.8} strokeDasharray="5 3" dot={false} activeDot={{ r: 4, fill: isDark ? "#a78bfa" : "#7c3aed", strokeWidth: 0 }} isAnimationActive={false} />
+                    )}
                   </LineChart>
                 )}
               </ResponsiveContainer>

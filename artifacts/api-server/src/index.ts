@@ -129,6 +129,18 @@ async function ensureSchema() {
         created_at TIMESTAMP NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMP NOT NULL DEFAULT NOW()
       );
+
+      CREATE TABLE IF NOT EXISTS email_alert_configs (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL UNIQUE,
+        recipients TEXT[] NOT NULL DEFAULT '{}',
+        enabled BOOLEAN NOT NULL DEFAULT TRUE,
+        days_before INTEGER NOT NULL DEFAULT 1,
+        send_hour INTEGER NOT NULL DEFAULT 18,
+        last_sent_at TIMESTAMP,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+      );
     `);
 
     logger.info("Database schema ensured (all tables)");
