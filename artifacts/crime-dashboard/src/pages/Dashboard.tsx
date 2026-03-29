@@ -41,6 +41,7 @@ import { RouteAnalyzer } from "@/components/RouteAnalyzer";
 import { ReportGenerator } from "@/components/ReportGenerator";
 import { DataAlertBanner } from "@/components/DataAlertBanner";
 import { ArmedGroupsPanel } from "@/components/ArmedGroupsPanel";
+import { HolidayRestrictions } from "@/components/HolidayRestrictions";
 import { useAuth } from "@/context/AuthContext";
 
 /* ───────── EXECUTIVE PALETTE ───────── */
@@ -232,7 +233,7 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const { user, logout } = useAuth();
   const [isDark, setIsDark] = useState(true);
-  const [activeTab, setActiveTab] = useState<"estadisticas" | "ruta" | "informe" | "grupos">("estadisticas");
+  const [activeTab, setActiveTab] = useState<"estadisticas" | "ruta" | "informe" | "grupos" | "puentes">("estadisticas");
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -572,6 +573,7 @@ export default function Dashboard() {
             { id: "estadisticas", label: "📊  Estadísticas Delictivas" },
             { id: "grupos",       label: "⚠️  Grupos Armados" },
             { id: "ruta",         label: "🚛  Análisis de Ruta — Piratería Terrestre" },
+            { id: "puentes",      label: "🚧  Restricciones Puentes Festivos" },
             { id: "informe",      label: "📄  Informe Gerencial PDF" },
           ] as const).map(tab => (
             <button
@@ -610,6 +612,11 @@ export default function Dashboard() {
         {/* ── ROUTE ANALYZER TAB ── */}
         {activeTab === "ruta" && (
           <RouteAnalyzer dark={isDark} />
+        )}
+
+        {/* ── PUENTES FESTIVOS TAB ── */}
+        {activeTab === "puentes" && (
+          <HolidayRestrictions dark={isDark} />
         )}
 
         {/* ── INFORME GERENCIAL TAB ── */}

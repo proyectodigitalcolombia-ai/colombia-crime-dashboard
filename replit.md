@@ -97,7 +97,7 @@ Utility scripts package. Each script is a `.ts` file in `src/` with a correspond
 
 ### `artifacts/crime-dashboard` (`@workspace/crime-dashboard`)
 
-React + Vite dashboard for Colombian crime statistics. Two-tab application:
+React + Vite dashboard for Colombian crime statistics. Five-tab application:
 
 **Tab 1 — Estadísticas Delictivas:**
 - Entry: `src/main.tsx` → `src/pages/Dashboard.tsx`
@@ -115,7 +115,16 @@ React + Vite dashboard for Colombian crime statistics. Two-tab application:
 - BLOCKADE_HISTORY: static risk-score reference per dept (FIP/INVIAS sources) — only used for composite score calculation, NOT for UI display (real DB data shown instead)
 - **Official road closures**: `src/hooks/useRoadConditions.ts` fetches `/api/road-conditions` which scrapes all pages of `policia.gov.co/estado-de-las-vias` (67+ closures, multi-page, refreshed every 6h); shown in "Cierres Oficiales — Policía Nacional" section in blockades tab; badge turns red on total closures
 
-**Tab 3 — Informe Gerencial PDF:**
+**Tab 4 — Restricciones Puentes Festivos:**
+- Component: `HolidayRestrictions.tsx`
+- Shows all 2026 Colombian holiday long-weekend traffic restrictions for cargo vehicles (Cat. III–VI, 3+ axles)
+- Live status badge: active restriction (red pulsing) / countdown to next restriction / no restriction (green)
+- KPI cards: total puentes, upcoming, finished, currently active
+- Expandable rows per puente with restriction start/end times, vehicle categories, notes
+- Restricted vehicle categories, exemptions list, affected national road corridors
+- "Generar informe cliente" button: opens a clean print-ready white-background report page suitable for client email/PDF
+
+**Tab 5 — Informe Gerencial PDF:**
 - Component: `ReportGenerator.tsx` using `jsPDF`
 - **6-page** branded PDF: portada (dark navy + SafeNode logo), resumen ejecutivo, ranking departamentos, tipos de delito + gráfico, **comparativo interanual año anterior vs año seleccionado**, bloqueos + conclusiones
 - Configurable per client: company name, subtitle, analyst info, logo upload, primary color (10 presets + hex), footer disclaimer — config synced to DB via `/api/auth/config`
