@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { MapContainer, TileLayer, GeoJSON, CircleMarker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -6,13 +6,11 @@ import {
   useGetBlockades,
   useGetCrimesByDepartment,
 } from "@workspace/api-client-react";
-import { useRoadConditions } from "@/hooks/useRoadConditions";
 import {
   Layers, Eye, EyeOff, AlertTriangle, MapPin, Moon, Shield, Route,
-  RefreshCw, ChevronLeft, ChevronRight, Info,
+  ChevronLeft, ChevronRight, Info, Building2, Hospital, Car,
 } from "lucide-react";
 
-/* ── icons fix ── */
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
@@ -23,7 +21,10 @@ L.Icon.Default.mergeOptions({
 const GEO_URL =
   "https://gist.githubusercontent.com/john-guerra/43c7656821069d00dcbc/raw/be6a6e239cd5b5b803c6e7c2ec405b793a9064dd/colombia.geo.json";
 
-/* ── static data ── */
+/* ═══════════════════════════════════════════════════════
+   DATOS ESTÁTICOS — COLOMBIA
+   ═══════════════════════════════════════════════════════ */
+
 const ARMED: Record<string, { level: number; groups: string[] }> = {
   "Bogotá D.C.": { level: 0, groups: [] }, "Cundinamarca": { level: 1, groups: ["Disidencias FARC"] },
   "Boyacá": { level: 1, groups: ["ELN"] }, "Antioquia": { level: 2, groups: ["Clan del Golfo","Disidencias FARC"] },
@@ -72,418 +73,470 @@ const ROAD: Record<string, { score: "good"|"regular"|"difficult"; notes: string 
   "Vaupés": { score:"difficult", notes:"Sin vías terrestres" }, "Amazonas": { score:"difficult", notes:"Acceso fluvial/aéreo" },
 };
 
+/* ── PEAJES COLOMBIA (fuente: INVIAS / ANI) ── */
+interface Peaje { name: string; route: string; lat: number; lng: number; dept: string; tarifa_c2?: string; }
+const PEAJES: Peaje[] = [
+  { name: "Peaje Chusacá",        route: "Ruta 40 Bogotá-Girardot",          lat: 4.424,  lng: -74.415, dept: "Cundinamarca",    tarifa_c2: "$14.200" },
+  { name: "Peaje Mondoñedo",      route: "Ruta 50 Bogotá-Medellín",          lat: 4.731,  lng: -74.402, dept: "Cundinamarca",    tarifa_c2: "$11.900" },
+  { name: "Peaje El Rosal",       route: "Ruta 50 Bogotá-Medellín",          lat: 4.851,  lng: -74.263, dept: "Cundinamarca",    tarifa_c2: "$12.600" },
+  { name: "Peaje Alto del Vino",  route: "Ruta 50 Bogotá-Medellín",          lat: 5.091,  lng: -74.548, dept: "Cundinamarca",    tarifa_c2: "$13.400" },
+  { name: "Peaje Villeta",        route: "Ruta 50 Bogotá-Medellín",          lat: 5.018,  lng: -74.475, dept: "Cundinamarca",    tarifa_c2: "$11.200" },
+  { name: "Peaje La Vega",        route: "Ruta 50 Bogotá-Medellín",          lat: 4.999,  lng: -74.340, dept: "Cundinamarca",    tarifa_c2: "$10.800" },
+  { name: "Peaje Guaduas",        route: "Ruta 50 Bogotá-Medellín",          lat: 5.067,  lng: -74.588, dept: "Cundinamarca",    tarifa_c2: "$12.100" },
+  { name: "Peaje Puerto Salgar",  route: "Ruta 50 Bogotá-Medellín",          lat: 5.471,  lng: -74.659, dept: "Cundinamarca",    tarifa_c2: "$10.500" },
+  { name: "Peaje Cisneros",       route: "Ruta 60 Medellín-Bogotá",          lat: 6.535,  lng: -74.817, dept: "Antioquia",       tarifa_c2: "$11.700" },
+  { name: "Peaje San Mateo",      route: "Ruta 62 Medellín-Bogotá",          lat: 6.174,  lng: -75.601, dept: "Antioquia",       tarifa_c2: "$14.800" },
+  { name: "Peaje Hatillo",        route: "Ruta 62 Medellín-Bogotá",          lat: 6.090,  lng: -75.478, dept: "Antioquia",       tarifa_c2: "$13.200" },
+  { name: "Peaje La Pintada",     route: "Ruta 25 Medellín-Cali",            lat: 5.753,  lng: -75.596, dept: "Antioquia",       tarifa_c2: "$12.900" },
+  { name: "Peaje Camilo C.",      route: "Ruta 62 Antioquia",                lat: 6.448,  lng: -75.272, dept: "Antioquia",       tarifa_c2: "$11.500" },
+  { name: "Peaje La Felisa",      route: "Ruta 25 Caldas-Valle",             lat: 5.514,  lng: -75.649, dept: "Caldas",          tarifa_c2: "$13.600" },
+  { name: "Peaje Irra",           route: "Ruta 25 Eje Cafetero",             lat: 5.367,  lng: -75.567, dept: "Caldas",          tarifa_c2: "$10.200" },
+  { name: "Peaje Armenia",        route: "Ruta 40 Eje Cafetero",             lat: 4.534,  lng: -75.675, dept: "Quindío",         tarifa_c2: "$9.800"  },
+  { name: "Peaje Cartago",        route: "Ruta 25 Risaralda-Valle",          lat: 4.755,  lng: -75.913, dept: "Valle del Cauca", tarifa_c2: "$11.100" },
+  { name: "Peaje Mediacanoa",     route: "Ruta 25 Bogotá-Cali",              lat: 3.756,  lng: -76.256, dept: "Valle del Cauca", tarifa_c2: "$13.800" },
+  { name: "Peaje Buga",           route: "Ruta 25 Bogotá-Cali",              lat: 3.902,  lng: -76.297, dept: "Valle del Cauca", tarifa_c2: "$12.400" },
+  { name: "Peaje Tulúa",          route: "Ruta 25 Bogotá-Cali",              lat: 4.094,  lng: -76.193, dept: "Valle del Cauca", tarifa_c2: "$11.300" },
+  { name: "Peaje La Paila",       route: "Ruta 25 Valle-Eje Cafetero",       lat: 4.308,  lng: -75.905, dept: "Valle del Cauca", tarifa_c2: "$10.700" },
+  { name: "Peaje Palmaseca",      route: "Ruta 25 Cali-Norte",               lat: 3.668,  lng: -76.382, dept: "Valle del Cauca", tarifa_c2: "$9.500"  },
+  { name: "Peaje La Uribe",       route: "Ruta 25 Cali-Popayán",             lat: 3.108,  lng: -76.542, dept: "Cauca",           tarifa_c2: "$12.700" },
+  { name: "Peaje Pescador",       route: "Ruta 25 Cauca",                    lat: 2.716,  lng: -76.499, dept: "Cauca",           tarifa_c2: "$11.600" },
+  { name: "Peaje La Ye",          route: "Ruta 45A Bogotá-Bucaramanga",      lat: 5.532,  lng: -73.376, dept: "Boyacá",          tarifa_c2: "$13.100" },
+  { name: "Peaje Puente Nacional", route: "Ruta 45A Bogotá-Bucaramanga",     lat: 5.879,  lng: -73.690, dept: "Santander",       tarifa_c2: "$10.900" },
+  { name: "Peaje San Gil",        route: "Ruta 45A Bucaramanga-Bogotá",      lat: 6.556,  lng: -73.135, dept: "Santander",       tarifa_c2: "$12.300" },
+  { name: "Peaje Ruitoque",       route: "Ruta 66 Bucaramanga-Bogotá",       lat: 7.014,  lng: -73.067, dept: "Santander",       tarifa_c2: "$11.000" },
+  { name: "Peaje Lebrija",        route: "Ruta 45A Norte",                   lat: 7.121,  lng: -73.218, dept: "Santander",       tarifa_c2: "$10.300" },
+  { name: "Peaje La Caro",        route: "Autopista Norte Bogotá",            lat: 4.919,  lng: -74.010, dept: "Cundinamarca",    tarifa_c2: "$9.200"  },
+  { name: "Peaje Briceño",        route: "Autopista Norte Bogotá-Tunja",      lat: 5.223,  lng: -74.023, dept: "Cundinamarca",    tarifa_c2: "$9.700"  },
+  { name: "Peaje Neusa",          route: "Ruta 45 Bogotá-Tunja",             lat: 5.265,  lng: -73.914, dept: "Cundinamarca",    tarifa_c2: "$10.400" },
+  { name: "Peaje Ventaquemada",   route: "Ruta 55 Tunja-Bogotá",             lat: 5.353,  lng: -73.518, dept: "Boyacá",          tarifa_c2: "$9.100"  },
+  { name: "Peaje Tunja Norte",    route: "Ruta 55 Boyacá",                   lat: 5.597,  lng: -73.316, dept: "Boyacá",          tarifa_c2: "$10.600" },
+  { name: "Peaje Barbosa",        route: "Ruta 45A Bogotá-Bucaramanga",      lat: 5.936,  lng: -73.618, dept: "Santander",       tarifa_c2: "$11.800" },
+  { name: "Peaje Girardot",       route: "Ruta 40 Bogotá-Ibagué",            lat: 4.303,  lng: -74.802, dept: "Cundinamarca",    tarifa_c2: "$10.100" },
+  { name: "Peaje Espinal",        route: "Ruta 40 Ibagué-Neiva",             lat: 4.153,  lng: -74.883, dept: "Tolima",          tarifa_c2: "$9.900"  },
+  { name: "Peaje Neiva",          route: "Ruta 45 Neiva-Bogotá",             lat: 2.935,  lng: -75.291, dept: "Huila",           tarifa_c2: "$12.000" },
+  { name: "Peaje Bosconia",       route: "Ruta 80 Costa Atlántica",          lat: 9.971,  lng: -73.878, dept: "Cesar",           tarifa_c2: "$10.500" },
+  { name: "Peaje Ciénaga",        route: "Ruta 90 Santa Marta-Barranquilla", lat: 11.001, lng: -74.251, dept: "Magdalena",       tarifa_c2: "$8.700"  },
+  { name: "Peaje Galapa",         route: "Ruta 90 Barranquilla-Cartagena",   lat: 10.899, lng: -74.889, dept: "Atlántico",       tarifa_c2: "$8.900"  },
+  { name: "Peaje Turbaco",        route: "Ruta 90 Cartagena-Montería",       lat: 10.328, lng: -75.421, dept: "Bolívar",         tarifa_c2: "$9.300"  },
+  { name: "Peaje Sincelejo",      route: "Ruta 25 Costa",                    lat: 9.304,  lng: -75.397, dept: "Sucre",           tarifa_c2: "$8.500"  },
+  { name: "Peaje Montería",       route: "Ruta 25 Córdoba",                  lat: 8.757,  lng: -75.889, dept: "Córdoba",         tarifa_c2: "$9.100"  },
+];
+
+/* ── POLICÍA DE CARRETERAS (fuente: Policía Nacional) ── */
+interface PuestoPolicia { name: string; sector: string; lat: number; lng: number; dept: string; tipo: string; }
+const POLICIA_CARRETERAS: PuestoPolicia[] = [
+  { name: "Base Carreteras Norte",      sector: "Autopista Norte Km 18",           lat: 4.914,  lng: -74.052, dept: "Bogotá D.C.",   tipo: "Base" },
+  { name: "Base Carreteras Sur",        sector: "Autopista Sur Km 14",             lat: 4.521,  lng: -74.138, dept: "Cundinamarca",   tipo: "Base" },
+  { name: "Puesto Carreteras Anolaima", sector: "Vía Bogotá-Honda Km 55",          lat: 4.768,  lng: -74.462, dept: "Cundinamarca",   tipo: "Puesto" },
+  { name: "Puesto Carreteras Villeta",  sector: "Ruta 50 Km 80",                   lat: 5.014,  lng: -74.473, dept: "Cundinamarca",   tipo: "Puesto" },
+  { name: "Base Carreteras Honda",      sector: "Intersección Honda-La Dorada",    lat: 5.213,  lng: -74.740, dept: "Cundinamarca",   tipo: "Base" },
+  { name: "Puesto Carreteras La Ye",    sector: "Ruta 45A Boyacá Km 105",          lat: 5.533,  lng: -73.374, dept: "Boyacá",         tipo: "Puesto" },
+  { name: "Base Carreteras Tunja",      sector: "Ruta 55 Norte de Tunja",          lat: 5.611,  lng: -73.353, dept: "Boyacá",         tipo: "Base" },
+  { name: "Puesto Carreteras Sogamoso", sector: "Ruta 55 Boyacá",                  lat: 5.717,  lng: -72.932, dept: "Boyacá",         tipo: "Puesto" },
+  { name: "Base Carreteras Bucaramanga",sector: "Autopista Florida-Piedecuesta",   lat: 7.013,  lng: -73.140, dept: "Santander",      tipo: "Base" },
+  { name: "Puesto Carreteras San Gil",  sector: "Ruta 45A San Gil",                lat: 6.555,  lng: -73.136, dept: "Santander",      tipo: "Puesto" },
+  { name: "Puesto Carreteras Barranca", sector: "Vía Barrancabermeja-Bogotá",      lat: 7.064,  lng: -73.852, dept: "Santander",      tipo: "Puesto" },
+  { name: "Base Carreteras Medellín N", sector: "Autopista Norte Medellín Km 10",  lat: 6.353,  lng: -75.544, dept: "Antioquia",      tipo: "Base" },
+  { name: "Base Carreteras Medellín S", sector: "Autopista Sur Medellín",          lat: 6.168,  lng: -75.606, dept: "Antioquia",      tipo: "Base" },
+  { name: "Puesto Carreteras La Pintada",sector:"Ruta 25 Antioquia-Caldas",        lat: 5.752,  lng: -75.596, dept: "Antioquia",      tipo: "Puesto" },
+  { name: "Puesto Carreteras Manizales", sector:"Autopista Manizales-Bogotá",      lat: 5.070,  lng: -75.510, dept: "Caldas",         tipo: "Puesto" },
+  { name: "Base Carreteras Pereira",    sector: "Ruta 25 Pereira",                 lat: 4.811,  lng: -75.694, dept: "Risaralda",      tipo: "Base" },
+  { name: "Base Carreteras Cali N",     sector: "Autopista Cali-Bogotá",           lat: 3.553,  lng: -76.362, dept: "Valle del Cauca",tipo: "Base" },
+  { name: "Puesto Carreteras Buga",     sector: "Ruta 25 Buga",                    lat: 3.903,  lng: -76.296, dept: "Valle del Cauca",tipo: "Puesto" },
+  { name: "Puesto Carreteras Palmira",  sector: "Ruta 25 Palmira-Cali",            lat: 3.534,  lng: -76.303, dept: "Valle del Cauca",tipo: "Puesto" },
+  { name: "Base Carreteras Popayán",    sector: "Ruta 25 Popayán",                 lat: 2.442,  lng: -76.606, dept: "Cauca",          tipo: "Base" },
+  { name: "Puesto Carreteras Pasto",    sector: "Ruta 25 Pasto-Ipiales",           lat: 1.213,  lng: -77.281, dept: "Nariño",         tipo: "Puesto" },
+  { name: "Base Carreteras Ibagué",     sector: "Ruta 40 Ibagué",                  lat: 4.432,  lng: -75.241, dept: "Tolima",         tipo: "Base" },
+  { name: "Puesto Carreteras Girardot", sector: "Ruta 40 Girardot",                lat: 4.302,  lng: -74.803, dept: "Cundinamarca",   tipo: "Puesto" },
+  { name: "Base Carreteras Neiva",      sector: "Ruta 45A Neiva",                  lat: 2.934,  lng: -75.290, dept: "Huila",          tipo: "Base" },
+  { name: "Puesto Carreteras Villavicencio",sector:"Ruta 40 Villavicencio",       lat: 4.151,  lng: -73.636, dept: "Meta",           tipo: "Puesto" },
+  { name: "Base Carreteras Barranquilla",sector:"Ruta 90 Barranquilla",            lat: 10.961, lng: -74.797, dept: "Atlántico",      tipo: "Base" },
+  { name: "Puesto Carreteras Santa Marta",sector:"Ruta 90 Santa Marta",            lat: 11.232, lng: -74.199, dept: "Magdalena",      tipo: "Puesto" },
+  { name: "Base Carreteras Cartagena",  sector: "Ruta 90 Cartagena",               lat: 10.391, lng: -75.479, dept: "Bolívar",        tipo: "Base" },
+  { name: "Puesto Carreteras Montería", sector: "Ruta 25 Montería",                lat: 8.758,  lng: -75.888, dept: "Córdoba",        tipo: "Puesto" },
+  { name: "Base Carreteras Cúcuta",     sector: "Ruta 55 Cúcuta",                  lat: 7.890,  lng: -72.507, dept: "Norte de Santander",tipo:"Base" },
+  { name: "Puesto Carreteras Arauca",   sector: "Vía Arauca-Tame",                 lat: 7.083,  lng: -70.758, dept: "Arauca",         tipo: "Puesto" },
+];
+
+/* ── HOSPITALES DE REFERENCIA (fuente: Min. Salud) ── */
+interface Hospital { name: string; city: string; level: string; lat: number; lng: number; dept: string; tel?: string; }
+const HOSPITALES: Hospital[] = [
+  { name: "Hospital Santa Clara",       city: "Bogotá",        level: "III", lat: 4.610,  lng: -74.085, dept: "Bogotá D.C.",   tel: "(601) 362-3900" },
+  { name: "Hospital El Tunal",          city: "Bogotá",        level: "III", lat: 4.542,  lng: -74.126, dept: "Bogotá D.C.",   tel: "(601) 276-8900" },
+  { name: "Hospital La Victoria",       city: "Bogotá",        level: "III", lat: 4.583,  lng: -74.068, dept: "Bogotá D.C.",   tel: "(601) 327-9500" },
+  { name: "Hospital Simón Bolívar",     city: "Bogotá",        level: "III", lat: 4.706,  lng: -74.055, dept: "Bogotá D.C.",   tel: "(601) 660-7676" },
+  { name: "Hospital Pablo Tobón Uribe", city: "Medellín",      level: "IV",  lat: 6.269,  lng: -75.574, dept: "Antioquia",     tel: "(604) 445-9000" },
+  { name: "Clínica Las Américas",       city: "Medellín",      level: "IV",  lat: 6.231,  lng: -75.604, dept: "Antioquia",     tel: "(604) 342-1010" },
+  { name: "Hospital San Vicente",       city: "Medellín",      level: "IV",  lat: 6.300,  lng: -75.562, dept: "Antioquia",     tel: "(604) 516-6666" },
+  { name: "Hospital Universitario de Caldas", city:"Manizales",level:"III",  lat: 5.065,  lng: -75.510, dept: "Caldas",        tel: "(606) 879-8080" },
+  { name: "Hospital San Juan de Dios",  city: "Armenia",       level: "III", lat: 4.533,  lng: -75.672, dept: "Quindío",       tel: "(606) 740-8000" },
+  { name: "Hospital Santa Mónica",      city: "Dosquebradas", level: "III",  lat: 4.837,  lng: -75.682, dept: "Risaralda",     tel: "(606) 330-0300" },
+  { name: "Hospital Universitario del Valle", city:"Cali",     level:"IV",   lat: 3.437,  lng: -76.548, dept: "Valle del Cauca",tel:"(602) 620-1080" },
+  { name: "Clínica Imbanaco",           city: "Cali",          level: "IV",  lat: 3.430,  lng: -76.537, dept: "Valle del Cauca",tel:"(602) 682-1000" },
+  { name: "Hospital Universitario Hernando Moncaleano",city:"Neiva",level:"III",lat:2.937,lng:-75.288, dept:"Huila",            tel:"(608) 875-0052" },
+  { name: "Hospital Universitario de Santander", city:"Bucaramanga",level:"III",lat:7.126,lng:-73.121, dept:"Santander",        tel:"(607) 634-6110" },
+  { name: "Clínica Chicamocha",         city: "Bucaramanga",   level: "III", lat: 7.112,  lng: -73.113, dept: "Santander",      tel: "(607) 657-9800" },
+  { name: "Hospital Erasmo Meoz",       city: "Cúcuta",        level: "III", lat: 7.891,  lng: -72.514, dept: "Norte de Santander",tel:"(607) 582-7000"},
+  { name: "Hospital Federico Lleras Acosta", city:"Ibagué",    level:"III",  lat: 4.434,  lng: -75.238, dept: "Tolima",         tel: "(608) 277-0700" },
+  { name: "Hospital San Rafael",        city: "Tunja",         level: "III", lat: 5.541,  lng: -73.358, dept: "Boyacá",         tel: "(608) 744-3900" },
+  { name: "Hospital San Jorge",         city: "Pereira",       level: "III", lat: 4.804,  lng: -75.694, dept: "Risaralda",      tel: "(606) 315-3800" },
+  { name: "Hospital Universitario Cari",city:"Barranquilla",   level:"III",  lat: 10.980, lng: -74.784, dept: "Atlántico",      tel: "(605) 370-5740" },
+  { name: "Clínica General del Norte",  city: "Barranquilla",  level: "III", lat: 10.974, lng: -74.808, dept: "Atlántico",      tel: "(605) 340-1111" },
+  { name: "Hospital Universitario San Jorge",city:"Cartagena",level:"III",   lat: 10.402, lng: -75.510, dept: "Bolívar",        tel: "(605) 660-0100" },
+  { name: "Hospital Santa Rosa de Osos",city:"Santa Rosa",     level:"II",   lat: 6.636,  lng: -75.460, dept: "Antioquia",      tel: "(604) 855-5000" },
+  { name: "Hospital Marco Fidel Suárez",city:"Bello",          level:"III",  lat: 6.352,  lng: -75.558, dept: "Antioquia",      tel: "(604) 452-0450" },
+  { name: "ESE Hospital San Francisco", city:"Villavicencio",  level:"III",  lat: 4.153,  lng: -73.638, dept: "Meta",           tel: "(608) 673-0000" },
+  { name: "Hospital Civil de Ipiales",  city:"Ipiales",        level:"II",   lat: 0.832,  lng: -77.644, dept: "Nariño",         tel: "(602) 773-4000" },
+  { name: "Hospital Susana López de Valencia",city:"Popayán",  level:"III",  lat: 2.439,  lng: -76.607, dept: "Cauca",          tel: "(602) 820-9060" },
+  { name: "Hospital Departamental de Nariño",city:"Pasto",     level:"III",  lat: 1.215,  lng: -77.282, dept: "Nariño",         tel: "(602) 729-7777" },
+  { name: "Hospital Rosario Pumarejo",  city:"Valledupar",     level:"III",  lat: 10.481, lng: -73.249, dept: "Cesar",          tel: "(605) 581-0610" },
+  { name: "Hospital Regional de Urabá", city:"Apartadó",       level:"II",   lat: 7.884,  lng: -76.627, dept: "Antioquia",      tel: "(604) 828-3333" },
+];
+
+/* ── tipos / helpers ── */
 type LayerKey = "grupos" | "riesgo" | "delitos" | "vias" | "ninguna";
 type BasemapKey = "dark" | "streets" | "satellite";
 
-const BASEMAPS: Record<BasemapKey, { label: string; url: string; attr: string }> = {
-  dark: {
-    label: "Oscuro",
-    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-    attr: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-  },
-  streets: {
-    label: "Calles",
-    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    attr: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-  },
-  satellite: {
-    label: "Satélite",
-    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    attr: "Tiles &copy; Esri",
-  },
+const BASEMAPS: Record<BasemapKey, { label: string; url: string }> = {
+  dark:      { label: "Oscuro",   url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" },
+  streets:   { label: "Calles",   url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" },
+  satellite: { label: "Satélite", url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" },
 };
 
-function normalize(s: string) {
-  return s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
-}
+function normalize(s: string) { return s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase(); }
 function matchDept(raw: string): string {
   const n = normalize(raw);
   return Object.keys(ARMED).find(k => normalize(k).startsWith(n.slice(0,5))) ?? raw;
 }
-
-function armedColor(level: number) {
-  if (level === 0) return "#1a2a1a";
-  if (level === 1) return "#2d4a1e";
-  if (level === 2) return "#7a3a00";
-  return "#6b0000";
-}
+function armedColor(l: number) { return ["#1a2a1a","#2d4a1e","#7a3a00","#6b0000"][l] ?? "#1a2a1a"; }
 function nightColor(v: number) {
-  if (v < 60) return "#1a2a3a";
-  if (v < 70) return "#1e3a5f";
-  if (v < 75) return "#5c3d00";
-  return "#5c0000";
+  if (v < 60) return "#1a2a3a"; if (v < 70) return "#1e3a5f"; if (v < 75) return "#5c3d00"; return "#5c0000";
 }
 function roadColor(s: "good"|"regular"|"difficult") {
-  if (s === "good") return "#0a2e1a";
-  if (s === "regular") return "#2e2a00";
-  return "#3a0a00";
+  return { good:"#0a2e1a", regular:"#2e2a00", difficult:"#3a0a00" }[s];
 }
 function crimeColor(v: number, max: number) {
   const t = max > 0 ? v / max : 0;
-  if (t < 0.2) return "#0a1e2a";
-  if (t < 0.4) return "#0a2e4a";
-  if (t < 0.6) return "#1a3a5c";
-  if (t < 0.8) return "#5c2a00";
-  return "#6b0000";
+  if (t < 0.2) return "#0a1e2a"; if (t < 0.4) return "#0a2e4a"; if (t < 0.6) return "#1a3a5c"; if (t < 0.8) return "#5c2a00"; return "#6b0000";
 }
 
-/* ── Map bounds fitter ── */
 function FitBounds() {
   const map = useMap();
-  useEffect(() => {
-    // Colombia bounding box
-    map.fitBounds([[-4.2, -79], [12.5, -66.8]], { padding: [10, 10] });
-  }, [map]);
+  useEffect(() => { map.fitBounds([[-4.2,-79],[12.5,-66.8]], { padding:[10,10] }); }, [map]);
   return null;
 }
 
-interface Props { dark?: boolean; }
+/* ── Marker DivIcon factory ── */
+function makeIcon(symbol: string, bg: string, border: string, size = 22) {
+  return L.divIcon({
+    html: `<div style="width:${size}px;height:${size}px;background:${bg};border:2px solid ${border};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:${Math.round(size*0.55)}px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,0.5)">${symbol}</div>`,
+    className: "",
+    iconSize: [size, size],
+    iconAnchor: [size/2, size/2],
+    popupAnchor: [0, -size/2],
+  });
+}
 
-export function MapIntelligence({ dark = true }: Props) {
+import { Marker } from "react-leaflet";
+
+export function MapIntelligence({ dark = true }: { dark?: boolean }) {
   const [activeLayer, setActiveLayer] = useState<LayerKey>("grupos");
-  const [showBlockades, setShowBlockades] = useState(true);
+  const [showBlockades,  setShowBlockades]  = useState(true);
+  const [showPeajes,     setShowPeajes]     = useState(false);
+  const [showPolicia,    setShowPolicia]    = useState(false);
+  const [showHospitales, setShowHospitales] = useState(false);
   const [basemap, setBasemap] = useState<BasemapKey>("dark");
   const [panelOpen, setPanelOpen] = useState(true);
   const [geoData, setGeoData] = useState<any>(null);
-  const geoRef = useRef<L.GeoJSON | null>(null);
 
   const { data: blockades = [] } = useGetBlockades(undefined, { query: { refetchInterval: 60000 } });
   const { data: crimesByDept = [] } = useGetCrimesByDepartment({});
 
-  /* Build crime totals by dept */
-  const crimeTotals = crimesByDept.reduce((acc: Record<string, number>, d: any) => {
+  const crimeTotals = crimesByDept.reduce((acc: Record<string,number>, d: any) => {
     const key = matchDept(d.department ?? "");
     acc[key] = (acc[key] ?? 0) + (d.totalCount ?? 0);
     return acc;
-  }, {} as Record<string, number>);
+  }, {} as Record<string,number>);
   const maxCrimes = Math.max(1, ...Object.values(crimeTotals));
 
-  /* Fetch GeoJSON once */
-  useEffect(() => {
-    fetch(GEO_URL).then(r => r.json()).then(setGeoData).catch(() => {});
-  }, []);
+  useEffect(() => { fetch(GEO_URL).then(r=>r.json()).then(setGeoData).catch(()=>{}); }, []);
 
-  /* Re-render GeoJSON when layer changes */
   const geoStyle = useCallback((feature: any) => {
-    const raw = feature?.properties?.NOMBRE_DPT ?? feature?.properties?.name ?? "";
-    const dept = matchDept(raw);
-    let fillColor = "#1a2233";
-
+    const dept = matchDept(feature?.properties?.NOMBRE_DPT ?? feature?.properties?.name ?? "");
+    let fillColor = "#141e2e";
     if (activeLayer === "grupos") fillColor = armedColor(ARMED[dept]?.level ?? 0);
     else if (activeLayer === "riesgo") fillColor = nightColor(NIGHT_RISK[dept] ?? 60);
     else if (activeLayer === "vias") fillColor = roadColor(ROAD[dept]?.score ?? "regular");
     else if (activeLayer === "delitos") fillColor = crimeColor(crimeTotals[dept] ?? 0, maxCrimes);
     else fillColor = "#141e2e";
-
-    return {
-      fillColor,
-      fillOpacity: activeLayer === "ninguna" ? 0.12 : 0.72,
-      color: "rgba(255,255,255,0.12)",
-      weight: 0.8,
-    };
+    return { fillColor, fillOpacity: activeLayer==="ninguna"?0.12:0.72, color:"rgba(255,255,255,0.12)", weight:0.8 };
   }, [activeLayer, crimeTotals, maxCrimes]);
 
   const onEachFeature = useCallback((feature: any, layer: L.Layer) => {
-    const raw = feature?.properties?.NOMBRE_DPT ?? feature?.properties?.name ?? "";
-    const dept = matchDept(raw);
+    const dept = matchDept(feature?.properties?.NOMBRE_DPT ?? feature?.properties?.name ?? "");
     const armed = ARMED[dept];
-    const nightRisk = NIGHT_RISK[dept] ?? "--";
     const road = ROAD[dept];
     const crimes = crimeTotals[dept] ?? 0;
-
-    const armedLabel = ["Sin presencia","Baja","Media","Alta","Crítica"][armed?.level ?? 0] ?? "—";
-    const armedColor2 = ["#10b981","#f59e0b","#f97316","#ef4444"][armed?.level ?? 0] ?? "#888";
-    const roadLabel = { good:"Buenas", regular:"Regular", difficult:"Difíciles" }[road?.score ?? "regular"];
-    const roadColor2 = { good:"#10b981", regular:"#f59e0b", difficult:"#ef4444" }[road?.score ?? "regular"];
-
-    const html = `
-      <div style="font-family:sans-serif;font-size:13px;min-width:200px;color:#e2e8f0">
+    const armedLbl = ["Sin presencia","Baja","Media","Alta"][armed?.level ?? 0] ?? "—";
+    const armedClr = ["#10b981","#f59e0b","#f97316","#ef4444"][armed?.level ?? 0] ?? "#888";
+    const roadLbl = { good:"Buenas", regular:"Regular", difficult:"Difíciles" }[road?.score ?? "regular"];
+    const roadClr = { good:"#10b981", regular:"#f59e0b", difficult:"#ef4444" }[road?.score ?? "regular"];
+    layer.bindPopup(`
+      <div style="font-family:sans-serif;font-size:13px;min-width:210px;color:#e2e8f0">
         <div style="font-weight:700;font-size:14px;margin-bottom:8px;color:#00d4ff">${dept}</div>
         <table style="width:100%;border-collapse:collapse">
-          <tr><td style="color:#94a3b8;padding:2px 0">Grupos armados</td>
-              <td style="text-align:right;font-weight:600;color:${armedColor2}">${armedLabel}</td></tr>
-          ${armed?.groups?.length ? `<tr><td colspan="2" style="font-size:11px;color:#64748b;padding-bottom:4px">${armed.groups.join(" · ")}</td></tr>` : ""}
-          <tr><td style="color:#94a3b8;padding:2px 0">Riesgo nocturno</td>
-              <td style="text-align:right;font-weight:600;color:#a78bfa">${nightRisk}/100</td></tr>
-          <tr><td style="color:#94a3b8;padding:2px 0">Condiciones vías</td>
-              <td style="text-align:right;font-weight:600;color:${roadColor2}">${roadLabel}</td></tr>
-          <tr><td style="color:#94a3b8;padding:2px 0">Delitos registrados</td>
-              <td style="text-align:right;font-weight:600;color:#f59e0b">${crimes.toLocaleString("es-CO")}</td></tr>
-          ${road?.notes ? `<tr><td colspan="2" style="font-size:11px;color:#64748b;padding-top:4px;border-top:1px solid rgba(255,255,255,0.08)">${road.notes}</td></tr>` : ""}
+          <tr><td style="color:#94a3b8;padding:2px 0">Grupos armados</td><td style="text-align:right;font-weight:600;color:${armedClr}">${armedLbl}</td></tr>
+          ${armed?.groups?.length?`<tr><td colspan="2" style="font-size:11px;color:#64748b;padding-bottom:4px">${armed.groups.join(" · ")}</td></tr>`:""}
+          <tr><td style="color:#94a3b8;padding:2px 0">Riesgo nocturno</td><td style="text-align:right;font-weight:600;color:#a78bfa">${NIGHT_RISK[dept]??"-"}/100</td></tr>
+          <tr><td style="color:#94a3b8;padding:2px 0">Condiciones vías</td><td style="text-align:right;font-weight:600;color:${roadClr}">${roadLbl}</td></tr>
+          <tr><td style="color:#94a3b8;padding:2px 0">Delitos registrados</td><td style="text-align:right;font-weight:600;color:#f59e0b">${crimes.toLocaleString("es-CO")}</td></tr>
+          ${road?.notes?`<tr><td colspan="2" style="font-size:11px;color:#64748b;padding-top:4px;border-top:1px solid rgba(255,255,255,0.08)">${road.notes}</td></tr>`:""}
         </table>
-      </div>`;
-    layer.bindPopup(html, { maxWidth: 280, className: "dark-popup" });
+      </div>`, { maxWidth:280, className:"dark-popup" });
   }, [crimeTotals]);
 
-  const LAYERS: { key: LayerKey; label: string; icon: any; color: string; legend: { label: string; color: string }[] }[] = [
-    {
-      key: "grupos", label: "Presencia Armada", icon: Shield, color: "#ef4444",
-      legend: [
-        { label: "Sin presencia", color: "#1a2a1a" }, { label: "Baja", color: "#2d4a1e" },
-        { label: "Media", color: "#7a3a00" }, { label: "Alta / Crítica", color: "#6b0000" },
-      ],
-    },
-    {
-      key: "riesgo", label: "Riesgo Nocturno", icon: Moon, color: "#a78bfa",
-      legend: [
-        { label: "< 60", color: "#1a2a3a" }, { label: "60–70", color: "#1e3a5f" },
-        { label: "70–75", color: "#5c3d00" }, { label: "> 75", color: "#5c0000" },
-      ],
-    },
-    {
-      key: "delitos", label: "Estadísticas Delictivas", icon: AlertTriangle, color: "#f59e0b",
-      legend: [
-        { label: "Muy bajo", color: "#0a1e2a" }, { label: "Bajo", color: "#0a2e4a" },
-        { label: "Medio", color: "#1a3a5c" }, { label: "Alto", color: "#5c2a00" }, { label: "Crítico", color: "#6b0000" },
-      ],
-    },
-    {
-      key: "vias", label: "Condiciones Viales", icon: Route, color: "#10b981",
-      legend: [
-        { label: "Buenas", color: "#0a2e1a" }, { label: "Regular", color: "#2e2a00" }, { label: "Difíciles", color: "#3a0a00" },
-      ],
-    },
-    {
-      key: "ninguna", label: "Sin capa base", icon: Layers, color: "#64748b",
-      legend: [],
-    },
+  const LAYERS = [
+    { key:"grupos" as LayerKey,  label:"Presencia Armada",      icon:Shield,        color:"#ef4444", legend:[{label:"Sin presencia",color:"#1a2a1a"},{label:"Baja",color:"#2d4a1e"},{label:"Media",color:"#7a3a00"},{label:"Alta / Crítica",color:"#6b0000"}] },
+    { key:"riesgo" as LayerKey,  label:"Riesgo Nocturno",       icon:Moon,          color:"#a78bfa", legend:[{label:"< 60",color:"#1a2a3a"},{label:"60–70",color:"#1e3a5f"},{label:"70–75",color:"#5c3d00"},{label:"> 75",color:"#5c0000"}] },
+    { key:"delitos" as LayerKey, label:"Estadísticas Delictivas",icon:AlertTriangle, color:"#f59e0b", legend:[{label:"Muy bajo",color:"#0a1e2a"},{label:"Bajo",color:"#0a2e4a"},{label:"Medio",color:"#1a3a5c"},{label:"Alto",color:"#5c2a00"},{label:"Crítico",color:"#6b0000"}] },
+    { key:"vias" as LayerKey,    label:"Condiciones Viales",    icon:Route,         color:"#10b981", legend:[{label:"Buenas",color:"#0a2e1a"},{label:"Regular",color:"#2e2a00"},{label:"Difíciles",color:"#3a0a00"}] },
+    { key:"ninguna" as LayerKey, label:"Sin capa base",         icon:Layers,        color:"#64748b", legend:[] },
   ];
 
-  const activeLayerMeta = LAYERS.find(l => l.key === activeLayer)!;
-  const activeBlockades = blockades.filter((b: any) => b.status === "activo" || !b.status);
+  const OVERLAYS = [
+    { key:"bloqueos",   label:"Bloqueos activos",       icon:MapPin,     color:"#ef4444", active:showBlockades,  toggle:()=>setShowBlockades(p=>!p),  count:blockades.filter((b:any)=>b.lat&&b.lng).length },
+    { key:"peajes",     label:"Peajes",                  icon:Car,        color:"#f59e0b", active:showPeajes,     toggle:()=>setShowPeajes(p=>!p),      count:PEAJES.length },
+    { key:"policia",    label:"Policía de Carreteras",   icon:Shield,     color:"#3b82f6", active:showPolicia,    toggle:()=>setShowPolicia(p=>!p),     count:POLICIA_CARRETERAS.length },
+    { key:"hospitales", label:"Hospitales de Referencia",icon:Hospital,   color:"#10b981", active:showHospitales, toggle:()=>setShowHospitales(p=>!p), count:HOSPITALES.length },
+  ];
+
+  const activeLayerMeta = LAYERS.find(l=>l.key===activeLayer)!;
+  const peajeIcon      = makeIcon("$", "rgba(245,158,11,0.9)",  "#f59e0b", 20);
+  const policiaIcon    = makeIcon("P", "rgba(59,130,246,0.9)",  "#3b82f6", 20);
+  const hospitalIcon   = makeIcon("✚", "rgba(16,185,129,0.9)", "#10b981", 20);
 
   return (
-    <div style={{ position: "relative", width: "100%", height: "calc(100vh - 120px)", minHeight: 500, borderRadius: 12, overflow: "hidden" }}>
+    <div style={{ position:"relative", width:"100%", height:"calc(100vh - 120px)", minHeight:500, borderRadius:12, overflow:"hidden" }}>
 
-      {/* ── MAP ── */}
-      <MapContainer
-        center={[4.5, -74.3]}
-        zoom={6}
-        style={{ width: "100%", height: "100%", background: "#070c15" }}
-        zoomControl={true}
-        attributionControl={false}
-      >
+      {/* MAP */}
+      <MapContainer center={[4.5,-74.3]} zoom={6} style={{ width:"100%", height:"100%", background:"#070c15" }} zoomControl attributionControl={false}>
         <FitBounds />
-        <TileLayer
-          key={basemap}
-          url={BASEMAPS[basemap].url}
-          attribution={BASEMAPS[basemap].attr}
-        />
+        <TileLayer key={basemap} url={BASEMAPS[basemap].url} />
 
-        {/* Choropleth GeoJSON */}
         {geoData && (
           <GeoJSON
             key={`${activeLayer}-${JSON.stringify(crimeTotals).length}`}
-            data={geoData}
-            style={geoStyle}
-            onEachFeature={onEachFeature}
+            data={geoData} style={geoStyle} onEachFeature={onEachFeature}
           />
         )}
 
-        {/* Bloqueos markers */}
-        {showBlockades && activeBlockades.map((b: any) => {
-          if (!b.lat || !b.lng) return null;
-          const srcColor = b.source === "news_rss" ? "#00d4ff"
-            : b.source === "news_import" ? "#a78bfa" : "#ef4444";
+        {/* Bloqueos */}
+        {showBlockades && blockades.filter((b:any)=>b.lat&&b.lng).map((b:any) => {
+          const c = b.source==="news_rss"?"#00d4ff":b.source==="news_import"?"#a78bfa":"#ef4444";
           return (
-            <CircleMarker
-              key={b.id}
-              center={[b.lat, b.lng]}
-              radius={8}
-              pathOptions={{
-                color: srcColor, fillColor: srcColor,
-                fillOpacity: 0.85, weight: 2,
-              }}
-            >
+            <CircleMarker key={b.id} center={[b.lat,b.lng]} radius={8} pathOptions={{ color:c, fillColor:c, fillOpacity:0.85, weight:2 }}>
               <Popup className="dark-popup">
-                <div style={{ fontFamily: "sans-serif", fontSize: 13, color: "#e2e8f0", minWidth: 180 }}>
-                  <div style={{ fontWeight: 700, color: srcColor, marginBottom: 6 }}>
-                    🚧 Bloqueo {b.source === "news_rss" ? "RSS" : b.source === "news_import" ? "IA" : "Manual"}
-                  </div>
-                  <div><span style={{ color: "#94a3b8" }}>Dept: </span>{b.department}</div>
-                  <div><span style={{ color: "#94a3b8" }}>Ubicación: </span>{b.location}</div>
-                  <div><span style={{ color: "#94a3b8" }}>Causa: </span>{b.cause}</div>
-                  {b.notes && <div style={{ marginTop: 4, fontSize: 12, color: "#64748b" }}>{b.notes}</div>}
+                <div style={{ fontFamily:"sans-serif",fontSize:13,color:"#e2e8f0",minWidth:190 }}>
+                  <div style={{ fontWeight:700,color:c,marginBottom:6 }}>🚧 Bloqueo {b.source==="news_rss"?"RSS":b.source==="news_import"?"IA":"Manual"}</div>
+                  <div><span style={{ color:"#94a3b8" }}>Dept: </span>{b.department}</div>
+                  <div><span style={{ color:"#94a3b8" }}>Ubicación: </span>{b.location}</div>
+                  <div><span style={{ color:"#94a3b8" }}>Causa: </span>{b.cause}</div>
+                  {b.notes&&<div style={{ marginTop:4,fontSize:12,color:"#64748b" }}>{b.notes}</div>}
                 </div>
               </Popup>
             </CircleMarker>
           );
         })}
+
+        {/* Peajes */}
+        {showPeajes && PEAJES.map((p,i) => (
+          <Marker key={`peaje-${i}`} position={[p.lat,p.lng]} icon={peajeIcon}>
+            <Popup className="dark-popup">
+              <div style={{ fontFamily:"sans-serif",fontSize:13,color:"#e2e8f0",minWidth:200 }}>
+                <div style={{ fontWeight:700,color:"#f59e0b",marginBottom:6 }}>🛣️ {p.name}</div>
+                <table style={{ width:"100%",borderCollapse:"collapse" }}>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Ruta</td><td style={{ textAlign:"right",fontSize:12 }}>{p.route}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Departamento</td><td style={{ textAlign:"right" }}>{p.dept}</td></tr>
+                  {p.tarifa_c2&&<tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Tarifa C2</td><td style={{ textAlign:"right",fontWeight:600,color:"#f59e0b" }}>{p.tarifa_c2}</td></tr>}
+                </table>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* Policía de Carreteras */}
+        {showPolicia && POLICIA_CARRETERAS.map((p,i) => (
+          <Marker key={`pol-${i}`} position={[p.lat,p.lng]} icon={policiaIcon}>
+            <Popup className="dark-popup">
+              <div style={{ fontFamily:"sans-serif",fontSize:13,color:"#e2e8f0",minWidth:200 }}>
+                <div style={{ fontWeight:700,color:"#3b82f6",marginBottom:6 }}>🚔 {p.name}</div>
+                <table style={{ width:"100%",borderCollapse:"collapse" }}>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Sector</td><td style={{ textAlign:"right",fontSize:12 }}>{p.sector}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Departamento</td><td style={{ textAlign:"right" }}>{p.dept}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Tipo</td><td style={{ textAlign:"right",fontWeight:600,color:"#3b82f6" }}>{p.tipo}</td></tr>
+                </table>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* Hospitales */}
+        {showHospitales && HOSPITALES.map((h,i) => (
+          <Marker key={`hosp-${i}`} position={[h.lat,h.lng]} icon={hospitalIcon}>
+            <Popup className="dark-popup">
+              <div style={{ fontFamily:"sans-serif",fontSize:13,color:"#e2e8f0",minWidth:200 }}>
+                <div style={{ fontWeight:700,color:"#10b981",marginBottom:6 }}>🏥 {h.name}</div>
+                <table style={{ width:"100%",borderCollapse:"collapse" }}>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Ciudad</td><td style={{ textAlign:"right" }}>{h.city}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Departamento</td><td style={{ textAlign:"right" }}>{h.dept}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Nivel</td><td style={{ textAlign:"right",fontWeight:600,color:"#10b981" }}>Nivel {h.level}</td></tr>
+                  {h.tel&&<tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Teléfono</td><td style={{ textAlign:"right",fontSize:11 }}>{h.tel}</td></tr>}
+                </table>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
       </MapContainer>
 
-      {/* ── LAYER PANEL ── */}
+      {/* PANEL */}
       <div style={{
-        position: "absolute", top: 16, right: panelOpen ? 16 : -260, zIndex: 1000,
-        width: 260, background: "rgba(7,12,21,0.93)", backdropFilter: "blur(12px)",
-        border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12,
-        transition: "right 0.3s ease", boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+        position:"absolute", top:16, right:panelOpen?16:-272, zIndex:1000,
+        width:268, background:"rgba(7,12,21,0.93)", backdropFilter:"blur(12px)",
+        border:"1px solid rgba(255,255,255,0.1)", borderRadius:12,
+        transition:"right 0.3s ease", boxShadow:"0 8px 32px rgba(0,0,0,0.5)",
+        maxHeight:"calc(100% - 32px)", overflowY:"auto",
       }}>
         {/* Header */}
-        <div style={{
-          padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.07)",
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Layers size={15} style={{ color: "#00d4ff" }} />
-            <span style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.9)", letterSpacing: "0.04em" }}>
-              Capas
-            </span>
+        <div style={{ padding:"12px 14px", borderBottom:"1px solid rgba(255,255,255,0.07)", display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, background:"rgba(7,12,21,0.97)", zIndex:1 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <Layers size={15} style={{ color:"#00d4ff" }} />
+            <span style={{ fontSize:13, fontWeight:700, color:"rgba(255,255,255,0.9)", letterSpacing:"0.04em" }}>Capas del Mapa</span>
           </div>
-          <button
-            onClick={() => setPanelOpen(false)}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.4)", padding: 2 }}>
+          <button onClick={()=>setPanelOpen(false)} style={{ background:"none",border:"none",cursor:"pointer",color:"rgba(255,255,255,0.4)",padding:2 }}>
             <ChevronRight size={14} />
           </button>
         </div>
 
-        {/* Basemap selector */}
-        <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.35)", marginBottom: 8 }}>
-            Mapa base
-          </div>
-          <div style={{ display: "flex", gap: 6 }}>
-            {(Object.keys(BASEMAPS) as BasemapKey[]).map(k => (
-              <button
-                key={k}
-                onClick={() => setBasemap(k)}
-                style={{
-                  flex: 1, padding: "5px 4px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer",
-                  background: basemap === k ? "rgba(0,212,255,0.15)" : "rgba(255,255,255,0.05)",
-                  color: basemap === k ? "#00d4ff" : "rgba(255,255,255,0.5)",
-                  border: `1px solid ${basemap === k ? "rgba(0,212,255,0.3)" : "rgba(255,255,255,0.07)"}`,
-                  transition: "all 0.15s",
-                }}>
-                {BASEMAPS[k].label}
-              </button>
+        {/* Basemap */}
+        <div style={{ padding:"10px 14px", borderBottom:"1px solid rgba(255,255,255,0.07)" }}>
+          <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.1em", textTransform:"uppercase", color:"rgba(255,255,255,0.35)", marginBottom:8 }}>Mapa base</div>
+          <div style={{ display:"flex", gap:6 }}>
+            {(Object.keys(BASEMAPS) as BasemapKey[]).map(k=>(
+              <button key={k} onClick={()=>setBasemap(k)} style={{
+                flex:1, padding:"5px 4px", borderRadius:6, fontSize:11, fontWeight:600, cursor:"pointer",
+                background:basemap===k?"rgba(0,212,255,0.15)":"rgba(255,255,255,0.05)",
+                color:basemap===k?"#00d4ff":"rgba(255,255,255,0.5)",
+                border:`1px solid ${basemap===k?"rgba(0,212,255,0.3)":"rgba(255,255,255,0.07)"}`,
+                transition:"all 0.15s",
+              }}>{BASEMAPS[k].label}</button>
             ))}
           </div>
         </div>
 
-        {/* Choropleth layers */}
-        <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.35)", marginBottom: 8 }}>
-            Capa departamental
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        {/* Choropleth */}
+        <div style={{ padding:"10px 14px", borderBottom:"1px solid rgba(255,255,255,0.07)" }}>
+          <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.1em", textTransform:"uppercase", color:"rgba(255,255,255,0.35)", marginBottom:8 }}>Capa departamental</div>
+          <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
             {LAYERS.map(l => {
-              const Icon = l.icon;
-              const active = activeLayer === l.key;
+              const Icon=l.icon; const active=activeLayer===l.key;
               return (
-                <button
-                  key={l.key}
-                  onClick={() => setActiveLayer(l.key)}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 9, padding: "7px 10px",
-                    borderRadius: 7, cursor: "pointer", textAlign: "left", width: "100%",
-                    background: active ? `${l.color}18` : "transparent",
-                    border: `1px solid ${active ? `${l.color}40` : "transparent"}`,
-                    transition: "all 0.15s",
-                  }}>
-                  <div style={{
-                    width: 8, height: 8, borderRadius: "50%", flexShrink: 0,
-                    background: active ? l.color : "rgba(255,255,255,0.2)",
-                  }} />
-                  <Icon size={13} style={{ color: active ? l.color : "rgba(255,255,255,0.35)", flexShrink: 0 }} />
-                  <span style={{ fontSize: 12, fontWeight: active ? 600 : 400, color: active ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.5)" }}>
-                    {l.label}
-                  </span>
+                <button key={l.key} onClick={()=>setActiveLayer(l.key)} style={{
+                  display:"flex", alignItems:"center", gap:9, padding:"7px 10px", borderRadius:7, cursor:"pointer", textAlign:"left", width:"100%",
+                  background:active?`${l.color}18`:"transparent", border:`1px solid ${active?`${l.color}40`:"transparent"}`, transition:"all 0.15s",
+                }}>
+                  <div style={{ width:8,height:8,borderRadius:"50%",flexShrink:0,background:active?l.color:"rgba(255,255,255,0.2)" }} />
+                  <Icon size={13} style={{ color:active?l.color:"rgba(255,255,255,0.35)",flexShrink:0 }} />
+                  <span style={{ fontSize:12,fontWeight:active?600:400,color:active?"rgba(255,255,255,0.9)":"rgba(255,255,255,0.5)" }}>{l.label}</span>
                 </button>
               );
             })}
           </div>
         </div>
 
-        {/* Overlay layers */}
-        <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.35)", marginBottom: 8 }}>
-            Superposiciones
+        {/* Overlays */}
+        <div style={{ padding:"10px 14px", borderBottom:"1px solid rgba(255,255,255,0.07)" }}>
+          <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.1em", textTransform:"uppercase", color:"rgba(255,255,255,0.35)", marginBottom:8 }}>Superposiciones</div>
+          <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
+            {OVERLAYS.map(o => {
+              const Icon=o.icon;
+              return (
+                <button key={o.key} onClick={o.toggle} style={{
+                  display:"flex", alignItems:"center", gap:9, padding:"7px 10px", width:"100%", borderRadius:7, cursor:"pointer",
+                  background:o.active?`${o.color}12`:"transparent", border:`1px solid ${o.active?`${o.color}30`:"transparent"}`, transition:"all 0.15s",
+                }}>
+                  {o.active ? <Eye size={13} style={{ color:o.color }} /> : <EyeOff size={13} style={{ color:"rgba(255,255,255,0.35)" }} />}
+                  <Icon size={13} style={{ color:o.active?o.color:"rgba(255,255,255,0.35)",flexShrink:0 }} />
+                  <span style={{ fontSize:12,fontWeight:o.active?600:400,color:o.active?"rgba(255,255,255,0.9)":"rgba(255,255,255,0.5)" }}>{o.label}</span>
+                  {o.count>0&&(
+                    <span style={{ marginLeft:"auto",fontSize:10,fontWeight:700,color:o.color,background:`${o.color}15`,borderRadius:10,padding:"1px 6px" }}>
+                      {o.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
-          <button
-            onClick={() => setShowBlockades(p => !p)}
-            style={{
-              display: "flex", alignItems: "center", gap: 9, padding: "7px 10px", width: "100%",
-              borderRadius: 7, cursor: "pointer",
-              background: showBlockades ? "rgba(239,68,68,0.12)" : "transparent",
-              border: `1px solid ${showBlockades ? "rgba(239,68,68,0.3)" : "transparent"}`,
-              transition: "all 0.15s",
-            }}>
-            {showBlockades ? <Eye size={13} style={{ color: "#ef4444" }} /> : <EyeOff size={13} style={{ color: "rgba(255,255,255,0.35)" }} />}
-            <MapPin size={13} style={{ color: showBlockades ? "#ef4444" : "rgba(255,255,255,0.35)", flexShrink: 0 }} />
-            <span style={{ fontSize: 12, fontWeight: showBlockades ? 600 : 400, color: showBlockades ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.5)" }}>
-              Bloqueos activos
-            </span>
-            {activeBlockades.length > 0 && (
-              <span style={{
-                marginLeft: "auto", fontSize: 10, fontWeight: 700, color: "#ef4444",
-                background: "rgba(239,68,68,0.15)", borderRadius: 10, padding: "1px 6px",
-              }}>
-                {activeBlockades.filter((b: any) => b.lat && b.lng).length}
-              </span>
-            )}
-          </button>
         </div>
 
         {/* Legend */}
-        {activeLayerMeta.legend.length > 0 && (
-          <div style={{ padding: "10px 14px" }}>
-            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.35)", marginBottom: 8 }}>
+        {activeLayerMeta.legend.length>0&&(
+          <div style={{ padding:"10px 14px", borderBottom:"1px solid rgba(255,255,255,0.07)" }}>
+            <div style={{ fontSize:10,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:"rgba(255,255,255,0.35)",marginBottom:8 }}>
               Leyenda — {activeLayerMeta.label}
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              {activeLayerMeta.legend.map(l => (
-                <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ width: 20, height: 12, borderRadius: 3, background: l.color, border: "1px solid rgba(255,255,255,0.15)", flexShrink: 0 }} />
-                  <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>{l.label}</span>
+            <div style={{ display:"flex",flexDirection:"column",gap:4 }}>
+              {activeLayerMeta.legend.map(l=>(
+                <div key={l.label} style={{ display:"flex",alignItems:"center",gap:8 }}>
+                  <div style={{ width:20,height:12,borderRadius:3,background:l.color,border:"1px solid rgba(255,255,255,0.15)",flexShrink:0 }} />
+                  <span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>{l.label}</span>
                 </div>
               ))}
             </div>
           </div>
         )}
 
+        {/* Overlay legend */}
+        {(showPeajes||showPolicia||showHospitales||showBlockades)&&(
+          <div style={{ padding:"10px 14px", borderBottom:"1px solid rgba(255,255,255,0.07)" }}>
+            <div style={{ fontSize:10,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:"rgba(255,255,255,0.35)",marginBottom:8 }}>Símbolos activos</div>
+            <div style={{ display:"flex",flexDirection:"column",gap:5 }}>
+              {showBlockades&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:12,height:12,borderRadius:"50%",background:"#ef4444",border:"2px solid #ef4444" }} /><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Bloqueo activo</span></div>}
+              {showPeajes&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(245,158,11,0.9)",border:"2px solid #f59e0b",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:"#fff" }}>$</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Peaje INVIAS/ANI</span></div>}
+              {showPolicia&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(59,130,246,0.9)",border:"2px solid #3b82f6",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:"#fff" }}>P</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Policía Carreteras</span></div>}
+              {showHospitales&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(16,185,129,0.9)",border:"2px solid #10b981",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff" }}>✚</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Hospital referencia</span></div>}
+            </div>
+          </div>
+        )}
+
         {/* Tip */}
-        <div style={{ padding: "8px 14px 12px", borderTop: "1px solid rgba(255,255,255,0.07)" }}>
-          <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
-            <Info size={11} style={{ color: "rgba(255,255,255,0.3)", marginTop: 1, flexShrink: 0 }} />
-            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", lineHeight: 1.5 }}>
-              Haga clic en un departamento o bloqueo para ver detalles.
+        <div style={{ padding:"8px 14px 12px" }}>
+          <div style={{ display:"flex",gap:6,alignItems:"flex-start" }}>
+            <Info size={11} style={{ color:"rgba(255,255,255,0.3)",marginTop:1,flexShrink:0 }} />
+            <span style={{ fontSize:10,color:"rgba(255,255,255,0.3)",lineHeight:1.5 }}>
+              Haga clic en cualquier punto o departamento para ver detalles completos.
             </span>
           </div>
         </div>
       </div>
 
-      {/* ── Panel toggle button (when collapsed) ── */}
-      {!panelOpen && (
-        <button
-          onClick={() => setPanelOpen(true)}
-          style={{
-            position: "absolute", top: 16, right: 16, zIndex: 1001,
-            background: "rgba(7,12,21,0.93)", border: "1px solid rgba(255,255,255,0.15)",
-            borderRadius: 8, padding: "8px 10px", cursor: "pointer",
-            display: "flex", alignItems: "center", gap: 6, color: "#00d4ff",
-            backdropFilter: "blur(12px)", boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
-          }}>
-          <Layers size={16} />
-          <ChevronLeft size={14} />
+      {/* Panel toggle */}
+      {!panelOpen&&(
+        <button onClick={()=>setPanelOpen(true)} style={{
+          position:"absolute",top:16,right:16,zIndex:1001,
+          background:"rgba(7,12,21,0.93)",border:"1px solid rgba(255,255,255,0.15)",
+          borderRadius:8,padding:"8px 10px",cursor:"pointer",
+          display:"flex",alignItems:"center",gap:6,color:"#00d4ff",
+          backdropFilter:"blur(12px)",boxShadow:"0 4px 16px rgba(0,0,0,0.4)",
+        }}>
+          <Layers size={16} /><ChevronLeft size={14} />
         </button>
       )}
 
-      {/* ── Dark popup CSS ── */}
       <style>{`
-        .dark-popup .leaflet-popup-content-wrapper {
-          background: #0c1220 !important;
-          border: 1px solid rgba(255,255,255,0.1) !important;
-          border-radius: 10px !important;
-          box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important;
-        }
-        .dark-popup .leaflet-popup-tip {
-          background: #0c1220 !important;
-        }
-        .dark-popup .leaflet-popup-content {
-          margin: 12px 14px !important;
-        }
-        .leaflet-container {
-          font-family: inherit;
-        }
+        .dark-popup .leaflet-popup-content-wrapper{background:#0c1220!important;border:1px solid rgba(255,255,255,0.1)!important;border-radius:10px!important;box-shadow:0 8px 32px rgba(0,0,0,0.6)!important}
+        .dark-popup .leaflet-popup-tip{background:#0c1220!important}
+        .dark-popup .leaflet-popup-content{margin:12px 14px!important}
+        .leaflet-container{font-family:inherit}
       `}</style>
     </div>
   );
