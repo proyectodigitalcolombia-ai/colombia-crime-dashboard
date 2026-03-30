@@ -566,6 +566,163 @@ const ESTACIONES_SERVICIO: EstacionServicio[] = [
   { name:"Terpel Arboletes",         marca:"Terpel",   ruta:"Ruta 25 — Arboletes",municipio:"Arboletes",        dept:"Antioquia",         lat: 8.857, lng:-76.422, servicios:"ACPM · Corriente · Taller · Parqueadero · Zona costal" },
 ];
 
+/* ── AEROPUERTOS CIVILES Y DE CARGA ── */
+interface Aeropuerto { name: string; codigo: string; ciudad: string; dept: string; lat: number; lng: number; tipo: string; pista?: string; carga: boolean; }
+const AEROPUERTOS: Aeropuerto[] = [
+  { name:"El Dorado",                   codigo:"BOG", ciudad:"Bogotá",          dept:"Bogotá D.C.",       lat: 4.702, lng:-74.147, tipo:"Internacional",  pista:"3800 m",  carga:true  },
+  { name:"José María Córdova",          codigo:"MDE", ciudad:"Rionegro",        dept:"Antioquia",         lat: 6.164, lng:-75.423, tipo:"Internacional",  pista:"3558 m",  carga:true  },
+  { name:"Alfonso Bonilla Aragón",      codigo:"CLO", ciudad:"Cali",            dept:"Valle del Cauca",   lat: 3.543, lng:-76.382, tipo:"Internacional",  pista:"3000 m",  carga:true  },
+  { name:"Ernesto Cortissoz",           codigo:"BAQ", ciudad:"Barranquilla",    dept:"Atlántico",         lat:10.890, lng:-74.781, tipo:"Internacional",  pista:"2997 m",  carga:true  },
+  { name:"Rafael Núñez",                codigo:"CTG", ciudad:"Cartagena",       dept:"Bolívar",           lat:10.443, lng:-75.513, tipo:"Internacional",  pista:"2600 m",  carga:true  },
+  { name:"Palonegro",                   codigo:"BGA", ciudad:"Bucaramanga",     dept:"Santander",         lat: 7.132, lng:-73.185, tipo:"Nacional",       pista:"2200 m",  carga:false },
+  { name:"Camilo Daza",                 codigo:"CUC", ciudad:"Cúcuta",          dept:"Norte de Santander",lat: 7.928, lng:-72.512, tipo:"Internacional",  pista:"2600 m",  carga:true  },
+  { name:"Simón Bolívar",               codigo:"SMR", ciudad:"Santa Marta",     dept:"Magdalena",         lat:11.120, lng:-74.231, tipo:"Nacional",       pista:"1800 m",  carga:false },
+  { name:"Los Garzones",                codigo:"MTR", ciudad:"Montería",        dept:"Córdoba",           lat: 8.823, lng:-75.826, tipo:"Nacional",       pista:"1800 m",  carga:false },
+  { name:"El Caraño",                   codigo:"UIB", ciudad:"Quibdó",          dept:"Chocó",             lat: 5.696, lng:-76.641, tipo:"Nacional",       pista:"1200 m",  carga:false },
+  { name:"Antonio Nariño",              codigo:"PSO", ciudad:"Pasto",           dept:"Nariño",            lat: 1.396, lng:-77.288, tipo:"Nacional",       pista:"1800 m",  carga:false },
+  { name:"Perales",                     codigo:"IBE", ciudad:"Ibagué",          dept:"Tolima",            lat: 4.427, lng:-75.133, tipo:"Nacional",       pista:"1400 m",  carga:false },
+  { name:"Benito Salas",                codigo:"NVA", ciudad:"Neiva",           dept:"Huila",             lat: 2.951, lng:-75.294, tipo:"Nacional",       pista:"1800 m",  carga:false },
+  { name:"Matecaña",                    codigo:"PEI", ciudad:"Pereira",         dept:"Risaralda",         lat: 4.813, lng:-75.740, tipo:"Nacional",       pista:"1700 m",  carga:false },
+  { name:"La Nubia",                    codigo:"MZL", ciudad:"Manizales",       dept:"Caldas",            lat: 5.029, lng:-75.467, tipo:"Nacional",       pista:"1530 m",  carga:false },
+  { name:"El Edén",                     codigo:"AXM", ciudad:"Armenia",         dept:"Quindío",           lat: 4.453, lng:-75.765, tipo:"Nacional",       pista:"1805 m",  carga:false },
+  { name:"Vásquez Cobo",                codigo:"LET", ciudad:"Leticia",         dept:"Amazonas",          lat:-4.193, lng:-69.943, tipo:"Internacional",  pista:"1900 m",  carga:false },
+  { name:"Gustavo Rojas Pinilla",       codigo:"ADZ", ciudad:"San Andrés",      dept:"San Andrés",        lat:12.584, lng:-81.711, tipo:"Internacional",  pista:"2100 m",  carga:false },
+  { name:"Yariguíes",                   codigo:"EJA", ciudad:"Barrancabermeja", dept:"Santander",         lat: 7.024, lng:-73.808, tipo:"Nacional",       pista:"1800 m",  carga:false },
+  { name:"Alfonso López Pumarejo",      codigo:"VUP", ciudad:"Valledupar",      dept:"Cesar",             lat:10.435, lng:-73.249, tipo:"Nacional",       pista:"1940 m",  carga:false },
+  { name:"Guillermo León Valencia",     codigo:"PPN", ciudad:"Popayán",         dept:"Cauca",             lat: 2.454, lng:-76.610, tipo:"Nacional",       pista:"1500 m",  carga:false },
+  { name:"Almirante Padilla",           codigo:"RCH", ciudad:"Riohacha",        dept:"La Guajira",        lat:11.527, lng:-72.926, tipo:"Nacional",       pista:"1600 m",  carga:false },
+];
+
+/* ── ZONAS FRANCAS PERMANENTES ── */
+interface ZonaFranca { name: string; ciudad: string; dept: string; lat: number; lng: number; area: string; tel?: string; }
+const ZONAS_FRANCAS: ZonaFranca[] = [
+  { name:"Zona Franca de Bogotá",         ciudad:"Bogotá",       dept:"Bogotá D.C.",     lat: 4.690, lng:-74.155, area:"322 ha",  tel:"(601) 423-5100" },
+  { name:"Zona Franca de Occidente",      ciudad:"Cali",         dept:"Valle del Cauca", lat: 3.489, lng:-76.455, area:"210 ha",  tel:"(602) 680-2020" },
+  { name:"Zona Franca de Barranquilla",   ciudad:"Barranquilla", dept:"Atlántico",       lat:10.923, lng:-74.795, area:"97 ha",   tel:"(605) 340-1600" },
+  { name:"Zona Franca de Cartagena",      ciudad:"Cartagena",    dept:"Bolívar",         lat:10.390, lng:-75.490, area:"115 ha",  tel:"(605) 693-9200" },
+  { name:"Zona Franca Rionegro (AEROCAFE)",ciudad:"Rionegro",   dept:"Antioquia",       lat: 6.166, lng:-75.413, area:"88 ha",   tel:"(604) 569-0020" },
+  { name:"Zona Franca de Cúcuta",         ciudad:"Cúcuta",       dept:"Norte de Santander",lat: 7.905, lng:-72.496, area:"76 ha", tel:"(607) 577-5020" },
+  { name:"Zona Franca La Cayena",         ciudad:"Medellín",     dept:"Antioquia",       lat: 6.266, lng:-75.592, area:"46 ha",   tel:"(604) 444-5000" },
+  { name:"Zona Franca de Palmaseca",      ciudad:"Palmira",      dept:"Valle del Cauca", lat: 3.548, lng:-76.390, area:"75 ha",   tel:"(602) 665-0044" },
+  { name:"Zona Franca Urabá",             ciudad:"Apartadó",     dept:"Antioquia",       lat: 7.879, lng:-76.627, area:"60 ha",   tel:"(604) 828-0220" },
+  { name:"Zona Franca de Santander",      ciudad:"Bucaramanga",  dept:"Santander",       lat: 7.085, lng:-73.116, area:"55 ha",   tel:"(607) 698-0100" },
+  { name:"Zona Franca de Pereira",        ciudad:"Pereira",      dept:"Risaralda",       lat: 4.834, lng:-75.699, area:"42 ha",   tel:"(606) 315-1100" },
+];
+
+/* ── PUERTOS FLUVIALES ── */
+interface PuertoFluvial { name: string; rio: string; municipio: string; dept: string; lat: number; lng: number; tipo: string; tel?: string; }
+const PUERTOS_FLUVIALES: PuertoFluvial[] = [
+  { name:"Puerto Salgar",          rio:"Río Magdalena",  municipio:"Puerto Salgar",     dept:"Cundinamarca",      lat: 5.467, lng:-74.653, tipo:"Carga / Paso",      tel:"(601) 858-1100" },
+  { name:"Puerto La Dorada",       rio:"Río Magdalena",  municipio:"La Dorada",         dept:"Caldas",            lat: 5.451, lng:-74.668, tipo:"Carga / Graneles",   tel:"(606) 853-1500" },
+  { name:"Puerto Berrío",          rio:"Río Magdalena",  municipio:"Puerto Berrío",     dept:"Antioquia",         lat: 6.490, lng:-74.404, tipo:"Carga / Petróleo",   tel:"(604) 851-2020" },
+  { name:"Puerto de Barrancabermeja",rio:"Río Magdalena",municipio:"Barrancabermeja",   dept:"Santander",         lat: 7.065, lng:-73.856, tipo:"Petróleo / Industrial",tel:"(607) 622-5000" },
+  { name:"Puerto Colombia (Bca.)", rio:"Río Magdalena",  municipio:"Barrancabermeja",   dept:"Santander",         lat: 7.058, lng:-73.861, tipo:"Carbón / Carga",     tel:"(607) 622-6000" },
+  { name:"Puerto Boyacá",          rio:"Río Magdalena",  municipio:"Puerto Boyacá",     dept:"Boyacá",            lat: 5.976, lng:-74.591, tipo:"Carga / Ganado",     tel:"(608) 648-1500" },
+  { name:"Muelle Contecar",        rio:"Bahía Cartagena",municipio:"Cartagena",         dept:"Bolívar",           lat:10.365, lng:-75.503, tipo:"Contenedores",       tel:"(605) 693-9000" },
+  { name:"SPR Cartagena",          rio:"Bahía Cartagena",municipio:"Cartagena",         dept:"Bolívar",           lat:10.393, lng:-75.489, tipo:"Carga General",      tel:"(605) 693-7000" },
+  { name:"Puerto de Barranquilla", rio:"Río Magdalena",  municipio:"Barranquilla",      dept:"Atlántico",         lat:10.962, lng:-74.804, tipo:"Multimodal / Gran Puerto",tel:"(605) 379-0044" },
+  { name:"Puerto de Buenaventura", rio:"Bahía Buenaventura",municipio:"Buenaventura",   dept:"Valle del Cauca",   lat: 3.885, lng:-77.029, tipo:"Contenedores / Carga",tel:"(602) 240-0344" },
+  { name:"Muelle Magangué",        rio:"Río Magdalena",  municipio:"Magangué",          dept:"Bolívar",           lat: 9.240, lng:-74.752, tipo:"Pasajeros / Carga",  tel:"(605) 689-2200" },
+  { name:"Puerto López",           rio:"Río Meta",       municipio:"Puerto López",      dept:"Meta",              lat: 4.085, lng:-72.956, tipo:"Carga / Llanera",    tel:"(608) 673-2200" },
+  { name:"Puerto Carreño",         rio:"Río Orinoco",    municipio:"Puerto Carreño",    dept:"Vichada",           lat: 6.187, lng:-67.486, tipo:"Frontera Venezuela",  tel:"(608) 565-0500" },
+  { name:"Puerto Asís",            rio:"Río Putumayo",   municipio:"Puerto Asís",       dept:"Putumayo",          lat: 0.507, lng:-76.502, tipo:"Carga / Fluvial",    tel:"(608) 433-0200" },
+  { name:"Leticia (Amazonas)",     rio:"Río Amazonas",   municipio:"Leticia",           dept:"Amazonas",          lat:-4.213, lng:-69.942, tipo:"Internacional — Brasil/Perú",tel:"(608) 592-7100" },
+  { name:"Mompox",                 rio:"Río Magdalena",  municipio:"Mompox",            dept:"Bolívar",           lat: 9.239, lng:-74.433, tipo:"Pasajeros / Turismo", tel:"(605) 685-5100" },
+];
+
+/* ── PUNTOS DE CONTROL DIAN ── */
+interface PuntoDIAN { name: string; tipo: string; municipio: string; dept: string; lat: number; lng: number; tel?: string; frontera?: boolean; }
+const PUNTOS_DIAN: PuntoDIAN[] = [
+  { name:"DIAN Bogotá — Aeropuerto El Dorado", tipo:"Aduana Aérea",       municipio:"Bogotá",       dept:"Bogotá D.C.",       lat: 4.698, lng:-74.140, tel:"(601) 546-3400", frontera:false },
+  { name:"DIAN Bogotá — Dirección Seccional",  tipo:"Fiscalización",      municipio:"Bogotá",       dept:"Bogotá D.C.",       lat: 4.650, lng:-74.088, tel:"(601) 307-1400", frontera:false },
+  { name:"DIAN Medellín — Seccional",          tipo:"Fiscalización",      municipio:"Medellín",     dept:"Antioquia",         lat: 6.236, lng:-75.576, tel:"(604) 511-4600", frontera:false },
+  { name:"DIAN Cali — Seccional",              tipo:"Fiscalización",      municipio:"Cali",         dept:"Valle del Cauca",   lat: 3.439, lng:-76.523, tel:"(602) 886-0700", frontera:false },
+  { name:"DIAN Barranquilla — Puerto",         tipo:"Aduana Marítima",    municipio:"Barranquilla", dept:"Atlántico",         lat:10.978, lng:-74.810, tel:"(605) 379-0070", frontera:false },
+  { name:"DIAN Cartagena — Puerto",            tipo:"Aduana Marítima",    municipio:"Cartagena",    dept:"Bolívar",           lat:10.394, lng:-75.486, tel:"(605) 693-9300", frontera:false },
+  { name:"DIAN Buenaventura — Puerto",         tipo:"Aduana Marítima",    municipio:"Buenaventura", dept:"Valle del Cauca",   lat: 3.888, lng:-77.025, tel:"(602) 240-4040", frontera:false },
+  { name:"DIAN Ipiales — Rumichaca",           tipo:"Aduana Terrestre",   municipio:"Ipiales",      dept:"Nariño",            lat: 0.830, lng:-77.647, tel:"(602) 773-0700", frontera:true  },
+  { name:"DIAN Cúcuta — Villa del Rosario",    tipo:"Aduana Terrestre",   municipio:"Villa del Rosario",dept:"Norte de Santander",lat: 7.845, lng:-72.471, tel:"(607) 583-1200", frontera:true  },
+  { name:"DIAN Arauca — Frontera Venezuela",   tipo:"Aduana Terrestre",   municipio:"Arauca",       dept:"Arauca",            lat: 7.090, lng:-70.758, tel:"(607) 885-1500", frontera:true  },
+  { name:"DIAN Leticia — Frontera Brasil/Perú",tipo:"Aduana Fluvial",     municipio:"Leticia",      dept:"Amazonas",          lat:-4.207, lng:-69.940, tel:"(608) 592-7400", frontera:true  },
+  { name:"DIAN Bucaramanga — Seccional",       tipo:"Fiscalización",      municipio:"Bucaramanga",  dept:"Santander",         lat: 7.113, lng:-73.120, tel:"(607) 633-7500", frontera:false },
+  { name:"DIAN Santa Marta — Puerto",          tipo:"Aduana Marítima",    municipio:"Santa Marta",  dept:"Magdalena",         lat:11.247, lng:-74.198, tel:"(605) 431-2200", frontera:false },
+  { name:"DIAN Valledupar — Seccional",        tipo:"Fiscalización",      municipio:"Valledupar",   dept:"Cesar",             lat:10.477, lng:-73.253, tel:"(605) 574-1800", frontera:false },
+];
+
+/* ── CRUZ ROJA Y DEFENSA CIVIL ── */
+interface EmergenciaHumanitaria { name: string; org: string; ciudad: string; dept: string; lat: number; lng: number; tel?: string; }
+const EMERGENCIAS_HUMANITARIAS: EmergenciaHumanitaria[] = [
+  { name:"Cruz Roja Colombiana — Bogotá",        org:"Cruz Roja",     ciudad:"Bogotá",       dept:"Bogotá D.C.",     lat: 4.627, lng:-74.065, tel:"(601) 437-6339" },
+  { name:"Cruz Roja Colombiana — Medellín",      org:"Cruz Roja",     ciudad:"Medellín",     dept:"Antioquia",       lat: 6.244, lng:-75.570, tel:"(604) 285-1010" },
+  { name:"Cruz Roja Colombiana — Cali",          org:"Cruz Roja",     ciudad:"Cali",         dept:"Valle del Cauca", lat: 3.440, lng:-76.533, tel:"(602) 880-5454" },
+  { name:"Cruz Roja Colombiana — Barranquilla",  org:"Cruz Roja",     ciudad:"Barranquilla", dept:"Atlántico",       lat:10.989, lng:-74.806, tel:"(605) 379-2020" },
+  { name:"Cruz Roja Colombiana — Cartagena",     org:"Cruz Roja",     ciudad:"Cartagena",    dept:"Bolívar",         lat:10.400, lng:-75.504, tel:"(605) 664-7070" },
+  { name:"Cruz Roja Colombiana — Bucaramanga",   org:"Cruz Roja",     ciudad:"Bucaramanga",  dept:"Santander",       lat: 7.114, lng:-73.114, tel:"(607) 634-0303" },
+  { name:"Cruz Roja Colombiana — Cúcuta",        org:"Cruz Roja",     ciudad:"Cúcuta",       dept:"Norte de Santander",lat: 7.891, lng:-72.508, tel:"(607) 571-2233" },
+  { name:"Cruz Roja Colombiana — Ibagué",        org:"Cruz Roja",     ciudad:"Ibagué",       dept:"Tolima",          lat: 4.432, lng:-75.243, tel:"(608) 261-2020" },
+  { name:"Cruz Roja Colombiana — Pereira",       org:"Cruz Roja",     ciudad:"Pereira",      dept:"Risaralda",       lat: 4.812, lng:-75.696, tel:"(606) 325-0505" },
+  { name:"Cruz Roja Colombiana — Manizales",     org:"Cruz Roja",     ciudad:"Manizales",    dept:"Caldas",          lat: 5.064, lng:-75.511, tel:"(606) 884-0202" },
+  { name:"Cruz Roja Colombiana — Neiva",         org:"Cruz Roja",     ciudad:"Neiva",        dept:"Huila",           lat: 2.932, lng:-75.294, tel:"(608) 871-1530" },
+  { name:"Cruz Roja Colombiana — Pasto",         org:"Cruz Roja",     ciudad:"Pasto",        dept:"Nariño",          lat: 1.214, lng:-77.279, tel:"(602) 723-5150" },
+  { name:"Cruz Roja Colombiana — Villavicencio", org:"Cruz Roja",     ciudad:"Villavicencio",dept:"Meta",            lat: 4.149, lng:-73.633, tel:"(608) 671-4040" },
+  { name:"Cruz Roja Colombiana — Santa Marta",   org:"Cruz Roja",     ciudad:"Santa Marta",  dept:"Magdalena",       lat:11.240, lng:-74.198, tel:"(605) 422-3030" },
+  { name:"Defensa Civil — Bogotá",               org:"Defensa Civil", ciudad:"Bogotá",       dept:"Bogotá D.C.",     lat: 4.648, lng:-74.073, tel:"(601) 342-1400" },
+  { name:"Defensa Civil — Medellín",             org:"Defensa Civil", ciudad:"Medellín",     dept:"Antioquia",       lat: 6.248, lng:-75.573, tel:"(604) 251-1616" },
+  { name:"Defensa Civil — Cali",                 org:"Defensa Civil", ciudad:"Cali",         dept:"Valle del Cauca", lat: 3.436, lng:-76.530, tel:"(602) 889-3030" },
+  { name:"Defensa Civil — Barranquilla",         org:"Defensa Civil", ciudad:"Barranquilla", dept:"Atlántico",       lat:10.995, lng:-74.813, tel:"(605) 378-1515" },
+  { name:"Defensa Civil — Bucaramanga",          org:"Defensa Civil", ciudad:"Bucaramanga",  dept:"Santander",       lat: 7.110, lng:-73.117, tel:"(607) 634-6060" },
+  { name:"Defensa Civil — Villavicencio",        org:"Defensa Civil", ciudad:"Villavicencio",dept:"Meta",            lat: 4.145, lng:-73.638, tel:"(608) 671-2525" },
+];
+
+/* ── TALLERES DE MECÁNICA PESADA ── */
+interface TallerPesado { name: string; ruta: string; municipio: string; dept: string; lat: number; lng: number; servicios: string; tel?: string; }
+const TALLERES_PESADOS: TallerPesado[] = [
+  { name:"Servitruck Norte",          ruta:"Ruta 45A — Km 14",   municipio:"Bogotá (salida N)",dept:"Bogotá D.C.",      lat: 4.780, lng:-74.022, servicios:"Diésel · Frenos · Grúa · Latonería",  tel:"(601) 668-5050" },
+  { name:"Diesel Center Villeta",     ruta:"Ruta 45A — Km 72",   municipio:"Villeta",          dept:"Cundinamarca",     lat: 5.008, lng:-74.470, servicios:"Motor · Frenos · Grúa 24h",           tel:"(601) 857-0202" },
+  { name:"Taller Camiones Puerto Salgar",ruta:"Ruta 45A — Km 131",municipio:"Puerto Salgar",   dept:"Cundinamarca",     lat: 5.469, lng:-74.652, servicios:"Motor · Caja · Diferencial · Grúa",   tel:"(601) 858-2020" },
+  { name:"Mecánica Pesada La Dorada", ruta:"Ruta 45 — Km 187",   municipio:"La Dorada",        dept:"Caldas",           lat: 5.455, lng:-74.671, servicios:"Motor · Frenos · Grúa · Latonería",   tel:"(606) 853-3030" },
+  { name:"Taller Autopista P. Berrío",ruta:"Ruta 45 — Km 246",   municipio:"Puerto Berrío",    dept:"Antioquia",        lat: 6.490, lng:-74.403, servicios:"Diésel · Frenos · Turbo · Grúa 24h", tel:"(604) 851-4040" },
+  { name:"Cisneros Diesel & Grúa",   ruta:"Ruta 45 — Km 290",   municipio:"Cisneros",         dept:"Antioquia",        lat: 6.537, lng:-74.984, servicios:"Motor · Turbo · Diferencial · Grúa",  tel:"(604) 831-0101" },
+  { name:"Taller Caucasia Pesados",   ruta:"Ruta 25 — Caucasia",  municipio:"Caucasia",         dept:"Antioquia",        lat: 7.992, lng:-75.197, servicios:"Motor · Frenos · Grúa · Latonería",   tel:"(604) 838-4040" },
+  { name:"Mecánica Buga Industrial",  ruta:"Ruta 25 — Buga",      municipio:"Guadalajara de Buga",dept:"Valle del Cauca",lat: 3.904, lng:-76.302, servicios:"Motor · Caja · Frenos · Soldadura",   tel:"(602) 228-5050" },
+  { name:"Taller Cartago Pesados",    ruta:"Ruta 25 — Cartago",   municipio:"Cartago",          dept:"Valle del Cauca", lat: 4.750, lng:-75.914, servicios:"Diésel · Turbo · Frenos · Grúa",      tel:"(602) 212-6060" },
+  { name:"La Pintada Diesel Center",  ruta:"Ruta 40 — La Pintada",municipio:"La Pintada",       dept:"Antioquia",        lat: 5.742, lng:-75.595, servicios:"Motor · Frenos · Grúa · Refrigeración", tel:"(604) 847-1100" },
+  { name:"Taller Girardot Autopista", ruta:"Ruta 45 — Girardot",  municipio:"Girardot",         dept:"Cundinamarca",     lat: 4.304, lng:-74.807, servicios:"Motor · Caja · Grúa 24h · Soldadura", tel:"(601) 833-4040" },
+  { name:"Espinal Mecánica Pesada",   ruta:"Ruta 45 — Espinal",   municipio:"Espinal",          dept:"Tolima",           lat: 4.156, lng:-74.888, servicios:"Motor · Frenos · Diferencial · Grúa", tel:"(608) 248-4040" },
+  { name:"Taller Tunja Pesados",      ruta:"Ruta 55 — Tunja",     municipio:"Tunja",            dept:"Boyacá",           lat: 5.542, lng:-73.361, servicios:"Motor · Frenos · Eje · Grúa 24h",    tel:"(608) 740-5050" },
+  { name:"Duitama Diesel & Servicio", ruta:"Ruta 55 — Duitama",   municipio:"Duitama",          dept:"Boyacá",           lat: 5.830, lng:-73.032, servicios:"Motor · Turbo · Frenos · Grúa",      tel:"(608) 760-4040" },
+  { name:"Taller BGA Norte Pesados",  ruta:"Ruta 55 — Bucaramanga",municipio:"Bucaramanga",     dept:"Santander",        lat: 7.167, lng:-73.112, servicios:"Diésel · Turbo · Grúa · Latonería",  tel:"(607) 634-8080" },
+  { name:"Barranca Taller Industrial",ruta:"Ruta 45 — Barrancabermeja",municipio:"Barrancabermeja",dept:"Santander",    lat: 7.068, lng:-73.858, servicios:"Motor · Caja · Frenos · Grúa 24h",   tel:"(607) 622-9090" },
+  { name:"Taller Cúcuta Pesados",     ruta:"Ruta 55 — Cúcuta",    municipio:"Cúcuta",           dept:"Norte de Santander",lat: 7.894, lng:-72.510, servicios:"Motor · Frenos · Grúa · Frontera VE", tel:"(607) 583-7070" },
+  { name:"Aguachica Diesel & Grúa",   ruta:"Ruta 55 — Aguachica",  municipio:"Aguachica",        dept:"Cesar",            lat: 8.312, lng:-73.614, servicios:"Motor · Turbo · Frenos · Grúa 24h", tel:"(607) 565-5050" },
+  { name:"Taller Sincelejo Autopista",ruta:"Ruta 25 — Sincelejo",  municipio:"Sincelejo",        dept:"Sucre",            lat: 9.305, lng:-75.399, servicios:"Motor · Frenos · Diferencial · Grúa", tel:"(605) 282-6060" },
+  { name:"Taller Montería Pesados",   ruta:"Ruta 25 — Montería",   municipio:"Montería",         dept:"Córdoba",          lat: 8.760, lng:-75.887, servicios:"Diésel · Frenos · Grúa · Soldadura",  tel:"(604) 782-5050" },
+  { name:"Popayán Diesel Center",     ruta:"Ruta 25 — Popayán",    municipio:"Popayán",          dept:"Cauca",            lat: 2.445, lng:-76.609, servicios:"Motor · Turbo · Frenos · Grúa",      tel:"(602) 824-7070" },
+  { name:"Ipiales Taller Pesados",    ruta:"Ruta 25 — Ipiales",    municipio:"Ipiales",          dept:"Nariño",           lat: 0.831, lng:-77.648, servicios:"Motor · Frenos · Grúa — frontera EC", tel:"(602) 773-5050" },
+  { name:"Taller Villavicencio Diesel",ruta:"Ruta 40 — Villavicencio",municipio:"Villavicencio", dept:"Meta",             lat: 4.152, lng:-73.636, servicios:"Motor · Caja · Grúa · Latonería",    tel:"(608) 671-8080" },
+  { name:"Taller Palmira Industrial", ruta:"Ruta 25 — Palmira",    municipio:"Palmira",          dept:"Valle del Cauca", lat: 3.523, lng:-76.304, servicios:"Motor · Turbo · Frenos · Grúa 24h",  tel:"(602) 274-7070" },
+];
+
+/* ── TERMINALES DE CARGA Y LOGÍSTICA ── */
+interface TerminalCarga { name: string; operador: string; ciudad: string; dept: string; lat: number; lng: number; servicios: string; tel?: string; }
+const TERMINALES_CARGA: TerminalCarga[] = [
+  { name:"Terminal de Carga El Dorado",     operador:"AEROCIVIL",  ciudad:"Bogotá",       dept:"Bogotá D.C.",     lat: 4.699, lng:-74.142, servicios:"Aéreo · Frío · Valorables · 24h",       tel:"(601) 266-2000" },
+  { name:"Centro Logístico TCC Bogotá",     operador:"TCC",        ciudad:"Bogotá",       dept:"Bogotá D.C.",     lat: 4.728, lng:-74.097, servicios:"Carga seca · Express · Distribución",    tel:"(601) 743-8777" },
+  { name:"Bodega Suppla Bogotá",            operador:"Suppla",     ciudad:"Bogotá",       dept:"Bogotá D.C.",     lat: 4.717, lng:-74.082, servicios:"Almacenaje · Frío · Retail · 3PL",       tel:"(601) 413-5600" },
+  { name:"Terminal DHL Bogotá",             operador:"DHL",        ciudad:"Bogotá",       dept:"Bogotá D.C.",     lat: 4.703, lng:-74.147, servicios:"Express · Aduanas · Internacional",       tel:"(601) 800-0345" },
+  { name:"Bodega DEPRISA / Avianca",        operador:"Avianca",    ciudad:"Bogotá",       dept:"Bogotá D.C.",     lat: 4.698, lng:-74.146, servicios:"Aéreo · Nacional e Internacional · 24h", tel:"(601) 587-7575" },
+  { name:"Centro de Carga Medellín",        operador:"TCC",        ciudad:"Medellín",     dept:"Antioquia",       lat: 6.173, lng:-75.432, servicios:"Distribución · Express · Almacenaje",    tel:"(604) 511-7700" },
+  { name:"Bodega Suppla Medellín",          operador:"Suppla",     ciudad:"Medellín",     dept:"Antioquia",       lat: 6.209, lng:-75.548, servicios:"Almacenaje · Frío · 3PL · Distribución", tel:"(604) 448-4040" },
+  { name:"Terminal de Carga Cali",          operador:"AEROCIVIL",  ciudad:"Cali",         dept:"Valle del Cauca", lat: 3.548, lng:-76.391, servicios:"Aéreo · Frío · Valorables",              tel:"(602) 266-2000" },
+  { name:"Centro Logístico TCC Cali",       operador:"TCC",        ciudad:"Cali",         dept:"Valle del Cauca", lat: 3.450, lng:-76.530, servicios:"Distribución · Express · Almacenaje",    tel:"(602) 800-9190" },
+  { name:"Puerto Seco Barranquilla",        operador:"SPRB",       ciudad:"Barranquilla", dept:"Atlántico",       lat:10.990, lng:-74.803, servicios:"Contenedores · Aduana · Bodegaje",        tel:"(605) 379-0060" },
+  { name:"Centro Logístico TCC Barranquilla",operador:"TCC",       ciudad:"Barranquilla", dept:"Atlántico",       lat:10.978, lng:-74.810, servicios:"Carga seca · Distribución Costa",        tel:"(605) 385-9191" },
+  { name:"Puerto Contecar Cartagena",       operador:"Contecar",   ciudad:"Cartagena",    dept:"Bolívar",         lat:10.365, lng:-75.503, servicios:"Contenedores · RORO · 24h",               tel:"(605) 693-9000" },
+  { name:"Terminal Buenaventura (TCBUEN)",  operador:"TCBUEN",     ciudad:"Buenaventura", dept:"Valle del Cauca", lat: 3.885, lng:-77.028, servicios:"Contenedores · Granel · Refrigerado",    tel:"(602) 240-0100" },
+  { name:"Centro Logístico Carga Pereira",  operador:"Enco",       ciudad:"Pereira",      dept:"Risaralda",       lat: 4.815, lng:-75.698, servicios:"Distribución Eje Cafetero · Express",    tel:"(606) 313-0808" },
+  { name:"Terminal de Carga Cúcuta",        operador:"TCC",        ciudad:"Cúcuta",       dept:"Norte de Santander",lat: 7.893, lng:-72.511, servicios:"Frontera VE · Distribución NE",       tel:"(607) 577-8585" },
+];
+
 /* ── tipos / helpers ── */
 type LayerKey = "grupos" | "riesgo" | "delitos" | "vias" | "ninguna";
 type BasemapKey = "dark" | "streets" | "satellite";
@@ -626,6 +783,13 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
   const [showHoteles,          setShowHoteles]          = useState(false);
   const [showHotelesCarretera, setShowHotelesCarretera] = useState(false);
   const [showEstaciones,       setShowEstaciones]       = useState(false);
+  const [showAeropuertos,      setShowAeropuertos]      = useState(false);
+  const [showZonasFrancas,     setShowZonasFrancas]     = useState(false);
+  const [showPuertosFluviales, setShowPuertosFluviales] = useState(false);
+  const [showDIAN,             setShowDIAN]             = useState(false);
+  const [showCruzRoja,         setShowCruzRoja]         = useState(false);
+  const [showTalleres,         setShowTalleres]         = useState(false);
+  const [showTerminales,       setShowTerminales]       = useState(false);
   const [basemap, setBasemap] = useState<BasemapKey>("dark");
   const [panelOpen, setPanelOpen] = useState(true);
   const [geoData, setGeoData] = useState<any>(null);
@@ -696,7 +860,14 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
     { key:"basculas",   label:"Básculas de Pesaje INVIAS",icon:Car,          color:"#e879f9", active:showBasculas, toggle:()=>setShowBasculas(p=>!p),   count:BASCULAS.length },
     { key:"hoteles",    label:"Hoteles Estratégicos",      icon:MapPin,       color:"#fbbf24", active:showHoteles,          toggle:()=>setShowHoteles(p=>!p),          count:HOTELES.length },
     { key:"hotelctra",  label:"Hoteles de Carretera",       icon:MapPin,       color:"#34d399", active:showHotelesCarretera, toggle:()=>setShowHotelesCarretera(p=>!p), count:HOTELES_CARRETERA.length },
-    { key:"estaciones", label:"Estaciones de Servicio",    icon:MapPin,       color:"#f97316", active:showEstaciones,       toggle:()=>setShowEstaciones(p=>!p),       count:ESTACIONES_SERVICIO.length },
+    { key:"estaciones",  label:"Estaciones de Servicio",     icon:MapPin,       color:"#f97316", active:showEstaciones,       toggle:()=>setShowEstaciones(p=>!p),        count:ESTACIONES_SERVICIO.length },
+    { key:"aeropuertos", label:"Aeropuertos",                icon:MapPin,       color:"#22d3ee", active:showAeropuertos,      toggle:()=>setShowAeropuertos(p=>!p),       count:AEROPUERTOS.length },
+    { key:"zonasfr",     label:"Zonas Francas",              icon:Building2,    color:"#6366f1", active:showZonasFrancas,     toggle:()=>setShowZonasFrancas(p=>!p),      count:ZONAS_FRANCAS.length },
+    { key:"puertosfl",   label:"Puertos Fluviales",          icon:MapPin,       color:"#0ea5e9", active:showPuertosFluviales, toggle:()=>setShowPuertosFluviales(p=>!p),  count:PUERTOS_FLUVIALES.length },
+    { key:"dian",        label:"Puntos de Control DIAN",     icon:Shield,       color:"#eab308", active:showDIAN,             toggle:()=>setShowDIAN(p=>!p),              count:PUNTOS_DIAN.length },
+    { key:"cruzroja",    label:"Cruz Roja / Defensa Civil",  icon:AlertTriangle,color:"#fb7185", active:showCruzRoja,         toggle:()=>setShowCruzRoja(p=>!p),          count:EMERGENCIAS_HUMANITARIAS.length },
+    { key:"talleres",    label:"Talleres Mecánica Pesada",   icon:Car,          color:"#94a3b8", active:showTalleres,         toggle:()=>setShowTalleres(p=>!p),          count:TALLERES_PESADOS.length },
+    { key:"terminales",  label:"Terminales de Carga",        icon:Building2,    color:"#d97706", active:showTerminales,       toggle:()=>setShowTerminales(p=>!p),        count:TERMINALES_CARGA.length },
   ];
 
   const activeLayerMeta = LAYERS.find(l=>l.key===activeLayer)!;
@@ -710,7 +881,14 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
   const basculaIcon    = makeIcon("⚖",  "rgba(232,121,249,0.92)", "#e879f9", 20);
   const hotelIcon      = makeIcon("🏨", "rgba(251,191,36,0.92)",  "#fbbf24", 22);
   const hotelCtraIcon  = makeIcon("🛏", "rgba(52,211,153,0.92)",  "#34d399", 22);
-  const estacionIcon   = makeIcon("⛽", "rgba(249,115,22,0.92)",  "#f97316", 22);
+  const estacionIcon      = makeIcon("⛽", "rgba(249,115,22,0.92)",  "#f97316", 22);
+  const aeropuertoIcon    = makeIcon("✈", "rgba(34,211,238,0.92)",  "#22d3ee", 22);
+  const zonaFrancaIcon    = makeIcon("🏭","rgba(99,102,241,0.92)",  "#6366f1", 22);
+  const puertoFluvialIcon = makeIcon("🚢","rgba(14,165,233,0.92)",  "#0ea5e9", 22);
+  const dianIcon          = makeIcon("🛃","rgba(234,179,8,0.92)",   "#eab308", 22);
+  const cruzRojaIcon      = makeIcon("✚", "rgba(251,113,133,0.92)", "#fb7185", 22);
+  const tallerIcon        = makeIcon("🔧","rgba(148,163,184,0.92)", "#94a3b8", 22);
+  const terminalIcon      = makeIcon("📦","rgba(217,119,6,0.92)",   "#d97706", 22);
 
   return (
     <div style={{ position:"relative", width:"100%", height:"calc(100vh - 120px)", minHeight:500, borderRadius:12, overflow:"hidden" }}>
@@ -881,6 +1059,130 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
                   <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Departamento</td><td style={{ textAlign:"right" }}>{b.dept}</td></tr>
                   {b.km&&<tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Punto</td><td style={{ textAlign:"right",fontWeight:600,color:"#e879f9" }}>{b.km}</td></tr>}
                   <tr><td colSpan={2} style={{ color:"#64748b",fontSize:11,paddingTop:4,borderTop:"1px solid rgba(255,255,255,0.08)" }}>Control de peso vehicular INVIAS</td></tr>
+                </table>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* ── AEROPUERTOS ── */}
+        {showAeropuertos&&AEROPUERTOS.map((a,i)=>(
+          <Marker key={`aero-${i}`} position={[a.lat,a.lng]} icon={aeropuertoIcon}>
+            <Popup className="dark-popup">
+              <div style={{ fontFamily:"sans-serif",fontSize:13,color:"#e2e8f0",minWidth:220 }}>
+                <div style={{ fontWeight:700,color:"#22d3ee",marginBottom:6 }}>✈ {a.name} ({a.codigo})</div>
+                <table style={{ width:"100%",borderCollapse:"collapse" }}>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Ciudad</td><td style={{ textAlign:"right" }}>{a.ciudad}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Dpto.</td><td style={{ textAlign:"right" }}>{a.dept}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Tipo</td><td style={{ textAlign:"right",color:"#22d3ee",fontWeight:600 }}>{a.tipo}</td></tr>
+                  {a.pista&&<tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Pista</td><td style={{ textAlign:"right" }}>{a.pista}</td></tr>}
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Carga aérea</td><td style={{ textAlign:"right",fontWeight:700,color:a.carga?"#22d3ee":"#64748b" }}>{a.carga?"✔ Sí":"No"}</td></tr>
+                </table>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* ── ZONAS FRANCAS ── */}
+        {showZonasFrancas&&ZONAS_FRANCAS.map((z,i)=>(
+          <Marker key={`zf-${i}`} position={[z.lat,z.lng]} icon={zonaFrancaIcon}>
+            <Popup className="dark-popup">
+              <div style={{ fontFamily:"sans-serif",fontSize:13,color:"#e2e8f0",minWidth:210 }}>
+                <div style={{ fontWeight:700,color:"#6366f1",marginBottom:6 }}>🏭 {z.name}</div>
+                <table style={{ width:"100%",borderCollapse:"collapse" }}>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Ciudad</td><td style={{ textAlign:"right" }}>{z.ciudad}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Dpto.</td><td style={{ textAlign:"right" }}>{z.dept}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Área</td><td style={{ textAlign:"right",color:"#6366f1",fontWeight:600 }}>{z.area}</td></tr>
+                  {z.tel&&<tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Teléfono</td><td style={{ textAlign:"right" }}>{z.tel}</td></tr>}
+                </table>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* ── PUERTOS FLUVIALES ── */}
+        {showPuertosFluviales&&PUERTOS_FLUVIALES.map((p,i)=>(
+          <Marker key={`pf-${i}`} position={[p.lat,p.lng]} icon={puertoFluvialIcon}>
+            <Popup className="dark-popup">
+              <div style={{ fontFamily:"sans-serif",fontSize:13,color:"#e2e8f0",minWidth:220 }}>
+                <div style={{ fontWeight:700,color:"#0ea5e9",marginBottom:6 }}>🚢 {p.name}</div>
+                <table style={{ width:"100%",borderCollapse:"collapse" }}>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Río / Bahía</td><td style={{ textAlign:"right",color:"#0ea5e9",fontWeight:600 }}>{p.rio}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Municipio</td><td style={{ textAlign:"right" }}>{p.municipio}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Dpto.</td><td style={{ textAlign:"right" }}>{p.dept}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Tipo</td><td style={{ textAlign:"right",fontSize:11 }}>{p.tipo}</td></tr>
+                  {p.tel&&<tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Tel.</td><td style={{ textAlign:"right" }}>{p.tel}</td></tr>}
+                </table>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* ── PUNTOS DIAN ── */}
+        {showDIAN&&PUNTOS_DIAN.map((d,i)=>(
+          <Marker key={`dian-${i}`} position={[d.lat,d.lng]} icon={dianIcon}>
+            <Popup className="dark-popup">
+              <div style={{ fontFamily:"sans-serif",fontSize:13,color:"#e2e8f0",minWidth:225 }}>
+                <div style={{ fontWeight:700,color:"#eab308",marginBottom:6 }}>🛃 {d.name}</div>
+                <table style={{ width:"100%",borderCollapse:"collapse" }}>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Tipo</td><td style={{ textAlign:"right",color:"#eab308",fontWeight:600 }}>{d.tipo}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Municipio</td><td style={{ textAlign:"right" }}>{d.municipio}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Dpto.</td><td style={{ textAlign:"right" }}>{d.dept}</td></tr>
+                  {d.frontera&&<tr><td colSpan={2} style={{ color:"#ef4444",fontWeight:700,fontSize:11,paddingTop:4 }}>⚠ Punto de control fronterizo</td></tr>}
+                  {d.tel&&<tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Tel.</td><td style={{ textAlign:"right" }}>{d.tel}</td></tr>}
+                </table>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* ── CRUZ ROJA / DEFENSA CIVIL ── */}
+        {showCruzRoja&&EMERGENCIAS_HUMANITARIAS.map((c,i)=>(
+          <Marker key={`cr-${i}`} position={[c.lat,c.lng]} icon={cruzRojaIcon}>
+            <Popup className="dark-popup">
+              <div style={{ fontFamily:"sans-serif",fontSize:13,color:"#e2e8f0",minWidth:210 }}>
+                <div style={{ fontWeight:700,color:"#fb7185",marginBottom:6 }}>✚ {c.name}</div>
+                <table style={{ width:"100%",borderCollapse:"collapse" }}>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Organización</td><td style={{ textAlign:"right",color:"#fb7185",fontWeight:600 }}>{c.org}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Ciudad</td><td style={{ textAlign:"right" }}>{c.ciudad}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Dpto.</td><td style={{ textAlign:"right" }}>{c.dept}</td></tr>
+                  {c.tel&&<tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Emergencias</td><td style={{ textAlign:"right",color:"#fb7185",fontWeight:700,fontSize:14 }}>{c.tel}</td></tr>}
+                </table>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* ── TALLERES MECÁNICA PESADA ── */}
+        {showTalleres&&TALLERES_PESADOS.map((t,i)=>(
+          <Marker key={`tal-${i}`} position={[t.lat,t.lng]} icon={tallerIcon}>
+            <Popup className="dark-popup">
+              <div style={{ fontFamily:"sans-serif",fontSize:13,color:"#e2e8f0",minWidth:220 }}>
+                <div style={{ fontWeight:700,color:"#94a3b8",marginBottom:6 }}>🔧 {t.name}</div>
+                <table style={{ width:"100%",borderCollapse:"collapse" }}>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Ruta</td><td style={{ textAlign:"right",fontSize:11,color:"#94a3b8" }}>{t.ruta}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Municipio</td><td style={{ textAlign:"right" }}>{t.municipio}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Dpto.</td><td style={{ textAlign:"right" }}>{t.dept}</td></tr>
+                  <tr><td colSpan={2} style={{ borderTop:"1px solid rgba(255,255,255,0.08)",paddingTop:4,fontSize:11,color:"#64748b" }}>{t.servicios}</td></tr>
+                  {t.tel&&<tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Tel.</td><td style={{ textAlign:"right",color:"#94a3b8",fontWeight:600 }}>{t.tel}</td></tr>}
+                </table>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* ── TERMINALES DE CARGA ── */}
+        {showTerminales&&TERMINALES_CARGA.map((t,i)=>(
+          <Marker key={`term-${i}`} position={[t.lat,t.lng]} icon={terminalIcon}>
+            <Popup className="dark-popup">
+              <div style={{ fontFamily:"sans-serif",fontSize:13,color:"#e2e8f0",minWidth:225 }}>
+                <div style={{ fontWeight:700,color:"#d97706",marginBottom:6 }}>📦 {t.name}</div>
+                <table style={{ width:"100%",borderCollapse:"collapse" }}>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Operador</td><td style={{ textAlign:"right",color:"#d97706",fontWeight:600 }}>{t.operador}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Ciudad</td><td style={{ textAlign:"right" }}>{t.ciudad}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Dpto.</td><td style={{ textAlign:"right" }}>{t.dept}</td></tr>
+                  <tr><td colSpan={2} style={{ borderTop:"1px solid rgba(255,255,255,0.08)",paddingTop:4,fontSize:11,color:"#64748b" }}>{t.servicios}</td></tr>
+                  {t.tel&&<tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Tel.</td><td style={{ textAlign:"right" }}>{t.tel}</td></tr>}
                 </table>
               </div>
             </Popup>
@@ -1061,7 +1363,14 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
               {showBasculas&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(232,121,249,0.92)",border:"2px solid #e879f9",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff" }}>⚖</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Báscula de Pesaje INVIAS</span></div>}
               {showHoteles&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(251,191,36,0.92)",border:"2px solid #fbbf24",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>🏨</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Hotel Estratégico 4★–5★</span></div>}
               {showHotelesCarretera&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(52,211,153,0.92)",border:"2px solid #34d399",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>🛏</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Hotel de Carretera / Transportadores</span></div>}
-              {showEstaciones&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(249,115,22,0.92)",border:"2px solid #f97316",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>⛽</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Estación de Servicio — Ruta nacional</span></div>}
+              {showEstaciones&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(249,115,22,0.92)",border:"2px solid #f97316",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>⛽</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Estación de Servicio</span></div>}
+              {showAeropuertos&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(34,211,238,0.92)",border:"2px solid #22d3ee",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>✈</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Aeropuerto Civil / Carga</span></div>}
+              {showZonasFrancas&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(99,102,241,0.92)",border:"2px solid #6366f1",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>🏭</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Zona Franca Permanente</span></div>}
+              {showPuertosFluviales&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(14,165,233,0.92)",border:"2px solid #0ea5e9",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>🚢</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Puerto Fluvial / Marítimo</span></div>}
+              {showDIAN&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(234,179,8,0.92)",border:"2px solid #eab308",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>🛃</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Control DIAN — Aduana</span></div>}
+              {showCruzRoja&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(251,113,133,0.92)",border:"2px solid #fb7185",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff" }}>✚</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Cruz Roja / Defensa Civil</span></div>}
+              {showTalleres&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(148,163,184,0.92)",border:"2px solid #94a3b8",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>🔧</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Taller Mecánica Pesada</span></div>}
+              {showTerminales&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(217,119,6,0.92)",border:"2px solid #d97706",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>📦</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Terminal de Carga / Logística</span></div>}
             </div>
           </div>
         )}
