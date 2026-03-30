@@ -454,6 +454,59 @@ const HOTELES: Hotel[] = [
   { name:"Hotel Los Llaneros Yopal",         cadena:"Independiente",ciudad:"Yopal",        stars:4, lat: 5.338, lng:-72.394, dept:"Casanare",          address:"Calle 8 No. 25-40",             tel:"(608) 635-5200" },
 ];
 
+/* ── HOTELES DE CARRETERA — alojamiento para conductores de transporte de carga ── */
+interface HotelCarretera { name: string; ruta: string; municipio: string; dept: string; lat: number; lng: number; address?: string; tel?: string; servicios?: string; }
+const HOTELES_CARRETERA: HotelCarretera[] = [
+  /* ── RUTA 45A — Bogotá → Puerto Salgar → La Dorada → Puerto Berrío → Medellín ── */
+  { name:"Hotel El Paso",              ruta:"Ruta 45A — Km 131", municipio:"Puerto Salgar",      dept:"Cundinamarca",     lat: 5.467, lng:-74.653, address:"Carrera 5 No. 3-42",         tel:"(601) 858-0210",  servicios:"Parqueadero carga, restaurante 24h, mecánica" },
+  { name:"Hotel El Nogal",             ruta:"Ruta 45A — Km 133", municipio:"Puerto Salgar",      dept:"Cundinamarca",     lat: 5.471, lng:-74.655, address:"Calle 4 No. 6-25",           tel:"(601) 858-1540",  servicios:"Parqueadero vigilado, cafetería" },
+  { name:"Hotel Américas",             ruta:"Ruta 45 — Km 187",  municipio:"La Dorada",          dept:"Caldas",           lat: 5.454, lng:-74.672, address:"Carrera 3 No. 12-56",        tel:"(606) 853-2222",  servicios:"Parqueadero carga, lavandería, restaurante" },
+  { name:"Hotel La Rivera",            ruta:"Ruta 45 — Km 190",  municipio:"La Dorada",          dept:"Caldas",           lat: 5.459, lng:-74.668, address:"Av. Paralela No. 8-30",      tel:"(606) 853-0800",  servicios:"Zona de descanso, wifi, tienda" },
+  { name:"Hotel El Turista",           ruta:"Ruta 45 — Km 246",  municipio:"Puerto Berrío",      dept:"Antioquia",        lat: 6.487, lng:-74.402, address:"Calle 5 No. 7-45",           tel:"(604) 851-3030",  servicios:"Parqueadero carga, restaurante, ducha" },
+  { name:"Hotel Puerto Magdalena",     ruta:"Ruta 45 — Km 248",  municipio:"Puerto Berrío",      dept:"Antioquia",        lat: 6.489, lng:-74.404, address:"Av. Río No. 8-60",           tel:"(604) 851-2020",  servicios:"Zona de descargue, restaurante 24h" },
+  /* ── RUTA 45 — Honda / Girardot ── */
+  { name:"Hotel Honda Real",           ruta:"Ruta 45 — Honda",   municipio:"Honda",              dept:"Tolima",           lat: 5.207, lng:-74.741, address:"Calle 10 No. 11-30",         tel:"(608) 251-1100",  servicios:"Parqueadero, cafetería, lavadero" },
+  { name:"Hotel Tocarema",             ruta:"Ruta 45 — Girardot",municipio:"Girardot",           dept:"Cundinamarca",     lat: 4.302, lng:-74.806, address:"Carrera 11 No. 22-18",       tel:"(601) 833-3611",  servicios:"Parqueadero grande, restaurante, zona camping" },
+  { name:"Residencias El Descanso",    ruta:"Ruta 45 — Espinal", municipio:"Espinal",            dept:"Tolima",           lat: 4.154, lng:-74.887, address:"Carrera 5 No. 8-30",         tel:"(608) 248-3030",  servicios:"Parqueadero carga, ducha, tienda" },
+  /* ── RUTA 45A SUROCCIDENTE — Bogotá → Puerto Boyacá ── */
+  { name:"Hotel El Río",               ruta:"Ruta 45 — Puerto Boyacá",municipio:"Puerto Boyacá", dept:"Boyacá",           lat: 5.976, lng:-74.590, address:"Av. Puerto Boyacá No. 5-45", tel:"(608) 648-3030",  servicios:"Parqueadero vigilado, mecánica pesada, restaurante" },
+  /* ── RUTA 25 — Cali → Buga → Cartago → Manizales ── */
+  { name:"Hotel Guadalajara",          ruta:"Ruta 25 — Buga",    municipio:"Guadalajara de Buga",dept:"Valle del Cauca",  lat: 3.901, lng:-76.301, address:"Calle 6 No. 14-49",          tel:"(602) 228-3442",  servicios:"Parqueadero, restaurante, ducha caliente" },
+  { name:"Hotel El Terminal",          ruta:"Ruta 25 — Cartago", municipio:"Cartago",            dept:"Valle del Cauca",  lat: 4.748, lng:-75.915, address:"Carrera 7 No. 8-43",          tel:"(602) 212-4400",  servicios:"Parqueadero carga, lavandería, tienda" },
+  { name:"Hotel Cuyabra",              ruta:"Ruta 25 — Cartago", municipio:"Cartago",            dept:"Valle del Cauca",  lat: 4.750, lng:-75.913, address:"Carrera 4 No. 8-55",          tel:"(602) 212-0088",  servicios:"Zona descanso, mecánica, cafetería" },
+  { name:"Hotel El Viajero Palmira",   ruta:"Ruta 25 — Palmira", municipio:"Palmira",            dept:"Valle del Cauca",  lat: 3.520, lng:-76.302, address:"Calle 33 No. 25-12",          tel:"(602) 274-5555",  servicios:"Parqueadero gran capacidad, restaurante 24h" },
+  /* ── RUTA 40 — Medellín → La Pintada → Riosucio ── */
+  { name:"Hotel Las Tres Cascadas",    ruta:"Ruta 40 — La Pintada",municipio:"La Pintada",      dept:"Antioquia",        lat: 5.740, lng:-75.594, address:"Km 1 Vía La Pintada",        tel:"(604) 847-0505",  servicios:"Parqueadero, restaurante, zona camping camiones" },
+  /* ── RUTA 25 NORTE — Medellín → Caucasia → Costa ── */
+  { name:"Hotel Grand Caucasia",       ruta:"Ruta 25 — Caucasia", municipio:"Caucasia",          dept:"Antioquia",        lat: 7.989, lng:-75.197, address:"Calle 20 No. 18-44",          tel:"(604) 838-2115",  servicios:"Parqueadero carga, restaurante, ducha" },
+  { name:"Residencias El Camionero",   ruta:"Ruta 25 — Caucasia", municipio:"Caucasia",          dept:"Antioquia",        lat: 7.991, lng:-75.198, address:"Carrera 19 No. 26-83",        tel:"(604) 838-3340",  servicios:"Zona pesada, taller, cafetería 24h" },
+  { name:"Hotel Abad",                 ruta:"Ruta 25 — Planeta Rica",municipio:"Planeta Rica",   dept:"Córdoba",          lat: 8.408, lng:-75.588, address:"Carrera 6 No. 14-38",         tel:"(604) 766-2233",  servicios:"Parqueadero, lavadero, restaurante" },
+  { name:"Hotel Sahagún Inn",          ruta:"Ruta 25 — Sahagún",  municipio:"Sahagún",           dept:"Córdoba",          lat: 8.945, lng:-75.443, address:"Calle 10 No. 8-42",           tel:"(604) 773-1234",  servicios:"Parqueadero vigilado, ducha, tienda" },
+  { name:"Hotel Mompox Palace",        ruta:"Ruta 25 — Magangué", municipio:"Magangué",          dept:"Bolívar",          lat: 9.240, lng:-74.754, address:"Carrera 4 No. 16-45",         tel:"(605) 682-3030",  servicios:"Puerto fluvial, parqueadero, restaurante" },
+  /* ── RUTA 55/TRONCAL — Bogotá → Tunja → Duitama → Bucaramanga → Cúcuta ── */
+  { name:"Hotel Boyacá Real",          ruta:"Ruta 55 — Duitama", municipio:"Duitama",            dept:"Boyacá",           lat: 5.828, lng:-73.030, address:"Calle 16 No. 14-26",          tel:"(608) 760-3366",  servicios:"Parqueadero carga, cafetería, ducha" },
+  { name:"Hotel Sogamoso Real",        ruta:"Ruta 55 — Sogamoso",municipio:"Sogamoso",           dept:"Boyacá",           lat: 5.716, lng:-72.928, address:"Carrera 11 No. 14-25",        tel:"(608) 772-1313",  servicios:"Parqueadero, mecánica, tienda" },
+  { name:"Hotel Internacional Barranca",ruta:"Ruta 45 — Barrancabermeja",municipio:"Barrancabermeja",dept:"Santander",  lat: 7.065, lng:-73.855, address:"Carrera 6 No. 50-50",          tel:"(607) 622-7777",  servicios:"Zona industrial, parqueadero, restaurante 24h" },
+  /* ── RUTA 55/62 — Bucaramanga → Aguachica → Costa Atlántica ── */
+  { name:"Hotel El Ejecutivo",         ruta:"Ruta 55 — Aguachica",municipio:"Aguachica",         dept:"Cesar",            lat: 8.309, lng:-73.614, address:"Calle 9 No. 14-28",           tel:"(607) 565-3555",  servicios:"Parqueadero carga, restaurante, lavandería" },
+  { name:"Hotel La Parada",            ruta:"Ruta 55 — San Alberto",municipio:"San Alberto",     dept:"Cesar",            lat: 8.026, lng:-73.396, address:"Calle 3 No. 5-25",             tel:"(607) 568-2020",  servicios:"Parqueadero vigilado, ducha, tienda 24h" },
+  { name:"Hotel El Puente",            ruta:"Ruta 62 — Gamarra",  municipio:"Gamarra",           dept:"Cesar",            lat: 8.327, lng:-73.748, address:"Calle 3 No. 5-42",             tel:"(607) 569-1220",  servicios:"Cruce Ruta 55/62, parqueadero, mecánica" },
+  { name:"Hotel El Minero",            ruta:"Ruta 62 — Santa Rosa del Sur",municipio:"Santa Rosa del Sur",dept:"Bolívar",lat: 7.959, lng:-74.043, address:"Calle 5 No. 4-30",             tel:"(607) 560-1050",  servicios:"Zona minera, parqueadero especial, restaurante" },
+  /* ── RUTA 90 — Barranquilla → Ciénaga → Santa Marta ── */
+  { name:"Hotel Viña del Mar",         ruta:"Ruta 90 — Ciénaga",  municipio:"Ciénaga",           dept:"Magdalena",        lat:11.007, lng:-74.251, address:"Carrera 1 No. 18-30",         tel:"(605) 426-1212",  servicios:"Costal, parqueadero, restaurante, ducha" },
+  /* ── RUTA 90 — Troncal del Caribe ── */
+  { name:"Residencias El Caminante",   ruta:"Ruta 90 — Zona Bananera",municipio:"Zona Bananera", dept:"Magdalena",        lat:10.778, lng:-74.102, address:"Km 45 Troncal Caribe",        tel:"(605) 413-5050",  servicios:"Corredor bananero, parqueadero 24h" },
+  /* ── RUTA 45A — Bogotá → Villavicencio (Llanos) ── */
+  { name:"Hotel Los Patios",           ruta:"Ruta 40 — Acacías",  municipio:"Acacías",           dept:"Meta",             lat: 3.988, lng:-73.764, address:"Carrera 6 No. 8-22",          tel:"(608) 669-2200",  servicios:"Zona llanera, parqueadero tanqueros, restaurante" },
+  /* ── RUTA 45A/66 — Yopal → Arauca ── */
+  { name:"Residencias La Llanura",     ruta:"Ruta 66 — Tame",     municipio:"Tame",              dept:"Arauca",           lat: 6.388, lng:-71.727, address:"Carrera 8 No. 5-30",          tel:"(607) 886-1100",  servicios:"Frontera llanera, parqueadero, mecánica" },
+  /* ── RUTA 25 — Ipiales → Pasto → Popayán ── */
+  { name:"Hotel El Trébol",            ruta:"Ruta 25 — Ipiales",  municipio:"Ipiales",           dept:"Nariño",           lat: 0.829, lng:-77.645, address:"Calle 8 No. 6-30",            tel:"(602) 773-2020",  servicios:"Frontera Ecuador, parqueadero, restaurante 24h" },
+  { name:"Residencias El Descanso Sur",ruta:"Ruta 25 — La Unión", municipio:"La Unión",          dept:"Nariño",           lat: 1.607, lng:-77.128, address:"Km 2 Vía Pasto-Cali",         tel:"(602) 728-5533",  servicios:"Parqueadero, cafetería, ducha" },
+  /* ── RUTA 25 — Zona Cafetera ── */
+  { name:"Hotel El Cafetero",          ruta:"Ruta 25 — Anserma", municipio:"Anserma",            dept:"Caldas",           lat: 5.210, lng:-75.789, address:"Carrera 12 No. 7-43",         tel:"(606) 855-2222",  servicios:"Zona cafetera, parqueadero, mecánica" },
+];
+
 /* ── tipos / helpers ── */
 type LayerKey = "grupos" | "riesgo" | "delitos" | "vias" | "ninguna";
 type BasemapKey = "dark" | "streets" | "satellite";
@@ -511,7 +564,8 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
   const [showArmada,     setShowArmada]     = useState(false);
   const [showBomberos,   setShowBomberos]   = useState(false);
   const [showBasculas,   setShowBasculas]   = useState(false);
-  const [showHoteles,    setShowHoteles]    = useState(false);
+  const [showHoteles,          setShowHoteles]          = useState(false);
+  const [showHotelesCarretera, setShowHotelesCarretera] = useState(false);
   const [basemap, setBasemap] = useState<BasemapKey>("dark");
   const [panelOpen, setPanelOpen] = useState(true);
   const [geoData, setGeoData] = useState<any>(null);
@@ -580,7 +634,8 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
     { key:"armada",     label:"Armada Nacional",         icon:MapPin,     color:"#818cf8", active:showArmada,     toggle:()=>setShowArmada(p=>!p),      count:ARMADA.length },
     { key:"bomberos",   label:"Cuerpos de Bomberos",     icon:AlertTriangle, color:"#fb923c", active:showBomberos,toggle:()=>setShowBomberos(p=>!p),    count:BOMBEROS.length },
     { key:"basculas",   label:"Básculas de Pesaje INVIAS",icon:Car,          color:"#e879f9", active:showBasculas, toggle:()=>setShowBasculas(p=>!p),   count:BASCULAS.length },
-    { key:"hoteles",    label:"Hoteles Estratégicos",      icon:MapPin,       color:"#fbbf24", active:showHoteles,  toggle:()=>setShowHoteles(p=>!p),     count:HOTELES.length },
+    { key:"hoteles",    label:"Hoteles Estratégicos",      icon:MapPin,       color:"#fbbf24", active:showHoteles,          toggle:()=>setShowHoteles(p=>!p),          count:HOTELES.length },
+    { key:"hotelctra", label:"Hoteles de Carretera",      icon:MapPin,       color:"#34d399", active:showHotelesCarretera, toggle:()=>setShowHotelesCarretera(p=>!p), count:HOTELES_CARRETERA.length },
   ];
 
   const activeLayerMeta = LAYERS.find(l=>l.key===activeLayer)!;
@@ -593,6 +648,7 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
   const bomberoIcon    = makeIcon("🔥", "rgba(251,146,60,0.92)",  "#fb923c", 22);
   const basculaIcon    = makeIcon("⚖",  "rgba(232,121,249,0.92)", "#e879f9", 20);
   const hotelIcon      = makeIcon("🏨", "rgba(251,191,36,0.92)",  "#fbbf24", 22);
+  const hotelCtraIcon  = makeIcon("🛏", "rgba(52,211,153,0.92)",  "#34d399", 22);
 
   return (
     <div style={{ position:"relative", width:"100%", height:"calc(100vh - 120px)", minHeight:500, borderRadius:12, overflow:"hidden" }}>
@@ -769,6 +825,25 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
           </Marker>
         ))}
 
+        {/* ── HOTELES DE CARRETERA ── */}
+        {showHotelesCarretera&&HOTELES_CARRETERA.map((h,i)=>(
+          <Marker key={`hctra-${i}`} position={[h.lat,h.lng]} icon={hotelCtraIcon}>
+            <Popup className="dark-popup">
+              <div style={{ fontFamily:"sans-serif",fontSize:13,color:"#e2e8f0",minWidth:220 }}>
+                <div style={{ fontWeight:700,color:"#34d399",marginBottom:6 }}>🛏 {h.name}</div>
+                <table style={{ width:"100%",borderCollapse:"collapse" }}>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Ruta</td><td style={{ textAlign:"right",fontSize:11,color:"#34d399",fontWeight:600 }}>{h.ruta}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Municipio</td><td style={{ textAlign:"right" }}>{h.municipio}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Dpto.</td><td style={{ textAlign:"right" }}>{h.dept}</td></tr>
+                  {h.address&&<tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Dirección</td><td style={{ textAlign:"right",fontSize:11 }}>{h.address}</td></tr>}
+                  {h.tel&&<tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Teléfono</td><td style={{ textAlign:"right",color:"#34d399",fontWeight:600 }}>{h.tel}</td></tr>}
+                  {h.servicios&&<tr><td colSpan={2} style={{ color:"#64748b",fontSize:11,paddingTop:4,borderTop:"1px solid rgba(255,255,255,0.08)" }}>{h.servicios}</td></tr>}
+                </table>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
         {/* ── HOTELES ESTRATÉGICOS ── */}
         {showHoteles&&HOTELES.map((h,i)=>(
           <Marker key={`hotel-${i}`} position={[h.lat,h.lng]} icon={hotelIcon}>
@@ -887,7 +962,7 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
         )}
 
         {/* Overlay legend */}
-        {(showPeajes||showPolicia||showHospitales||showBlockades||showEjercito||showFAC||showArmada||showBomberos||showBasculas||showHoteles)&&(
+        {(showPeajes||showPolicia||showHospitales||showBlockades||showEjercito||showFAC||showArmada||showBomberos||showBasculas||showHoteles||showHotelesCarretera)&&(
           <div style={{ padding:"10px 14px", borderBottom:"1px solid rgba(255,255,255,0.07)" }}>
             <div style={{ fontSize:10,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:"rgba(255,255,255,0.35)",marginBottom:8 }}>Símbolos activos</div>
             <div style={{ display:"flex",flexDirection:"column",gap:5 }}>
@@ -901,6 +976,7 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
               {showBomberos&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(251,146,60,0.92)",border:"2px solid #fb923c",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11 }}>🔥</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Cuerpo de Bomberos — 119</span></div>}
               {showBasculas&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(232,121,249,0.92)",border:"2px solid #e879f9",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff" }}>⚖</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Báscula de Pesaje INVIAS</span></div>}
               {showHoteles&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(251,191,36,0.92)",border:"2px solid #fbbf24",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>🏨</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Hotel Estratégico 4★–5★</span></div>}
+              {showHotelesCarretera&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(52,211,153,0.92)",border:"2px solid #34d399",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>🛏</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Hotel de Carretera / Transportadores</span></div>}
             </div>
           </div>
         )}
