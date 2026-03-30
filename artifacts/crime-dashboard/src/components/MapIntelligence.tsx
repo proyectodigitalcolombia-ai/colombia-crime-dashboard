@@ -193,6 +193,82 @@ const HOSPITALES: Hospital[] = [
   { name: "Hospital Regional de Urabá", city:"Apartadó",       level:"II",   lat: 7.884,  lng: -76.627, dept: "Antioquia",      tel: "(604) 828-3333" },
 ];
 
+/* ── EJÉRCITO NACIONAL — Brigadas y Batallones (fuente: Ejército Nacional de Colombia) ── */
+interface BaseEjercito { name: string; unidad: string; division: string; lat: number; lng: number; dept: string; tipo: string; }
+const EJERCITO: BaseEjercito[] = [
+  { name:"Escuela Militar de Cadetes 'J.M. Córdova'", unidad:"ESMIC",            division:"Comandancia General", lat: 4.612,  lng:-74.065, dept:"Bogotá D.C.",          tipo:"Escuela" },
+  { name:"Comando Ejército Nacional",                  unidad:"Comandancia",      division:"Comandancia General", lat: 4.617,  lng:-74.074, dept:"Bogotá D.C.",          tipo:"Comando" },
+  { name:"Centro de Entrenamiento Tolemaida",          unidad:"CENAE",            division:"Comandancia General", lat: 4.082,  lng:-74.647, dept:"Cundinamarca",         tipo:"Centro Instrucción" },
+  { name:"Brigada 1 — Bogotá",                         unidad:"BR1",              division:"1ª División",         lat: 4.614,  lng:-74.069, dept:"Bogotá D.C.",          tipo:"Brigada" },
+  { name:"Brigada 13 — Bogotá",                        unidad:"BR13",             division:"1ª División",         lat: 4.698,  lng:-74.082, dept:"Bogotá D.C.",          tipo:"Brigada" },
+  { name:"Brigada 8 — Villavicencio",                  unidad:"BR8",              division:"4ª División",         lat: 4.148,  lng:-73.640, dept:"Meta",                 tipo:"Brigada" },
+  { name:"Brigada 7 — Villavicencio",                  unidad:"BR7",              division:"4ª División",         lat: 4.153,  lng:-73.635, dept:"Meta",                 tipo:"Brigada" },
+  { name:"Brigada 22 — Puerto Inírida",                unidad:"BR22",             division:"4ª División",         lat: 3.866,  lng:-67.927, dept:"Guainía",              tipo:"Brigada" },
+  { name:"Brigada 28 — San José del Guaviare",         unidad:"BR28",             division:"4ª División",         lat: 2.575,  lng:-72.644, dept:"Guaviare",             tipo:"Brigada" },
+  { name:"Brigada 12 — Florencia",                     unidad:"BR12",             division:"6ª División",         lat: 1.614,  lng:-75.607, dept:"Caquetá",              tipo:"Brigada" },
+  { name:"Brigada 26 — Mocoa",                         unidad:"BR26",             division:"6ª División",         lat: 1.149,  lng:-76.649, dept:"Putumayo",             tipo:"Brigada" },
+  { name:"Brigada 27 — Larandia",                      unidad:"BR27 / BAFIM",     division:"6ª División",         lat: 1.487,  lng:-75.273, dept:"Caquetá",              tipo:"Brigada" },
+  { name:"Brigada 4 — Medellín",                       unidad:"BR4",              division:"7ª División",         lat: 6.270,  lng:-75.568, dept:"Antioquia",            tipo:"Brigada" },
+  { name:"Brigada 11 — Montería",                      unidad:"BR11",             division:"7ª División",         lat: 8.759,  lng:-75.887, dept:"Córdoba",              tipo:"Brigada" },
+  { name:"Brigada 17 — Carepa (Urabá)",                unidad:"BR17",             division:"7ª División",         lat: 7.764,  lng:-76.655, dept:"Antioquia",            tipo:"Brigada" },
+  { name:"Brigada 14 — Bogotá (Movilizable)",          unidad:"BR14",             division:"5ª División",         lat: 4.620,  lng:-74.060, dept:"Bogotá D.C.",          tipo:"Brigada" },
+  { name:"Brigada 2 — Barranquilla",                   unidad:"BR2",              division:"8ª División",         lat: 10.962, lng:-74.803, dept:"Atlántico",            tipo:"Brigada" },
+  { name:"Brigada 10 — Valledupar",                    unidad:"BR10",             division:"8ª División",         lat: 10.477, lng:-73.254, dept:"Cesar",                tipo:"Brigada" },
+  { name:"Brigada 5 — Bucaramanga",                    unidad:"BR5",              division:"2ª División",         lat: 7.127,  lng:-73.122, dept:"Santander",            tipo:"Brigada" },
+  { name:"Brigada 30 — Cúcuta",                        unidad:"BR30",             division:"2ª División",         lat: 7.887,  lng:-72.503, dept:"Norte de Santander",   tipo:"Brigada" },
+  { name:"Brigada 3 — Cali",                           unidad:"BR3",              division:"3ª División",         lat: 3.434,  lng:-76.541, dept:"Valle del Cauca",      tipo:"Brigada" },
+  { name:"Brigada 23 — Popayán",                       unidad:"BR23",             division:"3ª División",         lat: 2.442,  lng:-76.607, dept:"Cauca",                tipo:"Brigada" },
+  { name:"Brigada 29 — Pasto",                         unidad:"BR29",             division:"3ª División",         lat: 1.215,  lng:-77.281, dept:"Nariño",               tipo:"Brigada" },
+  { name:"Brigada 18 — Arauca",                        unidad:"BR18",             division:"2ª División",         lat: 7.085,  lng:-70.761, dept:"Arauca",               tipo:"Brigada" },
+  { name:"Brigada de Selva 16 — Leticia",              unidad:"BSELT",            division:"4ª División",         lat:-4.192,  lng:-69.939, dept:"Amazonas",             tipo:"Brigada Selva" },
+  { name:"Brigada Fluvial 1 — Barrancabermeja",        unidad:"BRFLU1",           division:"2ª División",         lat: 7.063,  lng:-73.852, dept:"Santander",            tipo:"Brigada Fluvial" },
+  { name:"Batallón San Mateo — Pereira",               unidad:"BASAN",            division:"3ª División",         lat: 4.812,  lng:-75.696, dept:"Risaralda",            tipo:"Batallón" },
+  { name:"Batallón de Alta Montaña 1 — Tunja",         unidad:"BAMO1",            division:"2ª División",         lat: 5.541,  lng:-73.357, dept:"Boyacá",               tipo:"Batallón" },
+  { name:"Batallón de Alta Montaña 2 — Sogamoso",      unidad:"BAMO2",            division:"2ª División",         lat: 5.716,  lng:-72.932, dept:"Boyacá",               tipo:"Batallón" },
+  { name:"Batallón de Alta Montaña 5 — Ipiales",       unidad:"BAMO5",            division:"3ª División",         lat: 0.832,  lng:-77.644, dept:"Nariño",               tipo:"Batallón" },
+];
+
+/* ── FUERZA AÉREA COLOMBIANA — Bases y CACOM (fuente: FAC) ── */
+interface BaseFAC { name: string; codigo: string; lat: number; lng: number; dept: string; tipo: string; aeronaves?: string; }
+const FUERZA_AEREA: BaseFAC[] = [
+  { name:"CATAM — Bogotá",                       codigo:"CATAM",    lat: 4.698,  lng:-74.145, dept:"Bogotá D.C.",        tipo:"Base Principal",        aeronaves:"C-130, CN-235, Bell 412" },
+  { name:"CACOM-1 Palanquero",                   codigo:"CACOM1",   lat: 5.478,  lng:-74.661, dept:"Cundinamarca",       tipo:"Combate",               aeronaves:"Kfir, Super Tucano" },
+  { name:"CACOM-2 Apiay — Villavicencio",        codigo:"CACOM2",   lat: 4.095,  lng:-73.567, dept:"Meta",               tipo:"Combate",               aeronaves:"Kfir C10, FAC 2100" },
+  { name:"CACOM-3 Barranquilla",                 codigo:"CACOM3",   lat:10.888,  lng:-74.784, dept:"Atlántico",          tipo:"Combate / Vigilancia",  aeronaves:"OV-10, Super Tucano" },
+  { name:"CACOM-4 Melgar (Tolemaida)",           codigo:"CACOM4",   lat: 4.082,  lng:-74.647, dept:"Cundinamarca",       tipo:"Entrenamiento/Combate", aeronaves:"T-27 Tucano, T-37" },
+  { name:"CACOM-5 Rionegro — José M. Córdova",  codigo:"CACOM5",   lat: 6.128,  lng:-75.419, dept:"Antioquia",          tipo:"Combate / Transporte",  aeronaves:"C-27J, CN-235" },
+  { name:"CACOM-6 Tres Esquinas",                codigo:"CACOM6",   lat: 0.722,  lng:-75.240, dept:"Caquetá",            tipo:"Combate Contrainsurgencia",aeronaves:"Super Tucano, helicópteros" },
+  { name:"CABAR Cali — Alfonso B. Aragón",       codigo:"CABAR",    lat: 3.544,  lng:-76.381, dept:"Valle del Cauca",    tipo:"Base Regional",         aeronaves:"CN-235, Helicópteros" },
+  { name:"GAAMA Marandúa — Vichada",             codigo:"GAAMA",    lat: 4.867,  lng:-70.433, dept:"Vichada",            tipo:"Amazonia / Vigilancia", aeronaves:"Super Tucano, helicópteros" },
+  { name:"GAUR Pasto — Antonio Nariño",          codigo:"GAUR",     lat: 1.396,  lng:-77.291, dept:"Nariño",             tipo:"Base Regional",         aeronaves:"Helicópteros UH-60" },
+  { name:"GACAR Bucaramanga — Palonegro",        codigo:"GACAR",    lat: 7.132,  lng:-73.185, dept:"Santander",          tipo:"Base Regional",         aeronaves:"CN-235, PC-7" },
+  { name:"GAMAN San Andrés",                     codigo:"GAMAN",    lat:12.577,  lng:-81.713, dept:"San Andrés",         tipo:"Vigilancia Marítima",   aeronaves:"Búfalo, helicópteros" },
+  { name:"Escuela Militar de Aviación — Cali",   codigo:"EMAVI",    lat: 3.544,  lng:-76.382, dept:"Valle del Cauca",    tipo:"Escuela",               aeronaves:"T-35 Pillán, PC-7" },
+  { name:"Base Florencia — Caquetá",             codigo:"BAFLO",    lat: 1.589,  lng:-75.564, dept:"Caquetá",            tipo:"Apoyo Contrainsurgencia",aeronaves:"Helicópteros Black Hawk" },
+  { name:"Base Arauca — Santiago Pérez",         codigo:"BAARAU",   lat: 7.088,  lng:-70.737, dept:"Arauca",             tipo:"Base Fronteriza",       aeronaves:"Helicópteros, Super Tucano" },
+];
+
+/* ── ARMADA NACIONAL — Bases Navales e Infantería de Marina (fuente: Armada) ── */
+interface BaseNaval { name: string; codigo: string; lat: number; lng: number; dept: string; tipo: string; oceano?: string; capacidad?: string; }
+const ARMADA: BaseNaval[] = [
+  { name:"ARC Bolívar — Cartagena (sede principal)",   codigo:"BOLÍVAR",  lat:10.420, lng:-75.550, dept:"Bolívar",           tipo:"Base Naval Principal",        oceano:"Caribe",     capacidad:"Fragatas, Corvetas, Submarinos" },
+  { name:"Base Naval Buenaventura",                    codigo:"BNAVBUE",  lat: 3.888, lng:-77.071, dept:"Valle del Cauca",   tipo:"Base Naval Pacífico",          oceano:"Pacífico",   capacidad:"Patrulleras, helicópteros" },
+  { name:"COTECMAR — Cartagena",                       codigo:"COTECMAR", lat:10.418, lng:-75.548, dept:"Bolívar",           tipo:"Astillero / I+D",              oceano:"Caribe",     capacidad:"Construcción y mantenimiento naval" },
+  { name:"Base Naval Leticia",                         codigo:"BNAVLET",  lat:-4.193, lng:-69.940, dept:"Amazonas",          tipo:"Base Fluvial Amazónica",       oceano:"Fluvial",    capacidad:"Lanchas de patrulla fluvial" },
+  { name:"Base Naval Puerto Leguízamo",                codigo:"BNAVLEG",  lat:-0.195, lng:-74.773, dept:"Putumayo",          tipo:"Base Fluvial",                 oceano:"Fluvial",    capacidad:"Patrulleras fluviales" },
+  { name:"Base Naval Puerto Carreño",                  codigo:"BNAVCAR",  lat: 6.192, lng:-67.486, dept:"Vichada",           tipo:"Base Fluvial Frontera",        oceano:"Fluvial",    capacidad:"Patrulleras OAF" },
+  { name:"Batallón Fluvial de IM 50 — Barrancabermeja",codigo:"BAFIM50", lat: 7.063, lng:-73.852, dept:"Santander",          tipo:"Infantería de Marina Fluvial", oceano:"Fluvial",    capacidad:"Operaciones río Magdalena" },
+  { name:"Base Naval Tumaco",                          codigo:"BNAVTUM",  lat: 1.808, lng:-78.762, dept:"Nariño",            tipo:"Base Naval Pacífico Sur",      oceano:"Pacífico",   capacidad:"Guardacostas, patrulleras" },
+  { name:"Base Naval San Andrés",                      codigo:"BNAVSAN",  lat:12.535, lng:-81.700, dept:"San Andrés",        tipo:"Base Naval Caribe Insular",    oceano:"Caribe",     capacidad:"Guardacostas, vigilancia marítima" },
+  { name:"Base Naval Bahía Málaga",                    codigo:"BNAVMAL",  lat: 3.985, lng:-77.274, dept:"Valle del Cauca",   tipo:"Base Operaciones Submarinas",  oceano:"Pacífico",   capacidad:"Submarinos Tipo 209, Pijao" },
+  { name:"Batallón IM 1 — Coveñas",                   codigo:"BAIM1",    lat: 9.399, lng:-75.693, dept:"Sucre",             tipo:"Infantería de Marina",         oceano:"Caribe",     capacidad:"Batallón anfibio" },
+  { name:"Escuela Naval de Cadetes 'Almirante Padilla'",codigo:"ENAP",   lat:10.408, lng:-75.542, dept:"Bolívar",           tipo:"Escuela Naval",                oceano:"Caribe",     capacidad:"Formación oficiales navales" },
+  { name:"Base Naval Turbo (Golfo de Urabá)",          codigo:"BNAVTUR",  lat: 8.099, lng:-76.729, dept:"Antioquia",         tipo:"Base Naval Caribe",            oceano:"Caribe",     capacidad:"Guardacostas, zona Urabá" },
+  { name:"Centro de Aviación Naval — Cartagena",       codigo:"CAVN",     lat:10.393, lng:-75.511, dept:"Bolívar",           tipo:"Aviación Naval",               oceano:"Caribe",     capacidad:"Helicópteros Bell 412, BO-105" },
+  { name:"Estación Guardacostas Barranquilla",         codigo:"EGCBAQ",   lat:10.961, lng:-74.803, dept:"Atlántico",         tipo:"Guardacostas",                 oceano:"Caribe",     capacidad:"Patrulleras oceánicas" },
+  { name:"Base Naval Puerto Inírida",                  codigo:"BNAVINI",  lat: 3.866, lng:-67.927, dept:"Guainía",           tipo:"Base Fluvial Amazónica",       oceano:"Fluvial",    capacidad:"Patrulleras fluviales OAF" },
+];
+
 /* ── tipos / helpers ── */
 type LayerKey = "grupos" | "riesgo" | "delitos" | "vias" | "ninguna";
 type BasemapKey = "dark" | "streets" | "satellite";
@@ -245,6 +321,9 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
   const [showPeajes,     setShowPeajes]     = useState(false);
   const [showPolicia,    setShowPolicia]    = useState(false);
   const [showHospitales, setShowHospitales] = useState(false);
+  const [showEjercito,   setShowEjercito]   = useState(false);
+  const [showFAC,        setShowFAC]        = useState(false);
+  const [showArmada,     setShowArmada]     = useState(false);
   const [basemap, setBasemap] = useState<BasemapKey>("dark");
   const [panelOpen, setPanelOpen] = useState(true);
   const [geoData, setGeoData] = useState<any>(null);
@@ -304,16 +383,22 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
   ];
 
   const OVERLAYS = [
-    { key:"bloqueos",   label:"Bloqueos activos",       icon:MapPin,     color:"#ef4444", active:showBlockades,  toggle:()=>setShowBlockades(p=>!p),  count:blockades.filter((b:any)=>b.lat&&b.lng).length },
+    { key:"bloqueos",   label:"Bloqueos activos",        icon:MapPin,     color:"#ef4444", active:showBlockades,  toggle:()=>setShowBlockades(p=>!p),  count:blockades.filter((b:any)=>b.lat&&b.lng).length },
     { key:"peajes",     label:"Peajes",                  icon:Car,        color:"#f59e0b", active:showPeajes,     toggle:()=>setShowPeajes(p=>!p),      count:PEAJES.length },
     { key:"policia",    label:"Policía de Carreteras",   icon:Shield,     color:"#3b82f6", active:showPolicia,    toggle:()=>setShowPolicia(p=>!p),     count:POLICIA_CARRETERAS.length },
     { key:"hospitales", label:"Hospitales de Referencia",icon:Hospital,   color:"#10b981", active:showHospitales, toggle:()=>setShowHospitales(p=>!p), count:HOSPITALES.length },
+    { key:"ejercito",   label:"Ejército Nacional",       icon:Shield,     color:"#84cc16", active:showEjercito,   toggle:()=>setShowEjercito(p=>!p),   count:EJERCITO.length },
+    { key:"fac",        label:"Fuerza Aérea Colombiana", icon:Building2,  color:"#38bdf8", active:showFAC,        toggle:()=>setShowFAC(p=>!p),         count:FUERZA_AEREA.length },
+    { key:"armada",     label:"Armada Nacional",         icon:MapPin,     color:"#818cf8", active:showArmada,     toggle:()=>setShowArmada(p=>!p),      count:ARMADA.length },
   ];
 
   const activeLayerMeta = LAYERS.find(l=>l.key===activeLayer)!;
-  const peajeIcon      = makeIcon("$", "rgba(245,158,11,0.9)",  "#f59e0b", 20);
-  const policiaIcon    = makeIcon("P", "rgba(59,130,246,0.9)",  "#3b82f6", 20);
-  const hospitalIcon   = makeIcon("✚", "rgba(16,185,129,0.9)", "#10b981", 20);
+  const peajeIcon      = makeIcon("$",  "rgba(245,158,11,0.9)",  "#f59e0b", 20);
+  const policiaIcon    = makeIcon("P",  "rgba(59,130,246,0.9)",  "#3b82f6", 20);
+  const hospitalIcon   = makeIcon("✚",  "rgba(16,185,129,0.9)", "#10b981", 20);
+  const ejercitoIcon   = makeIcon("★",  "rgba(132,204,22,0.92)", "#84cc16", 22);
+  const facIcon        = makeIcon("✈",  "rgba(56,189,248,0.92)", "#38bdf8", 22);
+  const armadaIcon     = makeIcon("⚓",  "rgba(129,140,248,0.92)","#818cf8", 22);
 
   return (
     <div style={{ position:"relative", width:"100%", height:"calc(100vh - 120px)", minHeight:500, borderRadius:12, overflow:"hidden" }}>
@@ -391,6 +476,58 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
                   <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Departamento</td><td style={{ textAlign:"right" }}>{h.dept}</td></tr>
                   <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Nivel</td><td style={{ textAlign:"right",fontWeight:600,color:"#10b981" }}>Nivel {h.level}</td></tr>
                   {h.tel&&<tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Teléfono</td><td style={{ textAlign:"right",fontSize:11 }}>{h.tel}</td></tr>}
+                </table>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* Ejército Nacional */}
+        {showEjercito && EJERCITO.map((e,i) => (
+          <Marker key={`ej-${i}`} position={[e.lat,e.lng]} icon={ejercitoIcon}>
+            <Popup className="dark-popup">
+              <div style={{ fontFamily:"sans-serif",fontSize:13,color:"#e2e8f0",minWidth:210 }}>
+                <div style={{ fontWeight:700,color:"#84cc16",marginBottom:6 }}>★ {e.name}</div>
+                <table style={{ width:"100%",borderCollapse:"collapse" }}>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Unidad</td><td style={{ textAlign:"right",fontWeight:600,color:"#84cc16" }}>{e.unidad}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>División</td><td style={{ textAlign:"right",fontSize:12 }}>{e.division}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Tipo</td><td style={{ textAlign:"right" }}>{e.tipo}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Departamento</td><td style={{ textAlign:"right" }}>{e.dept}</td></tr>
+                </table>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* Fuerza Aérea Colombiana */}
+        {showFAC && FUERZA_AEREA.map((f,i) => (
+          <Marker key={`fac-${i}`} position={[f.lat,f.lng]} icon={facIcon}>
+            <Popup className="dark-popup">
+              <div style={{ fontFamily:"sans-serif",fontSize:13,color:"#e2e8f0",minWidth:220 }}>
+                <div style={{ fontWeight:700,color:"#38bdf8",marginBottom:6 }}>✈ {f.name}</div>
+                <table style={{ width:"100%",borderCollapse:"collapse" }}>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Código</td><td style={{ textAlign:"right",fontWeight:600,color:"#38bdf8" }}>{f.codigo}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Tipo</td><td style={{ textAlign:"right",fontSize:12 }}>{f.tipo}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Departamento</td><td style={{ textAlign:"right" }}>{f.dept}</td></tr>
+                  {f.aeronaves&&<tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Aeronaves</td><td style={{ textAlign:"right",fontSize:11,color:"#64748b" }}>{f.aeronaves}</td></tr>}
+                </table>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* Armada Nacional */}
+        {showArmada && ARMADA.map((a,i) => (
+          <Marker key={`arm-${i}`} position={[a.lat,a.lng]} icon={armadaIcon}>
+            <Popup className="dark-popup">
+              <div style={{ fontFamily:"sans-serif",fontSize:13,color:"#e2e8f0",minWidth:220 }}>
+                <div style={{ fontWeight:700,color:"#818cf8",marginBottom:6 }}>⚓ {a.name}</div>
+                <table style={{ width:"100%",borderCollapse:"collapse" }}>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Código</td><td style={{ textAlign:"right",fontWeight:600,color:"#818cf8" }}>{a.codigo}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Tipo</td><td style={{ textAlign:"right",fontSize:12 }}>{a.tipo}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Océano/Zona</td><td style={{ textAlign:"right" }}>{a.oceano}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Departamento</td><td style={{ textAlign:"right" }}>{a.dept}</td></tr>
+                  {a.capacidad&&<tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Capacidad</td><td style={{ textAlign:"right",fontSize:11,color:"#64748b" }}>{a.capacidad}</td></tr>}
                 </table>
               </div>
             </Popup>
@@ -496,7 +633,7 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
         )}
 
         {/* Overlay legend */}
-        {(showPeajes||showPolicia||showHospitales||showBlockades)&&(
+        {(showPeajes||showPolicia||showHospitales||showBlockades||showEjercito||showFAC||showArmada)&&(
           <div style={{ padding:"10px 14px", borderBottom:"1px solid rgba(255,255,255,0.07)" }}>
             <div style={{ fontSize:10,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:"rgba(255,255,255,0.35)",marginBottom:8 }}>Símbolos activos</div>
             <div style={{ display:"flex",flexDirection:"column",gap:5 }}>
@@ -504,6 +641,9 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
               {showPeajes&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(245,158,11,0.9)",border:"2px solid #f59e0b",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:"#fff" }}>$</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Peaje INVIAS/ANI</span></div>}
               {showPolicia&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(59,130,246,0.9)",border:"2px solid #3b82f6",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:"#fff" }}>P</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Policía Carreteras</span></div>}
               {showHospitales&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(16,185,129,0.9)",border:"2px solid #10b981",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff" }}>✚</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Hospital referencia</span></div>}
+              {showEjercito&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(132,204,22,0.92)",border:"2px solid #84cc16",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff" }}>★</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Ejército — Brigada/Batallón</span></div>}
+              {showFAC&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(56,189,248,0.92)",border:"2px solid #38bdf8",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff" }}>✈</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>FAC — Base / CACOM</span></div>}
+              {showArmada&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(129,140,248,0.92)",border:"2px solid #818cf8",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff" }}>⚓</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Armada — Base Naval/Fluvial</span></div>}
             </div>
           </div>
         )}
