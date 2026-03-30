@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { MapContainer, TileLayer, GeoJSON, CircleMarker, Popup, useMap, Marker } from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import "react-leaflet-cluster/dist/assets/MarkerCluster.css";
@@ -857,6 +857,41 @@ const GRUPOS_ARMADOS: GrupoArmado[] = [
   { name:"2a Marquetalia — Venezuela (frontera)",grupo:"2a Marquetalia",subregion:"Norte de Santander",dept:"Norte de Santander",lat: 7.880, lng:-72.500, frente:"Frente Rodrigo Cadete",nivel:"Presencia" },
 ];
 
+/* ── CORREDORES VIALES ESTRATÉGICOS ── */
+interface Corredor { key: string; name: string; ruta: string; desc: string; waypoints: [number,number][]; }
+const CORREDORES: Corredor[] = [
+  { key:"bog-med",  name:"Bogotá → Medellín",          ruta:"Ruta 45A",  desc:"Autopista del Café — corredor más transitado del país",
+    waypoints:[[4.711,-74.072],[4.820,-74.350],[5.055,-74.605],[5.207,-74.741],[5.455,-74.668],[5.510,-74.982],[5.730,-75.598],[5.912,-75.617],[6.253,-75.563]] },
+  { key:"bog-bar",  name:"Bogotá → Barranquilla",       ruta:"Ruta 45",   desc:"Troncal del Magdalena — corredor norte hacia Costa Atlántica",
+    waypoints:[[4.711,-74.072],[5.207,-74.741],[5.455,-74.668],[6.490,-74.404],[7.594,-74.813],[7.990,-75.198],[8.757,-75.884],[9.301,-75.393],[10.393,-75.499],[10.963,-74.799]] },
+  { key:"bog-cuc",  name:"Bogotá → Cúcuta",             ruta:"Ruta 55",   desc:"Troncal del Oriente — eje Bogotá-Bucaramanga-Venezuela",
+    waypoints:[[4.711,-74.072],[5.534,-73.365],[5.830,-73.020],[5.727,-72.928],[6.700,-72.733],[7.130,-73.128],[7.370,-72.650],[7.890,-72.500]] },
+  { key:"bog-vll",  name:"Bogotá → Villavicencio",      ruta:"Ruta 40",   desc:"Corredor hacia Llanos Orientales — petróleo y agroindustria",
+    waypoints:[[4.711,-74.072],[4.140,-73.628],[3.700,-73.700],[3.545,-73.718],[4.322,-72.074]] },
+  { key:"med-cal",  name:"Medellín → Cali",             ruta:"Ruta 25N",  desc:"Corredor interurbano Eje Cafetero — alta densidad de carga",
+    waypoints:[[6.253,-75.563],[5.912,-75.617],[5.730,-75.598],[4.813,-75.694],[4.534,-75.670],[4.080,-76.200],[3.901,-76.299],[3.432,-76.522]] },
+  { key:"cal-bun",  name:"Cali → Buenaventura",         ruta:"Ruta 25B",  desc:"Puerto Pacífico — corredor de exportación más crítico",
+    waypoints:[[3.432,-76.522],[3.600,-76.700],[3.745,-76.873],[3.882,-77.021]] },
+  { key:"cal-ecu",  name:"Cali → Ipiales (Ecuador)",    ruta:"Ruta 25S",  desc:"Corredor frontera sur — Cali-Pasto-Ipiales",
+    waypoints:[[3.432,-76.522],[2.444,-76.608],[1.613,-77.060],[1.213,-77.281],[0.830,-77.648]] },
+  { key:"med-cta",  name:"Medellín → Cartagena",        ruta:"Ruta 62",   desc:"Corredor Medellín-Costa vía Caucasia",
+    waypoints:[[6.253,-75.563],[6.356,-75.509],[6.490,-74.404],[7.488,-74.869],[7.990,-75.198],[8.757,-75.884],[10.393,-75.499]] },
+  { key:"cta-bar",  name:"Cartagena → Santa Marta",     ruta:"Ruta 90",   desc:"Transversal Caribe — corredor costero",
+    waypoints:[[10.393,-75.499],[10.963,-74.799],[11.243,-74.192],[11.544,-72.908]] },
+  { key:"bog-ibg",  name:"Bogotá → Ibagué → Cali",     ruta:"Ruta 40W",  desc:"Ruta del Sol alternativa — Bogotá sur hacia Valle",
+    waypoints:[[4.711,-74.072],[4.430,-75.247],[3.432,-76.522]] },
+];
+
+/* ── UTILIDADES GEOESPACIALES ── */
+function haversineDist(lat1:number,lng1:number,lat2:number,lng2:number):number {
+  const R=6371, dLat=(lat2-lat1)*Math.PI/180, dLng=(lng2-lng1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+function minDistToCorridor(lat:number,lng:number,wpts:[number,number][]):number {
+  return Math.min(...wpts.map(([rlat,rlng])=>haversineDist(lat,lng,rlat,rlng)));
+}
+
 /* ── AEROPUERTOS CIVILES Y DE CARGA ── */
 interface Aeropuerto { name: string; codigo: string; ciudad: string; dept: string; lat: number; lng: number; tipo: string; pista?: string; carga: boolean; }
 const AEROPUERTOS: Aeropuerto[] = [
@@ -1088,9 +1123,77 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
   const [showDepositosDIAN,    setShowDepositosDIAN]    = useState(false);
   const [showCultivos,         setShowCultivos]         = useState(false);
   const [showGruposArmados,    setShowGruposArmados]    = useState(false);
+
+  // ── BUSCADOR DE MUNICIPIO ──
+  const [searchQ,     setSearchQ]     = useState('');
+  const [searchRes,   setSearchRes]   = useState<{place_id:number;display_name:string;lat:string;lon:string}[]>([]);
+  const [searchOpen,  setSearchOpen]  = useState(false);
+  const [flyTarget,   setFlyTarget]   = useState<[number,number]|null>(null);
+  const searchTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  // ── BRIEFING DE CORREDOR ──
+  const [showBriefing,    setShowBriefing]    = useState(false);
+  const [corridorKey,     setCorridorKey]     = useState('bog-med');
+  const [corridorBuffer,  setCorridorBuffer]  = useState(50);
+  const [briefingData,    setBriefingData]    = useState<ReturnType<typeof buildBriefing>|null>(null);
+
   const [basemap, setBasemap] = useState<BasemapKey>("dark");
   const [panelOpen, setPanelOpen] = useState(true);
   const [geoData, setGeoData] = useState<any>(null);
+
+  // ── BUSCADOR handler ──
+  function handleSearch(q:string) {
+    setSearchQ(q);
+    clearTimeout(searchTimer.current);
+    if(q.length<3){ setSearchRes([]); return; }
+    searchTimer.current = setTimeout(async()=>{
+      try {
+        const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q+' Colombia')}&format=json&limit=5&accept-language=es`,{headers:{'Accept-Language':'es'}});
+        const d = await r.json();
+        setSearchRes(d);
+      } catch{}
+    },500);
+  }
+
+  // ── BRIEFING builder ──
+  function buildBriefing(cKey:string, buf:number) {
+    const cor = CORREDORES.find(c=>c.key===cKey)!;
+    const w = (lat:number,lng:number)=>minDistToCorridor(lat,lng,cor.waypoints)<=buf;
+    return {
+      corredor:cor, buffer:buf, generadoEn: new Date().toLocaleString('es-CO'),
+      peajes:        PEAJES.filter(p=>w(p.lat,p.lng)),
+      policia:       POLICIA_CARRETERAS.filter(p=>w(p.lat,p.lng)),
+      hospitales:    HOSPITALES.filter(h=>w(h.lat,h.lng)),
+      bomberos:      BOMBEROS.filter(b=>w(b.lat,b.lng)),
+      basculas:      BASCULAS_INVIAS.filter(b=>w(b.lat,b.lng)),
+      hotelEstr:     HOTELES_ESTRATEGICOS.filter(h=>w(h.lat,h.lng)),
+      hotelCtra:     HOTELES_CARRETERA.filter(h=>w(h.lat,h.lng)),
+      estaciones:    ESTACIONES_SERVICIO.filter(e=>w(e.lat,e.lng)),
+      talleres:      TALLERES_PESADOS.filter(t=>w(t.lat,t.lng)),
+      terminales:    TERMINALES_CARGA.filter(t=>w(t.lat,t.lng)),
+      aeropuertos:   AEROPUERTOS.filter(a=>w(a.lat,a.lng)),
+      zonasFrancas:  ZONAS_FRANCAS.filter(z=>w(z.lat,z.lng)),
+      puertos:       PUERTOS_FLUVIALES.filter(p=>w(p.lat,p.lng)),
+      dian:          PUNTOS_DIAN.filter(d=>w(d.lat,d.lng)),
+      cruzRoja:      EMERGENCIAS_HUMANITARIAS.filter(e=>w(e.lat,e.lng)),
+      puentes:       PUENTES_ESTRATEGICOS.filter(p=>w(p.lat,p.lng)),
+      oleoductos:    OLEODUCTOS.filter(o=>w(o.lat,o.lng)),
+      pdet:          MUNICIPIOS_PDET.filter(m=>w(m.lat,m.lng)),
+      minasAP:       ZONAS_MINAS_AP.filter(z=>w(z.lat,z.lng)),
+      inpec:         CENTROS_INPEC.filter(c=>w(c.lat,c.lng)),
+      mineras:       ZONAS_MINERAS.filter(z=>w(z.lat,z.lng)),
+      depositosDIAN: DEPOSITOS_DIAN.filter(d=>w(d.lat,d.lng)),
+      cultivos:      CULTIVOS_ILICITOS.filter(c=>w(c.lat,c.lng)),
+      grupos:        GRUPOS_ARMADOS.filter(g=>w(g.lat,g.lng)),
+    };
+  }
+
+  // ── FlyController (child de MapContainer) ──
+  function FlyController({ target }:{ target:[number,number]|null }) {
+    const map = useMap();
+    useEffect(()=>{ if(target) map.flyTo(target,12,{animate:true,duration:1.5}); },[target,map]);
+    return null;
+  }
 
   const { data: blockades = [] } = useGetBlockades(undefined, { query: { refetchInterval: 60000 } });
   const { data: crimesByDept = [] } = useGetCrimesByDepartment({});
@@ -1238,6 +1341,8 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
             </CircleMarker>
           );
         })}
+
+        <FlyController target={flyTarget} />
 
         {/* ══ MARKER CLUSTER GROUP — agrupa todos los marcadores punto ══ */}
         <MarkerClusterGroup chunkedLoading maxClusterRadius={50} showCoverageOnHover={false}>
@@ -1733,6 +1838,187 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
         {/* ══ FIN MARKER CLUSTER GROUP ══ */}
 
       </MapContainer>
+
+      {/* ── BUSCADOR DE MUNICIPIO ── */}
+      <div style={{ position:"absolute",top:16,left:16,zIndex:1000,width:280 }}>
+        <div style={{ display:"flex",alignItems:"center",background:"rgba(7,12,21,0.93)",backdropFilter:"blur(12px)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:10,padding:"6px 12px",gap:8 }}>
+          <span style={{ fontSize:16 }}>🔍</span>
+          <input
+            value={searchQ}
+            onChange={e=>{ handleSearch(e.target.value); setSearchOpen(true); }}
+            onFocus={()=>setSearchOpen(true)}
+            placeholder="Buscar municipio..."
+            style={{ background:"transparent",border:"none",outline:"none",color:"#e2e8f0",fontSize:13,flex:1,fontFamily:"sans-serif" }}
+          />
+          {searchQ&&<button onClick={()=>{setSearchQ('');setSearchRes([]);}} style={{ background:"none",border:"none",color:"#64748b",cursor:"pointer",fontSize:14 }}>✕</button>}
+        </div>
+        {searchOpen&&searchRes.length>0&&(
+          <div style={{ marginTop:4,background:"rgba(7,12,21,0.96)",backdropFilter:"blur(12px)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:10,overflow:"hidden" }}>
+            {searchRes.map(r=>{
+              const parts = r.display_name.split(',');
+              const label = parts.slice(0,2).join(',').trim();
+              return(
+                <div key={r.place_id} onClick={()=>{
+                  setFlyTarget([parseFloat(r.lat),parseFloat(r.lon)]);
+                  setSearchQ(label); setSearchRes([]); setSearchOpen(false);
+                }} style={{ padding:"8px 14px",cursor:"pointer",borderBottom:"1px solid rgba(255,255,255,0.06)",fontSize:12,color:"#cbd5e1",transition:"background 0.15s" }}
+                  onMouseEnter={e=>(e.currentTarget.style.background="rgba(0,212,255,0.08)")}
+                  onMouseLeave={e=>(e.currentTarget.style.background="transparent")}
+                >
+                  <div style={{ fontWeight:600,color:"#e2e8f0" }}>{parts[0]?.trim()}</div>
+                  <div style={{ color:"#64748b",fontSize:11 }}>{parts[1]?.trim()}</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ── BOTÓN BRIEFING DE CORREDOR ── */}
+      <div style={{ position:"absolute",bottom:24,left:16,zIndex:1000 }}>
+        <button onClick={()=>{ setBriefingData(buildBriefing(corridorKey,corridorBuffer)); setShowBriefing(true); }}
+          style={{ display:"flex",alignItems:"center",gap:8,background:"rgba(7,12,21,0.93)",backdropFilter:"blur(12px)",border:"1px solid rgba(0,212,255,0.3)",borderRadius:10,padding:"10px 16px",color:"#00d4ff",cursor:"pointer",fontFamily:"sans-serif",fontSize:13,fontWeight:600 }}>
+          🛣️ Briefing de Corredor
+        </button>
+      </div>
+
+      {/* ── MODAL BRIEFING DE CORREDOR ── */}
+      {showBriefing&&briefingData&&(
+        <div style={{ position:"absolute",inset:0,zIndex:2000,display:"flex" }}>
+          {/* overlay semitransparente */}
+          <div style={{ position:"absolute",inset:0,background:"rgba(0,0,0,0.55)" }} onClick={()=>setShowBriefing(false)}/>
+          {/* panel deslizante */}
+          <div style={{ position:"relative",marginLeft:"auto",width:520,maxWidth:"95vw",height:"100%",background:"#070c15",borderLeft:"1px solid rgba(0,212,255,0.2)",overflowY:"auto",fontFamily:"sans-serif" }}>
+            {/* CABECERA */}
+            <div style={{ background:"rgba(0,212,255,0.07)",borderBottom:"1px solid rgba(0,212,255,0.15)",padding:"20px 24px" }}>
+              <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start" }}>
+                <div>
+                  <div style={{ fontSize:10,letterSpacing:2,color:"#00d4ff",fontWeight:700,marginBottom:4 }}>SAFENODE · APRECIACIÓN DE SITUACIÓN — CORREDOR</div>
+                  <div style={{ fontSize:20,fontWeight:700,color:"#e2e8f0" }}>{briefingData.corredor.name}</div>
+                  <div style={{ fontSize:12,color:"#64748b",marginTop:2 }}>{briefingData.corredor.ruta} · {briefingData.corredor.desc}</div>
+                </div>
+                <button onClick={()=>setShowBriefing(false)} style={{ background:"none",border:"none",color:"#64748b",cursor:"pointer",fontSize:20,padding:4 }}>✕</button>
+              </div>
+              {/* selector de corredor */}
+              <div style={{ display:"flex",gap:8,marginTop:14,flexWrap:"wrap" }}>
+                {CORREDORES.map(c=>(
+                  <button key={c.key} onClick={()=>{ setCorridorKey(c.key); setBriefingData(buildBriefing(c.key,corridorBuffer)); }}
+                    style={{ fontSize:10,padding:"4px 10px",borderRadius:20,border:`1px solid ${c.key===corridorKey?"#00d4ff":"rgba(255,255,255,0.12)"}`,background:c.key===corridorKey?"rgba(0,212,255,0.12)":"transparent",color:c.key===corridorKey?"#00d4ff":"#94a3b8",cursor:"pointer",fontWeight:c.key===corridorKey?700:400 }}>
+                    {c.name.split(' → ')[0]}→{c.name.split(' → ')[1]}
+                  </button>
+                ))}
+              </div>
+              {/* buffer */}
+              <div style={{ display:"flex",alignItems:"center",gap:10,marginTop:10 }}>
+                <span style={{ fontSize:11,color:"#64748b" }}>Radio de búsqueda:</span>
+                {[25,50,75,100].map(b=>(
+                  <button key={b} onClick={()=>{ setCorridorBuffer(b); setBriefingData(buildBriefing(corridorKey,b)); }}
+                    style={{ fontSize:10,padding:"3px 8px",borderRadius:6,border:`1px solid ${b===corridorBuffer?"#f59e0b":"rgba(255,255,255,0.1)"}`,background:b===corridorBuffer?"rgba(245,158,11,0.15)":"transparent",color:b===corridorBuffer?"#f59e0b":"#64748b",cursor:"pointer" }}>
+                    {b} km
+                  </button>
+                ))}
+                <span style={{ fontSize:10,color:"#334155",marginLeft:"auto" }}>Gen: {briefingData.generadoEn}</span>
+              </div>
+            </div>
+
+            {/* RESUMEN EJECUTIVO */}
+            <div style={{ padding:"16px 24px",borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
+              <div style={{ fontSize:11,letterSpacing:1,color:"#475569",fontWeight:700,marginBottom:12 }}>RESUMEN EJECUTIVO</div>
+              {(()=>{
+                const b=briefingData;
+                const risks=[
+                  { label:"Grupos Armados",  n:b.grupos.length,  color:"#ef4444", icon:"⚔" },
+                  { label:"Minas Antipersonal",n:b.minasAP.length,color:"#dc2626", icon:"💣" },
+                  { label:"Cultivos Ilícitos",n:b.cultivos.length,color:"#16a34a", icon:"🌿" },
+                  { label:"Municipios PDET",  n:b.pdet.length,    color:"#fb923c", icon:"🕊" },
+                  { label:"Oleoductos/Infraestr.",n:b.oleoductos.length,color:"#92400e",icon:"🛢" },
+                ];
+                const support=[
+                  { label:"Policía",   n:b.policia.length,   icon:"P",  color:"#3b82f6" },
+                  { label:"Hospitales",n:b.hospitales.length,icon:"H",  color:"#10b981" },
+                  { label:"Bomberos",  n:b.bomberos.length,  icon:"🔥", color:"#fb923c" },
+                  { label:"Est. Servicio",n:b.estaciones.length,icon:"⛽",color:"#f97316"},
+                  { label:"Talleres",  n:b.talleres.length,  icon:"🔧", color:"#94a3b8" },
+                  { label:"Hotels",    n:b.hotelCtra.length+b.hotelEstr.length,icon:"🏨",color:"#fbbf24"},
+                ];
+                return(
+                  <div>
+                    <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12 }}>
+                      {risks.map(r=>(
+                        <div key={r.label} style={{ display:"flex",alignItems:"center",gap:8,background:"rgba(255,255,255,0.03)",borderRadius:8,padding:"8px 12px",border:`1px solid ${r.n>0?r.color+"40":"rgba(255,255,255,0.05)"}` }}>
+                          <span style={{ fontSize:14 }}>{r.icon}</span>
+                          <div>
+                            <div style={{ fontSize:18,fontWeight:700,color:r.n>0?r.color:"#475569" }}>{r.n}</div>
+                            <div style={{ fontSize:10,color:"#64748b" }}>{r.label}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ display:"flex",gap:8,flexWrap:"wrap" }}>
+                      {support.map(s=>(
+                        <div key={s.label} style={{ display:"flex",alignItems:"center",gap:4,background:"rgba(255,255,255,0.03)",borderRadius:6,padding:"4px 8px",border:"1px solid rgba(255,255,255,0.07)" }}>
+                          <span style={{ fontSize:12 }}>{s.icon}</span>
+                          <span style={{ fontSize:11,color:"#94a3b8" }}>{s.label}: </span>
+                          <span style={{ fontSize:11,fontWeight:700,color:s.n>0?s.color:"#475569" }}>{s.n}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* SECCIONES DE RIESGO */}
+            {[
+              { title:"FACTORES DE RIESGO", items:[
+                { label:"Grupos Armados",icon:"⚔",color:"#ef4444",rows:briefingData.grupos.map(g=>`${g.grupo} — ${g.subregion} (${g.nivel})`) },
+                { label:"Riesgo Minas Antipersonal",icon:"💣",color:"#dc2626",rows:briefingData.minasAP.map(z=>`${z.name} (${z.dept}) — ${z.nivel}${z.eventos?` · ${z.eventos} eventos`:''}`) },
+                { label:"Cultivos Ilícitos SIMCI",icon:"🌿",color:"#16a34a",rows:briefingData.cultivos.map(c=>`${c.name} — ${c.cultivo} ${c.hectareas.toLocaleString()} ha ${c.tendencia}`) },
+                { label:"Municipios PDET",icon:"🕊",color:"#fb923c",rows:briefingData.pdet.map(m=>`${m.name} (${m.dept}) — ${m.riesgo}`) },
+                { label:"Infraestructura Petrolera",icon:"🛢",color:"#92400e",rows:briefingData.oleoductos.map(o=>`${o.name} — ${o.tipo}`) },
+              ]},
+              { title:"INFRAESTRUCTURA DE APOYO", items:[
+                { label:"Policía de Carreteras",icon:"P",color:"#3b82f6",rows:briefingData.policia.map(p=>`${p.name} (${p.municipio})`) },
+                { label:"Hospitales de Referencia",icon:"H",color:"#10b981",rows:briefingData.hospitales.map(h=>`${h.name} (${h.ciudad}) · ${h.tel}`) },
+                { label:"Bomberos",icon:"🔥",color:"#fb923c",rows:briefingData.bomberos.map(b=>`${b.name} (${b.municipio})`) },
+                { label:"Estaciones de Servicio",icon:"⛽",color:"#f97316",rows:briefingData.estaciones.map(e=>`${e.name} — ${e.ruta}`) },
+                { label:"Talleres Mecánica Pesada",icon:"🔧",color:"#94a3b8",rows:briefingData.talleres.map(t=>`${t.name} (${t.municipio})`) },
+                { label:"Hoteles Estratégicos",icon:"🏨",color:"#fbbf24",rows:briefingData.hotelEstr.map(h=>`${h.name} — ${'★'.repeat(h.stars)} (${h.ciudad})`) },
+                { label:"Hoteles de Carretera",icon:"🛏",color:"#34d399",rows:briefingData.hotelCtra.map(h=>`${h.name} (${h.municipio})`) },
+              ]},
+              { title:"INFRAESTRUCTURA LOGÍSTICA", items:[
+                { label:"Peajes",icon:"$",color:"#f59e0b",rows:briefingData.peajes.map(p=>`${p.name} — ${p.ruta}`) },
+                { label:"Básculas INVIAS",icon:"⚖",color:"#e879f9",rows:briefingData.basculas.map(b=>`${b.name} (${b.municipio})`) },
+                { label:"Puentes Estratégicos",icon:"🌉",color:"#64748b",rows:briefingData.puentes.map(p=>`${p.name} — ${p.ruta}`) },
+                { label:"Terminales de Carga",icon:"📦",color:"#d97706",rows:briefingData.terminales.map(t=>`${t.name} — ${t.operador}`) },
+                { label:"Aeropuertos",icon:"✈",color:"#22d3ee",rows:briefingData.aeropuertos.map(a=>`${a.name} (${a.codigo}) — ${a.tipo}`) },
+                { label:"Control DIAN",icon:"🛃",color:"#eab308",rows:briefingData.dian.map(d=>`${d.name} (${d.municipio})`) },
+                { label:"Depósitos DIAN",icon:"🏛",color:"#8b5cf6",rows:briefingData.depositosDIAN.map(d=>`${d.name} — ${d.operador}`) },
+              ]},
+            ].map(section=>(
+              <div key={section.title} style={{ padding:"16px 24px",borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
+                <div style={{ fontSize:10,letterSpacing:1,color:"#475569",fontWeight:700,marginBottom:10 }}>{section.title}</div>
+                {section.items.filter(it=>it.rows.length>0).map(it=>(
+                  <div key={it.label} style={{ marginBottom:10 }}>
+                    <div style={{ display:"flex",alignItems:"center",gap:6,marginBottom:4 }}>
+                      <span style={{ fontSize:12 }}>{it.icon}</span>
+                      <span style={{ fontSize:11,fontWeight:700,color:it.color }}>{it.label}</span>
+                      <span style={{ fontSize:10,background:`${it.color}22`,color:it.color,padding:"1px 6px",borderRadius:10 }}>{it.rows.length}</span>
+                    </div>
+                    {it.rows.map((row,ri)=>(
+                      <div key={ri} style={{ fontSize:11,color:"#94a3b8",paddingLeft:18,lineHeight:1.7,borderLeft:`2px solid ${it.color}33` }}>• {row}</div>
+                    ))}
+                  </div>
+                ))}
+                {section.items.filter(it=>it.rows.length>0).length===0&&(
+                  <div style={{ fontSize:12,color:"#334155",fontStyle:"italic" }}>Sin registros dentro del radio de {briefingData.buffer} km</div>
+                )}
+              </div>
+            ))}
+            <div style={{ padding:"12px 24px",fontSize:11,color:"#1e293b",textAlign:"center" }}>SafeNode S.A.S. · Inteligencia Logística · {briefingData.generadoEn}</div>
+          </div>
+        </div>
+      )}
 
       {/* PANEL */}
       <div style={{
