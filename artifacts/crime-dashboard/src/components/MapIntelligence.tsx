@@ -375,6 +375,85 @@ const BASCULAS: Bascula[] = [
   { name:"Báscula Buenaventura",     route:"Ruta 25 Puerto–Cali",             lat: 3.883, lng:-77.018, dept:"Valle del Cauca",    km:"Km 3" },
 ];
 
+/* ── HOTELES ESTRATÉGICOS COLOMBIA (4★ y 5★ — cadenas nacionales e internacionales) ── */
+interface Hotel { name: string; cadena: string; ciudad: string; stars: number; lat: number; lng: number; dept: string; address: string; tel?: string; }
+const HOTELES: Hotel[] = [
+  /* ── BOGOTÁ ── */
+  { name:"JW Marriott Bogotá",               cadena:"Marriott",    ciudad:"Bogotá",        stars:5, lat: 4.665, lng:-74.054, dept:"Bogotá D.C.",       address:"Calle 73 No. 8-60",             tel:"(601) 481-6000" },
+  { name:"Grand Hyatt Bogotá",               cadena:"Hyatt",       ciudad:"Bogotá",        stars:5, lat: 4.625, lng:-74.115, dept:"Bogotá D.C.",       address:"Calle 24A No. 57A-60",          tel:"(601) 745-9999" },
+  { name:"Hilton Bogotá Corferias",          cadena:"Hilton",      ciudad:"Bogotá",        stars:5, lat: 4.629, lng:-74.106, dept:"Bogotá D.C.",       address:"Carrera 37 No. 24-67",          tel:"(601) 330-6000" },
+  { name:"Hotel Casa Medina",                cadena:"Sofitel MGallery",ciudad:"Bogotá",    stars:5, lat: 4.659, lng:-74.055, dept:"Bogotá D.C.",       address:"Carrera 7 No. 69A-22",          tel:"(601) 217-0288" },
+  { name:"Hotel Estelar Parque de la 93",    cadena:"Estelar",     ciudad:"Bogotá",        stars:5, lat: 4.678, lng:-74.046, dept:"Bogotá D.C.",       address:"Calle 94A No. 13-41",           tel:"(601) 636-4800" },
+  { name:"NH Collection Royal Bogotá",       cadena:"NH Hotels",   ciudad:"Bogotá",        stars:4, lat: 4.685, lng:-74.046, dept:"Bogotá D.C.",       address:"Calle 100 No. 19-61",           tel:"(601) 657-5000" },
+  { name:"Hotel GHL Comfort San Diego",      cadena:"GHL",         ciudad:"Bogotá",        stars:4, lat: 4.623, lng:-74.067, dept:"Bogotá D.C.",       address:"Carrera 13 No. 24-80",          tel:"(601) 338-1600" },
+  { name:"Hotel Tequendama Bogotá",          cadena:"GHL",         ciudad:"Bogotá",        stars:4, lat: 4.624, lng:-74.072, dept:"Bogotá D.C.",       address:"Carrera 10 No. 26-21",          tel:"(601) 382-0300" },
+  { name:"Hotel Dann Carlton Bogotá",        cadena:"Dann",        ciudad:"Bogotá",        stars:5, lat: 4.651, lng:-74.055, dept:"Bogotá D.C.",       address:"Calle 47 No. 13-29",            tel:"(601) 346-0700" },
+  /* ── MEDELLÍN ── */
+  { name:"Hotel Intercontinental Medellín",  cadena:"IHG",         ciudad:"Medellín",      stars:5, lat: 6.205, lng:-75.574, dept:"Antioquia",         address:"Av. El Poblado No. 16-211",     tel:"(604) 319-4444" },
+  { name:"Hotel Dann Carlton Medellín",      cadena:"Dann",        ciudad:"Medellín",      stars:5, lat: 6.202, lng:-75.571, dept:"Antioquia",         address:"Calle 1 Sur No. 43A-81",        tel:"(604) 444-5151" },
+  { name:"Hotel Diez Hotel Medellín",        cadena:"Independiente",ciudad:"Medellín",     stars:5, lat: 6.209, lng:-75.572, dept:"Antioquia",         address:"Calle 8A No. 41-04",            tel:"(604) 321-1010" },
+  { name:"Hampton by Hilton Medellín",       cadena:"Hilton",      ciudad:"Medellín",      stars:4, lat: 6.207, lng:-75.568, dept:"Antioquia",         address:"Carrera 43A No. 1-45",          tel:"(604) 312-8888" },
+  { name:"Hotel Nutibara Medellín",          cadena:"GHL",         ciudad:"Medellín",      stars:4, lat: 6.244, lng:-75.573, dept:"Antioquia",         address:"Calle 52A No. 50-46",           tel:"(604) 511-5111" },
+  /* ── CALI ── */
+  { name:"Intercontinental Cali",            cadena:"IHG",         ciudad:"Cali",          stars:5, lat: 3.432, lng:-76.531, dept:"Valle del Cauca",   address:"Av. Colombia No. 2-72",         tel:"(602) 882-3225" },
+  { name:"Hotel Estelar Río Cali",           cadena:"Estelar",     ciudad:"Cali",          stars:5, lat: 3.468, lng:-76.530, dept:"Valle del Cauca",   address:"Calle 18 Norte No. 2N-48",      tel:"(602) 485-0000" },
+  { name:"Hotel GHL Collection Carlton",     cadena:"GHL",         ciudad:"Cali",          stars:4, lat: 3.440, lng:-76.536, dept:"Valle del Cauca",   address:"Carrera 3 No. 9-35",            tel:"(602) 688-5000" },
+  { name:"Hotel Spiwak Chipichape",          cadena:"Spiwak",      ciudad:"Cali",          stars:4, lat: 3.468, lng:-76.543, dept:"Valle del Cauca",   address:"Av. 6N No. 28N-10 Chipichape",  tel:"(602) 665-2525" },
+  /* ── BARRANQUILLA ── */
+  { name:"Hotel El Prado Barranquilla",      cadena:"Independiente",ciudad:"Barranquilla", stars:5, lat:10.993, lng:-74.814, dept:"Atlántico",         address:"Carrera 54 No. 70-10",          tel:"(605) 369-7777" },
+  { name:"Hampton by Hilton Barranquilla",   cadena:"Hilton",      ciudad:"Barranquilla",  stars:4, lat:10.994, lng:-74.815, dept:"Atlántico",         address:"Calle 76 No. 41B-91",           tel:"(605) 369-8000" },
+  { name:"Hotel Dann Carlton Barranquilla",  cadena:"Dann",        ciudad:"Barranquilla",  stars:4, lat:10.992, lng:-74.813, dept:"Atlántico",         address:"Calle 75 No. 41B-141",          tel:"(605) 369-9999" },
+  /* ── CARTAGENA ── */
+  { name:"Sofitel Legend Santa Clara",       cadena:"Sofitel",     ciudad:"Cartagena",     stars:5, lat:10.421, lng:-75.549, dept:"Bolívar",           address:"Calle del Torno No. 39-29",     tel:"(605) 650-4700" },
+  { name:"Hotel Charleston Santa Teresa",    cadena:"Charleston",  ciudad:"Cartagena",     stars:5, lat:10.421, lng:-75.548, dept:"Bolívar",           address:"Plaza de Santa Teresa",         tel:"(605) 664-9494" },
+  { name:"Las Americas Grand Hotel",         cadena:"Independiente",ciudad:"Cartagena",    stars:5, lat:10.378, lng:-75.508, dept:"Bolívar",           address:"Cra 1 No. 9-223",               tel:"(605) 656-2900" },
+  { name:"Hotel Intercontinental Cartagena", cadena:"IHG",         ciudad:"Cartagena",     stars:5, lat:10.390, lng:-75.483, dept:"Bolívar",           address:"Av. Almirante Brion s/n",       tel:"(605) 650-1010" },
+  { name:"Hotel Capilla del Mar",            cadena:"Independiente",ciudad:"Cartagena",    stars:4, lat:10.399, lng:-75.503, dept:"Bolívar",           address:"Bocagrande Carrera 1 No. 7-40", tel:"(605) 664-6070" },
+  /* ── BUCARAMANGA ── */
+  { name:"Hotel Dann Carlton Bucaramanga",   cadena:"Dann",        ciudad:"Bucaramanga",   stars:5, lat: 7.113, lng:-73.114, dept:"Santander",         address:"Calle 34 No. 31-24",            tel:"(607) 643-1181" },
+  { name:"Hotel Chicamocha Bucaramanga",     cadena:"Independiente",ciudad:"Bucaramanga",  stars:4, lat: 7.112, lng:-73.113, dept:"Santander",         address:"Calle 34 No. 31-15",            tel:"(607) 633-5000" },
+  /* ── CÚCUTA ── */
+  { name:"Hotel Bolívar Cúcuta",             cadena:"Independiente",ciudad:"Cúcuta",       stars:4, lat: 7.890, lng:-72.507, dept:"Norte de Santander",address:"Av. 0 No. 9E-38",               tel:"(607) 582-4700" },
+  { name:"Hotel Tamá Cúcuta",                cadena:"Independiente",ciudad:"Cúcuta",       stars:4, lat: 7.891, lng:-72.511, dept:"Norte de Santander",address:"Calle 8 No. 7E-60",             tel:"(607) 583-5858" },
+  /* ── SANTA MARTA ── */
+  { name:"Hotel Irotama Resort",             cadena:"Irotama",     ciudad:"Santa Marta",   stars:5, lat:11.158, lng:-74.142, dept:"Magdalena",         address:"Km 14 Vía Barranquilla",        tel:"(605) 433-0034" },
+  { name:"Hotel Zuana Beach Resort",         cadena:"Independiente",ciudad:"Santa Marta",  stars:4, lat:11.178, lng:-74.159, dept:"Magdalena",         address:"Km 10 Vía Barranquilla",        tel:"(605) 433-3800" },
+  /* ── VILLAVICENCIO ── */
+  { name:"Hotel Kumaral Villavicencio",      cadena:"Independiente",ciudad:"Villavicencio",stars:4, lat: 4.148, lng:-73.636, dept:"Meta",              address:"Carrera 30 No. 37A-22",         tel:"(608) 674-0505" },
+  { name:"Hotel Movich Villavicencio",       cadena:"Movich",      ciudad:"Villavicencio", stars:4, lat: 4.150, lng:-73.632, dept:"Meta",              address:"Calle 39 No. 29-60",            tel:"(608) 670-0050" },
+  /* ── PEREIRA ── */
+  { name:"Hotel Movich Pereira",             cadena:"Movich",      ciudad:"Pereira",       stars:5, lat: 4.811, lng:-75.696, dept:"Risaralda",         address:"Calle 13 No. 12-53",            tel:"(606) 321-1010" },
+  { name:"Hotel GHL Comfort Pereira",        cadena:"GHL",         ciudad:"Pereira",       stars:4, lat: 4.812, lng:-75.695, dept:"Risaralda",         address:"Av. 30 de Agosto No. 35-33",    tel:"(606) 335-9999" },
+  /* ── MANIZALES ── */
+  { name:"Hotel Estelar Manizales",          cadena:"Estelar",     ciudad:"Manizales",     stars:5, lat: 5.065, lng:-75.510, dept:"Caldas",            address:"Av. Santander No. 56-07",       tel:"(606) 881-0000" },
+  { name:"Hotel Carretero Manizales",        cadena:"Independiente",ciudad:"Manizales",    stars:4, lat: 5.064, lng:-75.512, dept:"Caldas",            address:"Av. Santander No. 31-30",       tel:"(606) 881-8888" },
+  /* ── ARMENIA ── */
+  { name:"Hotel Mocawa Resort Armenia",      cadena:"Independiente",ciudad:"Armenia",      stars:4, lat: 4.542, lng:-75.686, dept:"Quindío",           address:"Km 1 Vía La Tebaida",           tel:"(606) 741-9999" },
+  /* ── IBAGUÉ ── */
+  { name:"Hotel Merlot Ibagué",              cadena:"Independiente",ciudad:"Ibagué",       stars:4, lat: 4.432, lng:-75.243, dept:"Tolima",            address:"Carrera 5 No. 60-49",           tel:"(608) 277-3737" },
+  /* ── NEIVA ── */
+  { name:"Hotel Acuario Neiva",              cadena:"Independiente",ciudad:"Neiva",        stars:4, lat: 2.932, lng:-75.294, dept:"Huila",             address:"Carrera 5 No. 22-35",           tel:"(608) 871-0000" },
+  /* ── PASTO ── */
+  { name:"Hotel Cuellar's Pasto",            cadena:"Independiente",ciudad:"Pasto",        stars:4, lat: 1.214, lng:-77.282, dept:"Nariño",            address:"Carrera 21 No. 18-25",          tel:"(602) 729-1212" },
+  /* ── POPAYÁN ── */
+  { name:"Hotel Dann Popayán",               cadena:"Dann",        ciudad:"Popayán",       stars:4, lat: 2.443, lng:-76.608, dept:"Cauca",             address:"Calle 4 No. 8-35",              tel:"(602) 824-5050" },
+  /* ── MONTERÍA ── */
+  { name:"Hotel Sinu Montería",              cadena:"Independiente",ciudad:"Montería",     stars:4, lat: 8.758, lng:-75.886, dept:"Córdoba",           address:"Carrera 2 No. 28-35",           tel:"(604) 782-3000" },
+  /* ── VALLEDUPAR ── */
+  { name:"Hotel Sicarare Valledupar",        cadena:"Independiente",ciudad:"Valledupar",   stars:4, lat:10.477, lng:-73.253, dept:"Cesar",             address:"Calle 9 No. 5-89",              tel:"(605) 574-4000" },
+  /* ── TUNJA ── */
+  { name:"Hotel Boyacá Plaza Tunja",         cadena:"Independiente",ciudad:"Tunja",        stars:4, lat: 5.541, lng:-73.360, dept:"Boyacá",            address:"Carrera 11 No. 20-44",          tel:"(608) 740-1616" },
+  /* ── SAN ANDRÉS ── */
+  { name:"Decameron Aquarium San Andrés",    cadena:"Decameron",   ciudad:"San Andrés",    stars:5, lat:12.572, lng:-81.719, dept:"San Andrés",        address:"Av. Colón No. 9-59",            tel:"(605) 512-0015" },
+  { name:"Decameron Maryland San Andrés",    cadena:"Decameron",   ciudad:"San Andrés",    stars:4, lat:12.542, lng:-81.716, dept:"San Andrés",        address:"Km 8 Vía San Luis",             tel:"(605) 512-0550" },
+  /* ── LETICIA ── */
+  { name:"Decameron Decalodge Tikuna",       cadena:"Decameron",   ciudad:"Leticia",       stars:4, lat:-4.200, lng:-69.945, dept:"Amazonas",          address:"Km 8 Vía Leticia",              tel:"(608) 592-7600" },
+  /* ── ARAUCA ── */
+  { name:"Hotel Flamboyán Arauca",           cadena:"Independiente",ciudad:"Arauca",       stars:4, lat: 7.088, lng:-70.757, dept:"Arauca",            address:"Carrera 20 No. 19-36",          tel:"(607) 885-3434" },
+  /* ── YOPAL ── */
+  { name:"Hotel Los Llaneros Yopal",         cadena:"Independiente",ciudad:"Yopal",        stars:4, lat: 5.338, lng:-72.394, dept:"Casanare",          address:"Calle 8 No. 25-40",             tel:"(608) 635-5200" },
+];
+
 /* ── tipos / helpers ── */
 type LayerKey = "grupos" | "riesgo" | "delitos" | "vias" | "ninguna";
 type BasemapKey = "dark" | "streets" | "satellite";
@@ -432,6 +511,7 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
   const [showArmada,     setShowArmada]     = useState(false);
   const [showBomberos,   setShowBomberos]   = useState(false);
   const [showBasculas,   setShowBasculas]   = useState(false);
+  const [showHoteles,    setShowHoteles]    = useState(false);
   const [basemap, setBasemap] = useState<BasemapKey>("dark");
   const [panelOpen, setPanelOpen] = useState(true);
   const [geoData, setGeoData] = useState<any>(null);
@@ -500,6 +580,7 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
     { key:"armada",     label:"Armada Nacional",         icon:MapPin,     color:"#818cf8", active:showArmada,     toggle:()=>setShowArmada(p=>!p),      count:ARMADA.length },
     { key:"bomberos",   label:"Cuerpos de Bomberos",     icon:AlertTriangle, color:"#fb923c", active:showBomberos,toggle:()=>setShowBomberos(p=>!p),    count:BOMBEROS.length },
     { key:"basculas",   label:"Básculas de Pesaje INVIAS",icon:Car,          color:"#e879f9", active:showBasculas, toggle:()=>setShowBasculas(p=>!p),   count:BASCULAS.length },
+    { key:"hoteles",    label:"Hoteles Estratégicos",      icon:MapPin,       color:"#fbbf24", active:showHoteles,  toggle:()=>setShowHoteles(p=>!p),     count:HOTELES.length },
   ];
 
   const activeLayerMeta = LAYERS.find(l=>l.key===activeLayer)!;
@@ -511,6 +592,7 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
   const armadaIcon     = makeIcon("⚓",  "rgba(129,140,248,0.92)", "#818cf8", 22);
   const bomberoIcon    = makeIcon("🔥", "rgba(251,146,60,0.92)",  "#fb923c", 22);
   const basculaIcon    = makeIcon("⚖",  "rgba(232,121,249,0.92)", "#e879f9", 20);
+  const hotelIcon      = makeIcon("🏨", "rgba(251,191,36,0.92)",  "#fbbf24", 22);
 
   return (
     <div style={{ position:"relative", width:"100%", height:"calc(100vh - 120px)", minHeight:500, borderRadius:12, overflow:"hidden" }}>
@@ -686,6 +768,25 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
             </Popup>
           </Marker>
         ))}
+
+        {/* ── HOTELES ESTRATÉGICOS ── */}
+        {showHoteles&&HOTELES.map((h,i)=>(
+          <Marker key={`hotel-${i}`} position={[h.lat,h.lng]} icon={hotelIcon}>
+            <Popup className="dark-popup">
+              <div style={{ fontFamily:"sans-serif",fontSize:13,color:"#e2e8f0",minWidth:220 }}>
+                <div style={{ fontWeight:700,color:"#fbbf24",marginBottom:6 }}>🏨 {h.name}</div>
+                <table style={{ width:"100%",borderCollapse:"collapse" }}>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Categoría</td><td style={{ textAlign:"right",color:"#fbbf24",fontWeight:700 }}>{"★".repeat(h.stars)}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Cadena</td><td style={{ textAlign:"right" }}>{h.cadena}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Ciudad</td><td style={{ textAlign:"right" }}>{h.ciudad}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Dpto.</td><td style={{ textAlign:"right" }}>{h.dept}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Dirección</td><td style={{ textAlign:"right",fontSize:11 }}>{h.address}</td></tr>
+                  {h.tel&&<tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Teléfono</td><td style={{ textAlign:"right",color:"#fbbf24",fontWeight:600 }}>{h.tel}</td></tr>}
+                </table>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
       </MapContainer>
 
       {/* PANEL */}
@@ -786,7 +887,7 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
         )}
 
         {/* Overlay legend */}
-        {(showPeajes||showPolicia||showHospitales||showBlockades||showEjercito||showFAC||showArmada||showBomberos||showBasculas)&&(
+        {(showPeajes||showPolicia||showHospitales||showBlockades||showEjercito||showFAC||showArmada||showBomberos||showBasculas||showHoteles)&&(
           <div style={{ padding:"10px 14px", borderBottom:"1px solid rgba(255,255,255,0.07)" }}>
             <div style={{ fontSize:10,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:"rgba(255,255,255,0.35)",marginBottom:8 }}>Símbolos activos</div>
             <div style={{ display:"flex",flexDirection:"column",gap:5 }}>
@@ -799,6 +900,7 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
               {showArmada&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(129,140,248,0.92)",border:"2px solid #818cf8",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff" }}>⚓</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Armada — Base Naval/Fluvial</span></div>}
               {showBomberos&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(251,146,60,0.92)",border:"2px solid #fb923c",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11 }}>🔥</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Cuerpo de Bomberos — 119</span></div>}
               {showBasculas&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(232,121,249,0.92)",border:"2px solid #e879f9",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff" }}>⚖</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Báscula de Pesaje INVIAS</span></div>}
+              {showHoteles&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(251,191,36,0.92)",border:"2px solid #fbbf24",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>🏨</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Hotel Estratégico 4★–5★</span></div>}
             </div>
           </div>
         )}
