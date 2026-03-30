@@ -1,5 +1,8 @@
 import { useState, useCallback, useEffect } from "react";
-import { MapContainer, TileLayer, GeoJSON, CircleMarker, Popup, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, GeoJSON, CircleMarker, Popup, useMap, Marker } from "react-leaflet";
+import MarkerClusterGroup from "react-leaflet-cluster";
+import "react-leaflet-cluster/dist/assets/MarkerCluster.css";
+import "react-leaflet-cluster/dist/assets/MarkerCluster.Default.css";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
@@ -771,6 +774,89 @@ const DEPOSITOS_DIAN: DepositoDIAN[] = [
   { name:"DHL Global Forwarding Bogotá",    operador:"DHL",          ciudad:"Bogotá",       dept:"Bogotá D.C.",     lat: 4.703, lng:-74.146, tipo:"Aéreo habilitado — courier y carga",  tel:"(601) 800-0345" },
 ];
 
+/* ── CULTIVOS ILÍCITOS — SIMCI / UNODC ── */
+interface CultivoIlicito { name: string; dept: string; lat: number; lng: number; cultivo: "Coca"|"Amapola"|"Cannabis"; hectareas: number; tendencia: "↑"|"↓"|"→"; }
+const CULTIVOS_ILICITOS: CultivoIlicito[] = [
+  /* ── Nariño (Región 1 del país) ── */
+  { name:"Tumaco",                dept:"Nariño",            lat: 1.801, lng:-78.762, cultivo:"Coca",    hectareas:37890, tendencia:"↑" },
+  { name:"Barbacoas",             dept:"Nariño",            lat: 1.671, lng:-78.143, cultivo:"Coca",    hectareas:15600, tendencia:"↑" },
+  { name:"Ricaurte",              dept:"Nariño",            lat: 1.210, lng:-78.012, cultivo:"Coca",    hectareas:11800, tendencia:"→" },
+  { name:"El Charco",             dept:"Nariño",            lat: 2.484, lng:-78.112, cultivo:"Coca",    hectareas:12400, tendencia:"↑" },
+  { name:"Olaya Herrera",         dept:"Nariño",            lat: 2.041, lng:-78.397, cultivo:"Coca",    hectareas:11200, tendencia:"↑" },
+  { name:"Magüí Payán",           dept:"Nariño",            lat: 1.838, lng:-77.586, cultivo:"Coca",    hectareas:10200, tendencia:"→" },
+  { name:"La Tola",               dept:"Nariño",            lat: 2.006, lng:-78.279, cultivo:"Coca",    hectareas: 4900, tendencia:"→" },
+  /* ── Norte de Santander / Catatumbo ── */
+  { name:"Tibú",                  dept:"Norte de Santander",lat: 8.666, lng:-72.730, cultivo:"Coca",    hectareas:31200, tendencia:"↑" },
+  { name:"Convención",            dept:"Norte de Santander",lat: 8.468, lng:-73.187, cultivo:"Coca",    hectareas:12700, tendencia:"↑" },
+  { name:"El Tarra",              dept:"Norte de Santander",lat: 8.574, lng:-73.087, cultivo:"Coca",    hectareas: 9400, tendencia:"↑" },
+  { name:"Teorama",               dept:"Norte de Santander",lat: 8.477, lng:-73.265, cultivo:"Coca",    hectareas: 7100, tendencia:"→" },
+  /* ── Putumayo ── */
+  { name:"Valle del Guamuez",     dept:"Putumayo",          lat: 0.434, lng:-76.909, cultivo:"Coca",    hectareas:22400, tendencia:"↑" },
+  { name:"San Miguel",            dept:"Putumayo",          lat: 0.293, lng:-76.893, cultivo:"Coca",    hectareas:16800, tendencia:"↑" },
+  { name:"Puerto Asís",           dept:"Putumayo",          lat: 0.507, lng:-76.502, cultivo:"Coca",    hectareas:14200, tendencia:"→" },
+  { name:"Orito",                 dept:"Putumayo",          lat: 0.671, lng:-76.877, cultivo:"Coca",    hectareas: 8900, tendencia:"↓" },
+  /* ── Meta / Guaviare / Caquetá ── */
+  { name:"La Macarena",           dept:"Meta",              lat: 2.179, lng:-73.789, cultivo:"Coca",    hectareas:18900, tendencia:"↑" },
+  { name:"Mapiripán",             dept:"Meta",              lat: 2.896, lng:-72.143, cultivo:"Coca",    hectareas:12300, tendencia:"→" },
+  { name:"Vista Hermosa",         dept:"Meta",              lat: 3.121, lng:-73.741, cultivo:"Coca",    hectareas: 9700, tendencia:"↓" },
+  { name:"San José del Guaviare", dept:"Guaviare",          lat: 2.568, lng:-72.641, cultivo:"Coca",    hectareas:13400, tendencia:"↑" },
+  { name:"El Retorno",            dept:"Guaviare",          lat: 2.319, lng:-72.627, cultivo:"Coca",    hectareas: 8200, tendencia:"→" },
+  { name:"Calamar",               dept:"Guaviare",          lat: 1.963, lng:-72.636, cultivo:"Coca",    hectareas: 7800, tendencia:"→" },
+  { name:"San Vicente del Caguán",dept:"Caquetá",           lat: 2.107, lng:-74.767, cultivo:"Coca",    hectareas: 5400, tendencia:"↓" },
+  { name:"Puerto Rico",           dept:"Caquetá",           lat: 1.911, lng:-75.162, cultivo:"Coca",    hectareas: 7600, tendencia:"→" },
+  { name:"Cartagena del Chairá",  dept:"Caquetá",           lat: 1.347, lng:-74.863, cultivo:"Coca",    hectareas: 6800, tendencia:"→" },
+  /* ── Cauca ── */
+  { name:"Timbiquí",              dept:"Cauca",             lat: 2.771, lng:-77.663, cultivo:"Coca",    hectareas: 9800, tendencia:"↑" },
+  { name:"López de Micay",        dept:"Cauca",             lat: 2.886, lng:-77.232, cultivo:"Coca",    hectareas: 8700, tendencia:"↑" },
+  /* ── Antioquia ── */
+  { name:"Ituango",               dept:"Antioquia",         lat: 7.166, lng:-75.764, cultivo:"Coca",    hectareas: 7200, tendencia:"↑" },
+  { name:"Tarazá",                dept:"Antioquia",         lat: 7.873, lng:-75.398, cultivo:"Coca",    hectareas: 4800, tendencia:"→" },
+  { name:"Briceño",               dept:"Antioquia",         lat: 7.210, lng:-75.559, cultivo:"Coca",    hectareas: 5300, tendencia:"→" },
+  /* ── Bolívar ── */
+  { name:"San Pablo",             dept:"Bolívar",           lat: 8.328, lng:-73.852, cultivo:"Coca",    hectareas: 8100, tendencia:"↑" },
+  { name:"Santa Rosa del Sur",    dept:"Bolívar",           lat: 7.959, lng:-74.043, cultivo:"Coca",    hectareas: 6400, tendencia:"→" },
+  /* ── Chocó ── */
+  { name:"Riosucio",              dept:"Chocó",             lat: 7.428, lng:-77.121, cultivo:"Coca",    hectareas: 6900, tendencia:"↑" },
+  { name:"Bojayá",                dept:"Chocó",             lat: 5.833, lng:-76.866, cultivo:"Coca",    hectareas: 4200, tendencia:"→" },
+  /* ── Amapola — Cauca/Nariño ── */
+  { name:"Páez (Belalcázar)",     dept:"Cauca",             lat: 2.612, lng:-75.989, cultivo:"Amapola", hectareas:  890, tendencia:"↓" },
+  { name:"Samaniego",             dept:"Nariño",            lat: 1.339, lng:-77.595, cultivo:"Amapola", hectareas:  640, tendencia:"↓" },
+];
+
+/* ── GRUPOS ARMADOS — PRESENCIA POR SUBREGIÓN ── */
+interface GrupoArmado { name: string; grupo: string; subregion: string; dept: string; lat: number; lng: number; frente?: string; nivel: "Dominante"|"Alta presencia"|"Presencia"; }
+const GRUPOS_ARMADOS: GrupoArmado[] = [
+  /* ── ELN ── */
+  { name:"ELN — Arauca",              grupo:"ELN", subregion:"Arauca",               dept:"Arauca",            lat: 6.540, lng:-71.000, frente:"Domingo Laín Sáenz",         nivel:"Dominante" },
+  { name:"ELN — Catatumbo",           grupo:"ELN", subregion:"Catatumbo",            dept:"Norte de Santander",lat: 8.330, lng:-73.000, frente:"Camilo Torres Restrepo",     nivel:"Dominante" },
+  { name:"ELN — Sur de Bolívar",      grupo:"ELN", subregion:"Sur de Bolívar",       dept:"Bolívar",           lat: 8.000, lng:-74.200, frente:"Héroes y Mártires de Santa Rosa",nivel:"Alta presencia" },
+  { name:"ELN — Chocó",               grupo:"ELN", subregion:"Chocó",                dept:"Chocó",             lat: 7.000, lng:-76.900, frente:"Ernesto Che Guevara",        nivel:"Dominante" },
+  { name:"ELN — Cauca",               grupo:"ELN", subregion:"Cauca",                dept:"Cauca",             lat: 2.700, lng:-76.900, frente:"Manuel Vásquez Castaño",     nivel:"Alta presencia" },
+  { name:"ELN — Bajo Cauca Ant.",     grupo:"ELN", subregion:"Bajo Cauca",           dept:"Antioquia",         lat: 7.500, lng:-75.300, frente:"Resistencia Cimarrona",      nivel:"Alta presencia" },
+  { name:"ELN — Norte de Santander",  grupo:"ELN", subregion:"Ocaña/Sardinata",      dept:"Norte de Santander",lat: 8.250, lng:-73.200, frente:"Camilo Torres",             nivel:"Alta presencia" },
+  { name:"ELN — Nariño",              grupo:"ELN", subregion:"Pacífico Nariñense",   dept:"Nariño",            lat: 1.900, lng:-78.400, frente:"Comuneros del Sur",          nivel:"Alta presencia" },
+  /* ── FARC-EMC (Estado Mayor Central) ── */
+  { name:"FARC-EMC — Putumayo",       grupo:"FARC-EMC", subregion:"Putumayo",        dept:"Putumayo",          lat: 0.650, lng:-76.800, frente:"Frente 48",                  nivel:"Dominante" },
+  { name:"FARC-EMC — Caquetá",        grupo:"FARC-EMC", subregion:"Caguán",          dept:"Caquetá",           lat: 1.500, lng:-74.800, frente:"Frente 49",                  nivel:"Dominante" },
+  { name:"FARC-EMC — Meta/Guaviare",  grupo:"FARC-EMC", subregion:"Macarena-Guaviare",dept:"Meta",            lat: 2.500, lng:-73.500, frente:"Bloque Oriental",            nivel:"Dominante" },
+  { name:"FARC-EMC — Nariño",         grupo:"FARC-EMC", subregion:"Pacífico Nariñense",dept:"Nariño",         lat: 1.800, lng:-78.500, frente:"Frente 2 Carolina Ramírez",  nivel:"Dominante" },
+  { name:"FARC-EMC — Cauca",          grupo:"FARC-EMC", subregion:"Pacífico Caucano", dept:"Cauca",           lat: 2.800, lng:-77.200, frente:"Frente 30 / Frente 6",       nivel:"Alta presencia" },
+  { name:"FARC-EMC — Chocó",          grupo:"FARC-EMC", subregion:"Chocó norte",      dept:"Chocó",           lat: 7.400, lng:-76.700, frente:"Frente 5",                   nivel:"Alta presencia" },
+  { name:"FARC-EMC — Vichada",        grupo:"FARC-EMC", subregion:"Llanos Orientales",dept:"Vichada",         lat: 4.400, lng:-70.100, frente:"Jorge Briceño",              nivel:"Alta presencia" },
+  /* ── Clan del Golfo (AGC/Gaitanistas) ── */
+  { name:"Clan del Golfo — Urabá",    grupo:"Clan del Golfo", subregion:"Urabá",       dept:"Antioquia",       lat: 7.600, lng:-76.800, frente:"Bloque Urabá",               nivel:"Dominante" },
+  { name:"Clan del Golfo — Córdoba",  grupo:"Clan del Golfo", subregion:"Montería/Montelíbano",dept:"Córdoba",lat: 8.500, lng:-75.500, frente:"Bloque Córdoba",             nivel:"Dominante" },
+  { name:"Clan del Golfo — Bajo Cauca",grupo:"Clan del Golfo",subregion:"Bajo Cauca",  dept:"Antioquia",       lat: 7.900, lng:-74.900, frente:"Bloque Bajo Cauca",          nivel:"Alta presencia" },
+  { name:"Clan del Golfo — Chocó",    grupo:"Clan del Golfo", subregion:"Chocó",       dept:"Chocó",           lat: 6.500, lng:-77.200, frente:"Bloque Pacífico",            nivel:"Alta presencia" },
+  { name:"Clan del Golfo — Nariño",   grupo:"Clan del Golfo", subregion:"Pacífico Nariñense",dept:"Nariño",    lat: 2.500, lng:-78.200, frente:"Bloque Pacífico Sur",        nivel:"Presencia" },
+  { name:"Clan del Golfo — Norte Santander",grupo:"Clan del Golfo",subregion:"Catatumbo",dept:"Norte de Santander",lat: 8.500, lng:-73.200, frente:"Bloque Catatumbo",     nivel:"Presencia" },
+  { name:"Clan del Golfo — Sur de Bolívar",grupo:"Clan del Golfo",subregion:"Sur de Bolívar",dept:"Bolívar",  lat: 8.300, lng:-74.100, frente:"Bloque Sur de Bolívar",     nivel:"Presencia" },
+  /* ── Segunda Marquetalia ── */
+  { name:"2a Marquetalia — Nariño",   grupo:"2a Marquetalia", subregion:"Pacífico Nariñense",dept:"Nariño",   lat: 1.200, lng:-77.800, frente:"Frente Comuneros del Sur",   nivel:"Alta presencia" },
+  { name:"2a Marquetalia — Cauca",    grupo:"2a Marquetalia", subregion:"Cauca interior",   dept:"Cauca",     lat: 2.100, lng:-76.500, frente:"Frente Sur",                 nivel:"Alta presencia" },
+  { name:"2a Marquetalia — Venezuela (frontera)",grupo:"2a Marquetalia",subregion:"Norte de Santander",dept:"Norte de Santander",lat: 7.880, lng:-72.500, frente:"Frente Rodrigo Cadete",nivel:"Presencia" },
+];
+
 /* ── AEROPUERTOS CIVILES Y DE CARGA ── */
 interface Aeropuerto { name: string; codigo: string; ciudad: string; dept: string; lat: number; lng: number; tipo: string; pista?: string; carga: boolean; }
 const AEROPUERTOS: Aeropuerto[] = [
@@ -972,8 +1058,6 @@ function makeIcon(symbol: string, bg: string, border: string, size = 22) {
   });
 }
 
-import { Marker } from "react-leaflet";
-
 export function MapIntelligence({ dark = true }: { dark?: boolean }) {
   const [activeLayer, setActiveLayer] = useState<LayerKey>("grupos");
   const [showBlockades,  setShowBlockades]  = useState(true);
@@ -1002,6 +1086,8 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
   const [showINPEC,            setShowINPEC]            = useState(false);
   const [showMineras,          setShowMineras]          = useState(false);
   const [showDepositosDIAN,    setShowDepositosDIAN]    = useState(false);
+  const [showCultivos,         setShowCultivos]         = useState(false);
+  const [showGruposArmados,    setShowGruposArmados]    = useState(false);
   const [basemap, setBasemap] = useState<BasemapKey>("dark");
   const [panelOpen, setPanelOpen] = useState(true);
   const [geoData, setGeoData] = useState<any>(null);
@@ -1087,6 +1173,8 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
     { key:"inpec",       label:"Centros Penitenciarios INPEC",icon:Building2,   color:"#6b7280", active:showINPEC,            toggle:()=>setShowINPEC(p=>!p),             count:CENTROS_INPEC.length },
     { key:"mineras",     label:"Zonas Mineras Activas",      icon:AlertTriangle,color:"#ca8a04", active:showMineras,          toggle:()=>setShowMineras(p=>!p),           count:ZONAS_MINERAS.length },
     { key:"depositosdian",label:"Depósitos Habilitados DIAN",icon:Building2,   color:"#8b5cf6", active:showDepositosDIAN,    toggle:()=>setShowDepositosDIAN(p=>!p),     count:DEPOSITOS_DIAN.length },
+    { key:"cultivos",     label:"Cultivos Ilícitos SIMCI",   icon:AlertTriangle,color:"#16a34a",active:showCultivos,          toggle:()=>setShowCultivos(p=>!p),          count:CULTIVOS_ILICITOS.length },
+    { key:"gruposarmados",label:"Grupos Armados — Presencia", icon:Shield,      color:"#b91c1c", active:showGruposArmados,    toggle:()=>setShowGruposArmados(p=>!p),     count:GRUPOS_ARMADOS.length },
   ];
 
   const activeLayerMeta = LAYERS.find(l=>l.key===activeLayer)!;
@@ -1115,6 +1203,8 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
   const inpecIcon         = makeIcon("🔒","rgba(107,114,128,0.92)","#6b7280", 22);
   const mineraIcon        = makeIcon("⛏","rgba(202,138,4,0.92)",  "#ca8a04", 22);
   const depositoDianIcon  = makeIcon("🏛","rgba(139,92,246,0.92)", "#8b5cf6", 22);
+  const cultivoIcon       = makeIcon("🌿","rgba(22,163,74,0.92)",  "#16a34a", 24);
+  const grupoArmadoIcon   = makeIcon("⚔","rgba(185,28,28,0.92)",  "#b91c1c", 24);
 
   return (
     <div style={{ position:"relative", width:"100%", height:"calc(100vh - 120px)", minHeight:500, borderRadius:12, overflow:"hidden" }}>
@@ -1148,6 +1238,9 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
             </CircleMarker>
           );
         })}
+
+        {/* ══ MARKER CLUSTER GROUP — agrupa todos los marcadores punto ══ */}
+        <MarkerClusterGroup chunkedLoading maxClusterRadius={50} showCoverageOnHover={false}>
 
         {/* Peajes */}
         {showPeajes && PEAJES.map((p,i) => (
@@ -1596,6 +1689,49 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
             </Popup>
           </Marker>
         ))}
+
+        {/* ── CULTIVOS ILÍCITOS SIMCI ── */}
+        {showCultivos&&CULTIVOS_ILICITOS.map((c,i)=>(
+          <Marker key={`cult-${i}`} position={[c.lat,c.lng]} icon={cultivoIcon}>
+            <Popup className="dark-popup">
+              <div style={{ fontFamily:"sans-serif",fontSize:13,color:"#e2e8f0",minWidth:230 }}>
+                <div style={{ fontWeight:700,color:"#16a34a",marginBottom:6 }}>🌿 {c.name}</div>
+                <table style={{ width:"100%",borderCollapse:"collapse" }}>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Cultivo</td><td style={{ textAlign:"right",fontWeight:700,color:"#22c55e" }}>{c.cultivo}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Departamento</td><td style={{ textAlign:"right" }}>{c.dept}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Área SIMCI</td><td style={{ textAlign:"right",fontWeight:700,color:"#ef4444" }}>{c.hectareas.toLocaleString()} ha</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Tendencia</td><td style={{ textAlign:"right",fontWeight:700,color:c.tendencia==="↑"?"#ef4444":c.tendencia==="↓"?"#22c55e":"#f59e0b",fontSize:16 }}>{c.tendencia}</td></tr>
+                </table>
+                <div style={{ marginTop:6,fontSize:11,color:"#64748b" }}>Fuente: SIMCI — UNODC / Gobierno de Colombia</div>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* ── GRUPOS ARMADOS — PRESENCIA ── */}
+        {showGruposArmados&&GRUPOS_ARMADOS.map((g,i)=>{
+          const colGrupo = g.grupo==="ELN"?"#dc2626":g.grupo==="FARC-EMC"?"#7c3aed":g.grupo==="Clan del Golfo"?"#d97706":"#64748b";
+          return (
+          <Marker key={`ga-${i}`} position={[g.lat,g.lng]} icon={grupoArmadoIcon}>
+            <Popup className="dark-popup">
+              <div style={{ fontFamily:"sans-serif",fontSize:13,color:"#e2e8f0",minWidth:240 }}>
+                <div style={{ fontWeight:700,color:colGrupo,marginBottom:6 }}>⚔ {g.grupo}</div>
+                <table style={{ width:"100%",borderCollapse:"collapse" }}>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Subregión</td><td style={{ textAlign:"right",fontSize:11,color:colGrupo }}>{g.subregion}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Departamento</td><td style={{ textAlign:"right" }}>{g.dept}</td></tr>
+                  {g.frente&&<tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Frente / Bloque</td><td style={{ textAlign:"right",fontSize:11,fontStyle:"italic" }}>{g.frente}</td></tr>}
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Nivel</td><td style={{ textAlign:"right",fontWeight:700,color:g.nivel==="Dominante"?"#ef4444":g.nivel==="Alta presencia"?"#f97316":"#eab308" }}>{g.nivel}</td></tr>
+                </table>
+                <div style={{ marginTop:6,fontSize:11,color:"#64748b" }}>Fuente: FIP / INDEPAZ / MinDefensa — Inteligencia de situación</div>
+              </div>
+            </Popup>
+          </Marker>
+          );
+        })}
+
+        </MarkerClusterGroup>
+        {/* ══ FIN MARKER CLUSTER GROUP ══ */}
+
       </MapContainer>
 
       {/* PANEL */}
@@ -1728,6 +1864,8 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
               {showINPEC&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(107,114,128,0.92)",border:"2px solid #6b7280",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>🔒</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Centro Penitenciario INPEC</span></div>}
               {showMineras&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(202,138,4,0.92)",border:"2px solid #ca8a04",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>⛏</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Zona Minera Activa — Legal / Ilegal</span></div>}
               {showDepositosDIAN&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(139,92,246,0.92)",border:"2px solid #8b5cf6",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>🏛</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Depósito Habilitado DIAN</span></div>}
+              {showCultivos&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(22,163,74,0.92)",border:"2px solid #16a34a",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>🌿</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Cultivos Ilícitos — SIMCI/UNODC</span></div>}
+              {showGruposArmados&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(185,28,28,0.92)",border:"2px solid #b91c1c",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>⚔</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Grupos Armados — ELN / FARC-EMC / Clan</span></div>}
             </div>
           </div>
         )}
