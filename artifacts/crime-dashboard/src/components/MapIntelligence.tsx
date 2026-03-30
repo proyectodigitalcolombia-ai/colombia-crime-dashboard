@@ -507,6 +507,65 @@ const HOTELES_CARRETERA: HotelCarretera[] = [
   { name:"Hotel El Cafetero",          ruta:"Ruta 25 — Anserma", municipio:"Anserma",            dept:"Caldas",           lat: 5.210, lng:-75.789, address:"Carrera 12 No. 7-43",         tel:"(606) 855-2222",  servicios:"Zona cafetera, parqueadero, mecánica" },
 ];
 
+/* ── ESTACIONES DE SERVICIO — rutas nacionales de carga Colombia ── */
+interface EstacionServicio { name: string; marca: string; ruta: string; municipio: string; dept: string; lat: number; lng: number; servicios: string; }
+const ESTACIONES_SERVICIO: EstacionServicio[] = [
+  /* ── RUTA 45A — Bogotá → Puerto Salgar → La Dorada → Puerto Berrío → Medellín ── */
+  { name:"Terpel La Virgen",         marca:"Terpel",   ruta:"Ruta 45A — Km 18",  municipio:"Bogotá (salida)",   dept:"Bogotá D.C.",       lat: 4.755, lng:-74.133, servicios:"ACPM · Corriente · Extra · Minimarket · Servibay" },
+  { name:"Primax Villeta",           marca:"Primax",   ruta:"Ruta 45A — Km 72",  municipio:"Villeta",           dept:"Cundinamarca",      lat: 5.010, lng:-74.472, servicios:"ACPM · Corriente · GNV · Taller · Restaurante" },
+  { name:"Biomax Guaduero",          marca:"Biomax",   ruta:"Ruta 45A — Km 100", municipio:"Guaduero",          dept:"Cundinamarca",      lat: 5.255, lng:-74.580, servicios:"ACPM · Corriente · Extra · Lavadero camiones" },
+  { name:"Terpel Puerto Salgar",     marca:"Terpel",   ruta:"Ruta 45A — Km 131", municipio:"Puerto Salgar",     dept:"Cundinamarca",      lat: 5.467, lng:-74.651, servicios:"ACPM · Corriente · Extra · GNV · Serviteca · Restaurante 24h" },
+  { name:"Primax La Dorada",         marca:"Primax",   ruta:"Ruta 45 — Km 187",  municipio:"La Dorada",         dept:"Caldas",            lat: 5.452, lng:-74.670, servicios:"ACPM · Corriente · Extra · Lavadero · Mecánica pesada" },
+  { name:"Biomax Puerto Berrío",     marca:"Biomax",   ruta:"Ruta 45 — Km 246",  municipio:"Puerto Berrío",     dept:"Antioquia",         lat: 6.488, lng:-74.401, servicios:"ACPM · Corriente · Minimarket · Parqueadero 24h" },
+  { name:"Terpel Cisneros",          marca:"Terpel",   ruta:"Ruta 45 — Km 290",  municipio:"Cisneros",          dept:"Antioquia",         lat: 6.536, lng:-74.983, servicios:"ACPM · Corriente · Extra · Taller · Restaurante" },
+  /* ── RUTA 40 — Medellín → La Pintada → Riosucio ── */
+  { name:"Esso La Pintada",          marca:"Esso",     ruta:"Ruta 40 — Km 88",   municipio:"La Pintada",        dept:"Antioquia",         lat: 5.740, lng:-75.593, servicios:"ACPM · Corriente · Extra · Lavadero · Parqueadero" },
+  { name:"Terpel Chinchiná",         marca:"Terpel",   ruta:"Ruta 40 — Chinchiná",municipio:"Chinchiná",        dept:"Caldas",            lat: 4.973, lng:-75.609, servicios:"ACPM · Corriente · Minimarket · Serviteca" },
+  /* ── RUTA 25 — Cali → Buga → Cartago → Caucasia → Costa ── */
+  { name:"Biomax Palmira",           marca:"Biomax",   ruta:"Ruta 25 — Palmira", municipio:"Palmira",           dept:"Valle del Cauca",   lat: 3.521, lng:-76.302, servicios:"ACPM · Corriente · Extra · GNV · Restaurante · Taller" },
+  { name:"Primax Buga",              marca:"Primax",   ruta:"Ruta 25 — Buga",    municipio:"Guadalajara de Buga",dept:"Valle del Cauca",  lat: 3.902, lng:-76.300, servicios:"ACPM · Corriente · Extra · Lavadero · Minimarket" },
+  { name:"Terpel Cartago",           marca:"Terpel",   ruta:"Ruta 25 — Cartago", municipio:"Cartago",           dept:"Valle del Cauca",   lat: 4.748, lng:-75.912, servicios:"ACPM · Corriente · Extra · GNV · Serviteca · Restaurante 24h" },
+  { name:"Biomax La Virginia",       marca:"Biomax",   ruta:"Ruta 25 — La Virginia",municipio:"La Virginia",    dept:"Risaralda",         lat: 4.894, lng:-75.875, servicios:"ACPM · Corriente · Minimarket · Parqueadero" },
+  { name:"Esso Caucasia",            marca:"Esso",     ruta:"Ruta 25 — Caucasia",municipio:"Caucasia",          dept:"Antioquia",         lat: 7.990, lng:-75.196, servicios:"ACPM · Corriente · Extra · Taller · Restaurante · Parqueadero 24h" },
+  { name:"Primax Planeta Rica",      marca:"Primax",   ruta:"Ruta 25 — Planeta Rica",municipio:"Planeta Rica",  dept:"Córdoba",           lat: 8.408, lng:-75.587, servicios:"ACPM · Corriente · Minimarket · Lavadero" },
+  { name:"Terpel Sahagún",           marca:"Terpel",   ruta:"Ruta 25 — Sahagún", municipio:"Sahagún",           dept:"Córdoba",           lat: 8.944, lng:-75.442, servicios:"ACPM · Corriente · GNV · Serviteca · Restaurante" },
+  { name:"Biomax Sincelejo",         marca:"Biomax",   ruta:"Ruta 25 — Sincelejo",municipio:"Sincelejo",        dept:"Sucre",             lat: 9.304, lng:-75.398, servicios:"ACPM · Corriente · Extra · Taller · Minimarket 24h" },
+  /* ── RUTA 55 — Bogotá → Tunja → Duitama → Bucaramanga → Cúcuta ── */
+  { name:"Terpel Tunja Norte",       marca:"Terpel",   ruta:"Ruta 55 — Tunja",   municipio:"Tunja",             dept:"Boyacá",            lat: 5.540, lng:-73.360, servicios:"ACPM · Corriente · Extra · GNV · Minimarket · Servibay" },
+  { name:"Primax Duitama",           marca:"Primax",   ruta:"Ruta 55 — Duitama", municipio:"Duitama",           dept:"Boyacá",            lat: 5.828, lng:-73.030, servicios:"ACPM · Corriente · Extra · Taller · Restaurante" },
+  { name:"Biomax Sogamoso",          marca:"Biomax",   ruta:"Ruta 55 — Sogamoso",municipio:"Sogamoso",          dept:"Boyacá",            lat: 5.715, lng:-72.929, servicios:"ACPM · Corriente · Lavadero · Parqueadero camiones" },
+  { name:"Esso Bucaramanga Norte",   marca:"Esso",     ruta:"Ruta 55 — Bucaramanga",municipio:"Bucaramanga",    dept:"Santander",         lat: 7.165, lng:-73.110, servicios:"ACPM · Corriente · Extra · GNV · Serviteca · Restaurante 24h" },
+  { name:"Terpel Cúcuta",            marca:"Terpel",   ruta:"Ruta 55 — Cúcuta",  municipio:"Cúcuta",            dept:"Norte de Santander",lat: 7.892, lng:-72.508, servicios:"ACPM · Corriente · Extra · Taller · Minimarket — frontera Venezuela" },
+  /* ── RUTA 45 / TRONCAL DEL MAGDALENA — Barrancabermeja → Aguachica → Barranquilla ── */
+  { name:"Primax Barrancabermeja",   marca:"Primax",   ruta:"Ruta 45 — Barrancabermeja",municipio:"Barrancabermeja",dept:"Santander",     lat: 7.064, lng:-73.857, servicios:"ACPM · Corriente · Extra · GNV · Lavadero industrial · Restaurante" },
+  { name:"Biomax Aguachica",         marca:"Biomax",   ruta:"Ruta 55 — Aguachica",municipio:"Aguachica",         dept:"Cesar",            lat: 8.310, lng:-73.612, servicios:"ACPM · Corriente · Minimarket · Taller · Parqueadero" },
+  { name:"Terpel Bosconia",          marca:"Terpel",   ruta:"Ruta 80 — Bosconia", municipio:"Bosconia",          dept:"Cesar",            lat:10.026, lng:-73.882, servicios:"ACPM · Corriente · Extra · Cruce Ruta 80 · Restaurante 24h" },
+  /* ── RUTA 90 — Barranquilla → Ciénaga → Santa Marta ── */
+  { name:"Primax Soledad",           marca:"Primax",   ruta:"Ruta 90 — Soledad", municipio:"Soledad",           dept:"Atlántico",         lat:10.912, lng:-74.773, servicios:"ACPM · Corriente · Extra · GNV · Serviteca · Lavadero" },
+  { name:"Esso Ciénaga",             marca:"Esso",     ruta:"Ruta 90 — Ciénaga", municipio:"Ciénaga",           dept:"Magdalena",         lat:11.006, lng:-74.249, servicios:"ACPM · Corriente · Minimarket · Parqueadero 24h" },
+  /* ── RUTA 45 — Bogotá → Girardot → Espinal → Ibagué ── */
+  { name:"Biomax Girardot",          marca:"Biomax",   ruta:"Ruta 45 — Girardot",municipio:"Girardot",           dept:"Cundinamarca",      lat: 4.303, lng:-74.804, servicios:"ACPM · Corriente · Extra · GNV · Taller · Restaurante" },
+  { name:"Terpel Espinal",           marca:"Terpel",   ruta:"Ruta 45 — Espinal", municipio:"Espinal",           dept:"Tolima",            lat: 4.153, lng:-74.886, servicios:"ACPM · Corriente · Lavadero · Minimarket · Parqueadero" },
+  { name:"Primax Ibagué Sur",        marca:"Primax",   ruta:"Ruta 45 — Ibagué",  municipio:"Ibagué",            dept:"Tolima",            lat: 4.397, lng:-75.219, servicios:"ACPM · Corriente · Extra · GNV · Serviteca · Restaurante 24h" },
+  /* ── RUTA 25 SUR — Cali → Popayán → Pasto → Ipiales ── */
+  { name:"Biomax Popayán",           marca:"Biomax",   ruta:"Ruta 25 — Popayán", municipio:"Popayán",           dept:"Cauca",             lat: 2.442, lng:-76.607, servicios:"ACPM · Corriente · Extra · Taller · Restaurante" },
+  { name:"Esso Pasto Norte",         marca:"Esso",     ruta:"Ruta 25 — Pasto",   municipio:"Pasto",             dept:"Nariño",            lat: 1.252, lng:-77.281, servicios:"ACPM · Corriente · Minimarket · Lavadero · Serviteca" },
+  { name:"Terpel Ipiales",           marca:"Terpel",   ruta:"Ruta 25 — Ipiales", municipio:"Ipiales",           dept:"Nariño",            lat: 0.829, lng:-77.646, servicios:"ACPM · Corriente · Extra — frontera Ecuador · Restaurante 24h" },
+  /* ── RUTA 40/23 — Bogotá → Villavicencio → Llanos ── */
+  { name:"Primax Villavicencio",     marca:"Primax",   ruta:"Ruta 40 — Villavicencio",municipio:"Villavicencio", dept:"Meta",             lat: 4.149, lng:-73.634, servicios:"ACPM · Corriente · Extra · GNV · Serviteca · Restaurante" },
+  { name:"Biomax Granada Meta",      marca:"Biomax",   ruta:"Ruta 40 — Granada", municipio:"Granada",           dept:"Meta",              lat: 3.540, lng:-73.709, servicios:"ACPM · Corriente · Minimarket · Taller · Parqueadero 24h" },
+  /* ── RUTA 25/45 — Puerto Boyacá → Honda ── */
+  { name:"Terpel Puerto Boyacá",     marca:"Terpel",   ruta:"Ruta 45 — Puerto Boyacá",municipio:"Puerto Boyacá",dept:"Boyacá",            lat: 5.976, lng:-74.590, servicios:"ACPM · Corriente · GNV · Taller pesado · Parqueadero · Restaurante" },
+  /* ── RUTA 62 — Bucaramanga → Costa Caribe (interior) ── */
+  { name:"Primax Gamarra",           marca:"Primax",   ruta:"Ruta 62 — Gamarra", municipio:"Gamarra",           dept:"Cesar",             lat: 8.327, lng:-73.747, servicios:"ACPM · Corriente · Cruce Ruta 55/62 · Minimarket" },
+  /* ── RUTA 45A — Montería ── */
+  { name:"Esso Montería",            marca:"Esso",     ruta:"Ruta 25 — Montería",municipio:"Montería",          dept:"Córdoba",           lat: 8.758, lng:-75.886, servicios:"ACPM · Corriente · Extra · GNV · Serviteca · Restaurante" },
+  /* ── RUTA 90 — Zona Bananera / Fundación ── */
+  { name:"Biomax Fundación",         marca:"Biomax",   ruta:"Ruta 90 — Fundación",municipio:"Fundación",        dept:"Magdalena",         lat:10.524, lng:-74.186, servicios:"ACPM · Corriente · Minimarket · Lavadero · Parqueadero" },
+  /* ── RUTA 45A — Arboletes (Urabá) ── */
+  { name:"Terpel Arboletes",         marca:"Terpel",   ruta:"Ruta 25 — Arboletes",municipio:"Arboletes",        dept:"Antioquia",         lat: 8.857, lng:-76.422, servicios:"ACPM · Corriente · Taller · Parqueadero · Zona costal" },
+];
+
 /* ── tipos / helpers ── */
 type LayerKey = "grupos" | "riesgo" | "delitos" | "vias" | "ninguna";
 type BasemapKey = "dark" | "streets" | "satellite";
@@ -566,6 +625,7 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
   const [showBasculas,   setShowBasculas]   = useState(false);
   const [showHoteles,          setShowHoteles]          = useState(false);
   const [showHotelesCarretera, setShowHotelesCarretera] = useState(false);
+  const [showEstaciones,       setShowEstaciones]       = useState(false);
   const [basemap, setBasemap] = useState<BasemapKey>("dark");
   const [panelOpen, setPanelOpen] = useState(true);
   const [geoData, setGeoData] = useState<any>(null);
@@ -635,7 +695,8 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
     { key:"bomberos",   label:"Cuerpos de Bomberos",     icon:AlertTriangle, color:"#fb923c", active:showBomberos,toggle:()=>setShowBomberos(p=>!p),    count:BOMBEROS.length },
     { key:"basculas",   label:"Básculas de Pesaje INVIAS",icon:Car,          color:"#e879f9", active:showBasculas, toggle:()=>setShowBasculas(p=>!p),   count:BASCULAS.length },
     { key:"hoteles",    label:"Hoteles Estratégicos",      icon:MapPin,       color:"#fbbf24", active:showHoteles,          toggle:()=>setShowHoteles(p=>!p),          count:HOTELES.length },
-    { key:"hotelctra", label:"Hoteles de Carretera",      icon:MapPin,       color:"#34d399", active:showHotelesCarretera, toggle:()=>setShowHotelesCarretera(p=>!p), count:HOTELES_CARRETERA.length },
+    { key:"hotelctra",  label:"Hoteles de Carretera",       icon:MapPin,       color:"#34d399", active:showHotelesCarretera, toggle:()=>setShowHotelesCarretera(p=>!p), count:HOTELES_CARRETERA.length },
+    { key:"estaciones", label:"Estaciones de Servicio",    icon:MapPin,       color:"#f97316", active:showEstaciones,       toggle:()=>setShowEstaciones(p=>!p),       count:ESTACIONES_SERVICIO.length },
   ];
 
   const activeLayerMeta = LAYERS.find(l=>l.key===activeLayer)!;
@@ -649,6 +710,7 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
   const basculaIcon    = makeIcon("⚖",  "rgba(232,121,249,0.92)", "#e879f9", 20);
   const hotelIcon      = makeIcon("🏨", "rgba(251,191,36,0.92)",  "#fbbf24", 22);
   const hotelCtraIcon  = makeIcon("🛏", "rgba(52,211,153,0.92)",  "#34d399", 22);
+  const estacionIcon   = makeIcon("⛽", "rgba(249,115,22,0.92)",  "#f97316", 22);
 
   return (
     <div style={{ position:"relative", width:"100%", height:"calc(100vh - 120px)", minHeight:500, borderRadius:12, overflow:"hidden" }}>
@@ -825,6 +887,26 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
           </Marker>
         ))}
 
+        {/* ── ESTACIONES DE SERVICIO ── */}
+        {showEstaciones&&ESTACIONES_SERVICIO.map((e,i)=>(
+          <Marker key={`est-${i}`} position={[e.lat,e.lng]} icon={estacionIcon}>
+            <Popup className="dark-popup">
+              <div style={{ fontFamily:"sans-serif",fontSize:13,color:"#e2e8f0",minWidth:230 }}>
+                <div style={{ fontWeight:700,color:"#f97316",marginBottom:6 }}>⛽ {e.name}</div>
+                <table style={{ width:"100%",borderCollapse:"collapse" }}>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Marca</td><td style={{ textAlign:"right",fontWeight:700,color:"#f97316" }}>{e.marca}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Ruta</td><td style={{ textAlign:"right",fontSize:11 }}>{e.ruta}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Municipio</td><td style={{ textAlign:"right" }}>{e.municipio}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Dpto.</td><td style={{ textAlign:"right" }}>{e.dept}</td></tr>
+                  <tr><td colSpan={2} style={{ borderTop:"1px solid rgba(255,255,255,0.08)",paddingTop:5,marginTop:4 }}>
+                    <div style={{ fontSize:11,color:"#64748b",lineHeight:1.5 }}>{e.servicios}</div>
+                  </td></tr>
+                </table>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
         {/* ── HOTELES DE CARRETERA ── */}
         {showHotelesCarretera&&HOTELES_CARRETERA.map((h,i)=>(
           <Marker key={`hctra-${i}`} position={[h.lat,h.lng]} icon={hotelCtraIcon}>
@@ -962,7 +1044,7 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
         )}
 
         {/* Overlay legend */}
-        {(showPeajes||showPolicia||showHospitales||showBlockades||showEjercito||showFAC||showArmada||showBomberos||showBasculas||showHoteles||showHotelesCarretera)&&(
+        {(showPeajes||showPolicia||showHospitales||showBlockades||showEjercito||showFAC||showArmada||showBomberos||showBasculas||showHoteles||showHotelesCarretera||showEstaciones)&&(
           <div style={{ padding:"10px 14px", borderBottom:"1px solid rgba(255,255,255,0.07)" }}>
             <div style={{ fontSize:10,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:"rgba(255,255,255,0.35)",marginBottom:8 }}>Símbolos activos</div>
             <div style={{ display:"flex",flexDirection:"column",gap:5 }}>
@@ -977,6 +1059,7 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
               {showBasculas&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(232,121,249,0.92)",border:"2px solid #e879f9",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff" }}>⚖</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Báscula de Pesaje INVIAS</span></div>}
               {showHoteles&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(251,191,36,0.92)",border:"2px solid #fbbf24",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>🏨</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Hotel Estratégico 4★–5★</span></div>}
               {showHotelesCarretera&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(52,211,153,0.92)",border:"2px solid #34d399",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>🛏</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Hotel de Carretera / Transportadores</span></div>}
+              {showEstaciones&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(249,115,22,0.92)",border:"2px solid #f97316",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>⛽</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Estación de Servicio — Ruta nacional</span></div>}
             </div>
           </div>
         )}
