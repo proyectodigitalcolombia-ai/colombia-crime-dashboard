@@ -566,6 +566,211 @@ const ESTACIONES_SERVICIO: EstacionServicio[] = [
   { name:"Terpel Arboletes",         marca:"Terpel",   ruta:"Ruta 25 — Arboletes",municipio:"Arboletes",        dept:"Antioquia",         lat: 8.857, lng:-76.422, servicios:"ACPM · Corriente · Taller · Parqueadero · Zona costal" },
 ];
 
+/* ── PUENTES ESTRATÉGICOS ── */
+interface PuenteEstrategico { name: string; ruta: string; municipio: string; dept: string; lat: number; lng: number; longitud?: string; nota?: string; }
+const PUENTES_ESTRATEGICOS: PuenteEstrategico[] = [
+  { name:"Puente Pumarejo",              ruta:"Ruta 90",    municipio:"Barranquilla/Soledad",dept:"Atlántico",        lat:10.924, lng:-74.793, longitud:"1.5 km", nota:"Conector Costa Atlántica — cierre aisla región" },
+  { name:"Viaducto César Gaviria Trujillo",ruta:"Ruta 40", municipio:"Pereira",            dept:"Risaralda",         lat: 4.820, lng:-75.700, longitud:"726 m",  nota:"Eje Cafetero — estratégico Cali-Medellín" },
+  { name:"Puente Hisgaura",              ruta:"Ruta 55",    municipio:"Charalá",            dept:"Santander",         lat: 6.290, lng:-73.198, longitud:"646 m",  nota:"Puente colgante sobre Río Chicamocha" },
+  { name:"Puente La Libertad",           ruta:"Ruta 45A",   municipio:"Puerto Salgar",      dept:"Cundinamarca",      lat: 5.464, lng:-74.648, longitud:"320 m",  nota:"Cruce Río Magdalena — corredor Bogotá-Medellín" },
+  { name:"Puente El Alambrado",          ruta:"Ruta 25",    municipio:"Zarzal",             dept:"Valle del Cauca",   lat: 4.022, lng:-75.726, longitud:"280 m",  nota:"Corredor Cali-Pereira sobre Río La Vieja" },
+  { name:"Puente Santander (frontera)",  ruta:"Ruta 55",    municipio:"Villa del Rosario",  dept:"Norte de Santander",lat: 7.842, lng:-72.474, longitud:"312 m",  nota:"Puente internacional Cúcuta-San Cristóbal (VE)" },
+  { name:"Puente Guillermo Gaviria",     ruta:"Ruta 45A",   municipio:"Copacabana",         dept:"Antioquia",         lat: 6.356, lng:-75.509, longitud:"450 m",  nota:"Acceso norte Medellín sobre Río Medellín" },
+  { name:"Puente Berrío",                ruta:"Ruta 45",    municipio:"Puerto Berrío",      dept:"Antioquia",         lat: 6.490, lng:-74.404, longitud:"270 m",  nota:"Cruce Magdalena — corredor central" },
+  { name:"Puente La Honda",              ruta:"Ruta 45",    municipio:"Honda",              dept:"Tolima",            lat: 5.207, lng:-74.741, longitud:"296 m",  nota:"Cruce Magdalena — confluencia rutas 45/46" },
+  { name:"Puente Navarro",               ruta:"Ruta 25",    municipio:"Cali",               dept:"Valle del Cauca",   lat: 3.432, lng:-76.522, longitud:"240 m",  nota:"Acceso sur Cali sobre Río Cauca" },
+  { name:"Puente Juanchito",             ruta:"Ruta 25",    municipio:"Palmira",            dept:"Valle del Cauca",   lat: 3.443, lng:-76.447, longitud:"320 m",  nota:"Cali-Palmira sobre Río Cauca" },
+  { name:"Puente Belalcázar",            ruta:"Ruta 25",    municipio:"Belalcázar",         dept:"Caldas",            lat: 5.031, lng:-75.730, longitud:"260 m",  nota:"Cruce Río Cauca — zona cafetera" },
+  { name:"Puente El Cable",              ruta:"Ruta 62",    municipio:"La Dorada",          dept:"Caldas",            lat: 5.455, lng:-74.668, longitud:"180 m",  nota:"Paso Magdalena en La Dorada" },
+  { name:"Puente Apiay",                 ruta:"Ruta 40",    municipio:"Villavicencio",      dept:"Meta",              lat: 4.081, lng:-73.584, longitud:"200 m",  nota:"Salida llanos — zona estratégica operaciones" },
+  { name:"Puente Nus",                   ruta:"Ruta 62",    municipio:"Maceo",              dept:"Antioquia",         lat: 6.546, lng:-74.778, longitud:"220 m",  nota:"Corredor Medellín-Costa sobre Río Nus" },
+  { name:"Puente Vélez",                 ruta:"Ruta 45A",   municipio:"Vélez",              dept:"Santander",         lat: 6.013, lng:-73.682, longitud:"195 m",  nota:"Cruce Río Suárez — corredor oriental" },
+  { name:"Puente Sogamoso",              ruta:"Ruta 55",    municipio:"Sogamoso",           dept:"Boyacá",            lat: 5.715, lng:-72.929, longitud:"185 m",  nota:"Corredor Bogotá-Cúcuta sobre Río Chicamocha" },
+  { name:"Puente Rumichaca",             ruta:"Ruta 25",    municipio:"Ipiales",            dept:"Nariño",            lat: 0.830, lng:-77.648, longitud:"110 m",  nota:"Puente internacional — frontera Ecuador" },
+  { name:"Puente Simón Bolívar (Urabá)", ruta:"Ruta 25",    municipio:"Turbo",              dept:"Antioquia",         lat: 8.094, lng:-76.728, longitud:"250 m",  nota:"Acceso Urabá — zona de alta sensibilidad" },
+  { name:"Puente Magangué",              ruta:"Ruta 25",    municipio:"Magangué",           dept:"Bolívar",           lat: 9.239, lng:-74.755, longitud:"290 m",  nota:"Cruce Magdalena — corredor central norte" },
+  { name:"Viaducto Peñas Blancas",       ruta:"Ruta 45A",   municipio:"Puerto Nare",        dept:"Antioquia",         lat: 6.200, lng:-74.591, longitud:"310 m",  nota:"Autopista Ríonegro-Medellín, zona viaductos" },
+  { name:"Puente Buga",                  ruta:"Ruta 25",    municipio:"Guadalajara de Buga",dept:"Valle del Cauca",   lat: 3.901, lng:-76.299, longitud:"210 m",  nota:"Cruce Río Cauca en corredor Cali-Bogotá" },
+];
+
+/* ── INFRAESTRUCTURA PETROLERA / OLEODUCTOS ── */
+interface PuntoOleoducto { name: string; tipo: string; operador: string; municipio: string; dept: string; lat: number; lng: number; nota?: string; }
+const OLEODUCTOS: PuntoOleoducto[] = [
+  { name:"Refinería de Barrancabermeja",    tipo:"Refinería",           operador:"Ecopetrol",    municipio:"Barrancabermeja",   dept:"Santander",         lat: 7.063, lng:-73.864, nota:"Principal refinería Colombia — 250.000 bpd" },
+  { name:"Refinería Reficar Cartagena",     tipo:"Refinería",           operador:"Reficar/Ecopetrol",municipio:"Cartagena",     dept:"Bolívar",           lat:10.371, lng:-75.509, nota:"250.000 bpd — exportación caribe" },
+  { name:"Estación Caño Limón",             tipo:"Campo / Estación",    operador:"Ecopetrol/Oxy", municipio:"Arauca",           dept:"Arauca",            lat: 6.940, lng:-70.974, nota:"Campo Caño Limón — oleoducto a Coveñas" },
+  { name:"Estación Araguaney",              tipo:"Estación de bombeo",  operador:"Cenit",        municipio:"Trinidad",          dept:"Casanare",          lat: 5.428, lng:-71.663, nota:"Corredor petrolero Llanos Orientales" },
+  { name:"Estación Apiay",                  tipo:"Estación de bombeo",  operador:"Ecopetrol",    municipio:"Villavicencio",     dept:"Meta",              lat: 4.082, lng:-73.583, nota:"Campo Apiay — Meta oil corridor" },
+  { name:"Estación Vasconia",               tipo:"Nodo multimodal",     operador:"Cenit",        municipio:"Puerto Boyacá",     dept:"Boyacá",            lat: 5.960, lng:-74.585, nota:"Centro de operaciones oleoductos centrales" },
+  { name:"Terminal Coveñas",                tipo:"Terminal marítima",   operador:"Cenit",        municipio:"Coveñas",           dept:"Sucre",             lat: 9.401, lng:-75.694, nota:"Principal terminal exportación petróleo" },
+  { name:"Estación Orito",                  tipo:"Campo / Estación",    operador:"Ecopetrol",    municipio:"Orito",             dept:"Putumayo",          lat: 0.671, lng:-76.877, nota:"Campo Orito — oleoducto Trasandino" },
+  { name:"Puerto Salgar (Poliducto)",        tipo:"Terminal",            operador:"Cenit",        municipio:"Puerto Salgar",     dept:"Cundinamarca",      lat: 5.460, lng:-74.650, nota:"Nodo poliducto Barrancabermeja-Bogotá" },
+  { name:"Estación Ayacucho",               tipo:"Estación de bombeo",  operador:"Cenit",        municipio:"San Roque",         dept:"Antioquia",         lat: 6.483, lng:-74.917, nota:"Corredor oleoducto hacia Costa Atlántica" },
+  { name:"Estación El Porvenir",            tipo:"Estación de bombeo",  operador:"Cenit",        municipio:"Riosucio",          dept:"Chocó",             lat: 7.428, lng:-77.121, nota:"Oleoducto Colombia — costa Pacífica" },
+  { name:"Terminal Buenaventura Cenit",     tipo:"Terminal marítima",   operador:"Cenit",        municipio:"Buenaventura",      dept:"Valle del Cauca",   lat: 3.891, lng:-77.032, nota:"Terminal exportación Pacífico" },
+  { name:"Estación Tibú",                   tipo:"Campo / Estación",    operador:"Ecopetrol",    municipio:"Tibú",              dept:"Norte de Santander",lat: 8.666, lng:-72.730, nota:"Campo Tibú — oleoducto norte" },
+  { name:"El Limón (Km 0 Caño Limón-Coveñas)",tipo:"Cabecera oleoducto",operador:"Cenit",      municipio:"Toledo",            dept:"Norte de Santander",lat: 8.052, lng:-72.933, nota:"Inicio oleoducto 770 km — blanco frecuente ELN" },
+  { name:"Pozos Colorados (terminal GLP)",  tipo:"Terminal GLP",        operador:"Promigas",     municipio:"Santa Marta",       dept:"Magdalena",         lat:11.216, lng:-74.168, nota:"Terminal gas licuado costa caribe" },
+];
+
+/* ── MUNICIPIOS PDET (Programas de Desarrollo con Enfoque Territorial) ── */
+interface MunicipioPDET { name: string; subregion: string; dept: string; lat: number; lng: number; riesgo: "Crítico"|"Alto"|"Medio"; }
+const MUNICIPIOS_PDET: MunicipioPDET[] = [
+  /* ── PACÍFICO MEDIO ── */
+  { name:"Tumaco",               subregion:"Pacífico Nariñense",     dept:"Nariño",            lat: 1.801, lng:-78.762, riesgo:"Crítico" },
+  { name:"Barbacoas",            subregion:"Pacífico Nariñense",     dept:"Nariño",            lat: 1.671, lng:-78.143, riesgo:"Crítico" },
+  { name:"Timbiquí",             subregion:"Pacífico Caucano",       dept:"Cauca",             lat: 2.771, lng:-77.663, riesgo:"Crítico" },
+  { name:"López de Micay",       subregion:"Pacífico Caucano",       dept:"Cauca",             lat: 2.886, lng:-77.232, riesgo:"Crítico" },
+  { name:"El Charco",            subregion:"Pacífico Nariñense",     dept:"Nariño",            lat: 2.484, lng:-78.112, riesgo:"Alto" },
+  { name:"Olaya Herrera",        subregion:"Pacífico Nariñense",     dept:"Nariño",            lat: 2.041, lng:-78.397, riesgo:"Alto" },
+  /* ── CHOCÓ ── */
+  { name:"Riosucio",             subregion:"Chocó",                  dept:"Chocó",             lat: 7.428, lng:-77.121, riesgo:"Crítico" },
+  { name:"Bojayá",               subregion:"Chocó",                  dept:"Chocó",             lat: 5.833, lng:-76.866, riesgo:"Crítico" },
+  { name:"Carmen del Darién",    subregion:"Chocó",                  dept:"Chocó",             lat: 7.368, lng:-76.720, riesgo:"Crítico" },
+  { name:"El Litoral del San Juan",subregion:"Chocó",                dept:"Chocó",             lat: 4.675, lng:-77.225, riesgo:"Alto" },
+  /* ── ANTIOQUIA ── */
+  { name:"Ituango",              subregion:"Bajo Cauca / Nordeste",  dept:"Antioquia",         lat: 7.166, lng:-75.764, riesgo:"Crítico" },
+  { name:"Tarazá",               subregion:"Bajo Cauca",             dept:"Antioquia",         lat: 7.873, lng:-75.398, riesgo:"Crítico" },
+  { name:"Valdivia",             subregion:"Bajo Cauca / Nordeste",  dept:"Antioquia",         lat: 7.151, lng:-75.436, riesgo:"Crítico" },
+  { name:"El Bagre",             subregion:"Bajo Cauca",             dept:"Antioquia",         lat: 7.594, lng:-74.813, riesgo:"Alto" },
+  { name:"Zaragoza",             subregion:"Bajo Cauca",             dept:"Antioquia",         lat: 7.489, lng:-74.869, riesgo:"Alto" },
+  { name:"Cáceres",              subregion:"Bajo Cauca",             dept:"Antioquia",         lat: 7.588, lng:-75.346, riesgo:"Alto" },
+  { name:"Remedios",             subregion:"Nordeste Antioqueño",    dept:"Antioquia",         lat: 7.033, lng:-74.696, riesgo:"Alto" },
+  { name:"Mutatá",               subregion:"Urabá",                  dept:"Antioquia",         lat: 7.243, lng:-76.428, riesgo:"Alto" },
+  { name:"Dabeiba",              subregion:"Urabá",                  dept:"Antioquia",         lat: 7.001, lng:-76.262, riesgo:"Alto" },
+  /* ── BOLÍVAR / CÓRDOBA ── */
+  { name:"San Pablo",            subregion:"Sur de Bolívar",         dept:"Bolívar",           lat: 8.328, lng:-73.852, riesgo:"Crítico" },
+  { name:"Santa Rosa del Sur",   subregion:"Sur de Bolívar",         dept:"Bolívar",           lat: 7.959, lng:-74.043, riesgo:"Crítico" },
+  { name:"Montecristo",          subregion:"Sur de Bolívar",         dept:"Bolívar",           lat: 8.295, lng:-74.471, riesgo:"Alto" },
+  /* ── NORTE DE SANTANDER ── */
+  { name:"Tibú",                 subregion:"Catatumbo",              dept:"Norte de Santander",lat: 8.666, lng:-72.730, riesgo:"Crítico" },
+  { name:"El Tarra",             subregion:"Catatumbo",              dept:"Norte de Santander",lat: 8.574, lng:-73.087, riesgo:"Crítico" },
+  { name:"Convención",           subregion:"Catatumbo",              dept:"Norte de Santander",lat: 8.468, lng:-73.187, riesgo:"Crítico" },
+  { name:"Teorama",              subregion:"Catatumbo",              dept:"Norte de Santander",lat: 8.477, lng:-73.265, riesgo:"Alto" },
+  { name:"San Calixto",          subregion:"Catatumbo",              dept:"Norte de Santander",lat: 8.400, lng:-73.173, riesgo:"Alto" },
+  /* ── PUTUMAYO / CAQUETÁ ── */
+  { name:"Puerto Asís",          subregion:"Putumayo",               dept:"Putumayo",          lat: 0.507, lng:-76.502, riesgo:"Crítico" },
+  { name:"Valle del Guamuez",    subregion:"Putumayo",               dept:"Putumayo",          lat: 0.434, lng:-76.909, riesgo:"Crítico" },
+  { name:"Orito",                subregion:"Putumayo",               dept:"Putumayo",          lat: 0.671, lng:-76.877, riesgo:"Alto" },
+  { name:"San Vicente del Caguán",subregion:"Caguán-Piedemonte",     dept:"Caquetá",           lat: 2.107, lng:-74.767, riesgo:"Crítico" },
+  { name:"Cartagena del Chairá", subregion:"Caguán-Piedemonte",      dept:"Caquetá",           lat: 1.347, lng:-74.863, riesgo:"Alto" },
+  /* ── META / GUAVIARE ── */
+  { name:"Vista Hermosa",        subregion:"Macarena-Guaviare",      dept:"Meta",              lat: 3.121, lng:-73.741, riesgo:"Crítico" },
+  { name:"La Macarena",          subregion:"Macarena-Guaviare",      dept:"Meta",              lat: 2.179, lng:-73.789, riesgo:"Crítico" },
+  { name:"Mapiripán",            subregion:"Macarena-Guaviare",      dept:"Meta",              lat: 2.896, lng:-72.143, riesgo:"Crítico" },
+  { name:"San José del Guaviare",subregion:"Macarena-Guaviare",      dept:"Guaviare",          lat: 2.568, lng:-72.641, riesgo:"Alto" },
+];
+
+/* ── RIESGO MINAS ANTIPERSONAL (AICMA/Descontamina Colombia) ── */
+interface ZonaMinasAP { name: string; dept: string; lat: number; lng: number; nivel: "Crítico"|"Alto"|"Medio"; eventos?: number; }
+const ZONAS_MINAS_AP: ZonaMinasAP[] = [
+  { name:"Ituango",           dept:"Antioquia",         lat: 7.166, lng:-75.764, nivel:"Crítico", eventos:142 },
+  { name:"Briceño",           dept:"Antioquia",         lat: 7.210, lng:-75.559, nivel:"Crítico", eventos:98  },
+  { name:"Tarazá",            dept:"Antioquia",         lat: 7.873, lng:-75.398, nivel:"Crítico", eventos:87  },
+  { name:"Valdivia",          dept:"Antioquia",         lat: 7.151, lng:-75.436, nivel:"Crítico", eventos:76  },
+  { name:"San Carlos",        dept:"Antioquia",         lat: 6.186, lng:-74.999, nivel:"Alto",    eventos:64  },
+  { name:"Remedios",          dept:"Antioquia",         lat: 7.033, lng:-74.696, nivel:"Alto",    eventos:58  },
+  { name:"Dabeiba",           dept:"Antioquia",         lat: 7.001, lng:-76.262, nivel:"Alto",    eventos:52  },
+  { name:"Tibú",              dept:"Norte de Santander",lat: 8.666, lng:-72.730, nivel:"Crítico", eventos:115 },
+  { name:"El Tarra",          dept:"Norte de Santander",lat: 8.574, lng:-73.087, nivel:"Crítico", eventos:93  },
+  { name:"Teorama",           dept:"Norte de Santander",lat: 8.477, lng:-73.265, nivel:"Alto",    eventos:71  },
+  { name:"Convención",        dept:"Norte de Santander",lat: 8.468, lng:-73.187, nivel:"Alto",    eventos:54  },
+  { name:"San Vicente del Caguán",dept:"Caquetá",       lat: 2.107, lng:-74.767, nivel:"Crítico", eventos:108 },
+  { name:"Cartagena del Chairá",dept:"Caquetá",         lat: 1.347, lng:-74.863, nivel:"Alto",    eventos:77  },
+  { name:"Puerto Rico",       dept:"Caquetá",           lat: 1.911, lng:-75.162, nivel:"Alto",    eventos:61  },
+  { name:"La Macarena",       dept:"Meta",              lat: 2.179, lng:-73.789, nivel:"Crítico", eventos:119 },
+  { name:"Vista Hermosa",     dept:"Meta",              lat: 3.121, lng:-73.741, nivel:"Crítico", eventos:84  },
+  { name:"El Castillo",       dept:"Meta",              lat: 3.556, lng:-73.687, nivel:"Alto",    eventos:59  },
+  { name:"San José del Guaviare",dept:"Guaviare",       lat: 2.568, lng:-72.641, nivel:"Alto",    eventos:66  },
+  { name:"El Retorno",        dept:"Guaviare",          lat: 2.319, lng:-72.627, nivel:"Medio",   eventos:38  },
+  { name:"Tumaco",            dept:"Nariño",            lat: 1.801, lng:-78.762, nivel:"Crítico", eventos:102 },
+  { name:"Barbacoas",         dept:"Nariño",            lat: 1.671, lng:-78.143, nivel:"Crítico", eventos:88  },
+  { name:"Ricaurte",          dept:"Nariño",            lat: 1.210, lng:-78.012, nivel:"Alto",    eventos:56  },
+  { name:"Riosucio",          dept:"Chocó",             lat: 7.428, lng:-77.121, nivel:"Crítico", eventos:97  },
+  { name:"Bojayá",            dept:"Chocó",             lat: 5.833, lng:-76.866, nivel:"Alto",    eventos:67  },
+  { name:"Valle del Guamuez", dept:"Putumayo",          lat: 0.434, lng:-76.909, nivel:"Crítico", eventos:111 },
+  { name:"Puerto Asís",       dept:"Putumayo",          lat: 0.507, lng:-76.502, nivel:"Alto",    eventos:73  },
+  { name:"Orito",             dept:"Putumayo",          lat: 0.671, lng:-76.877, nivel:"Alto",    eventos:60  },
+  { name:"Samaná",            dept:"Caldas",            lat: 5.480, lng:-74.997, nivel:"Medio",   eventos:34  },
+  { name:"San Luis",          dept:"Antioquia",         lat: 6.038, lng:-74.905, nivel:"Medio",   eventos:41  },
+  { name:"Murindó",           dept:"Antioquia",         lat: 6.979, lng:-76.745, nivel:"Alto",    eventos:55  },
+];
+
+/* ── CENTROS PENITENCIARIOS INPEC ── */
+interface CentroINPEC { name: string; ciudad: string; dept: string; lat: number; lng: number; capacidad?: number; tel?: string; }
+const CENTROS_INPEC: CentroINPEC[] = [
+  { name:"La Picota (COMEB)",            ciudad:"Bogotá",       dept:"Bogotá D.C.",     lat: 4.566, lng:-74.104, capacidad:4800, tel:"(601) 782-5600" },
+  { name:"La Modelo (EPMSC Bogotá)",     ciudad:"Bogotá",       dept:"Bogotá D.C.",     lat: 4.671, lng:-74.096, capacidad:5200, tel:"(601) 437-9070" },
+  { name:"El Buen Pastor (Bogotá)",      ciudad:"Bogotá",       dept:"Bogotá D.C.",     lat: 4.638, lng:-74.093, capacidad:1200, tel:"(601) 222-3060" },
+  { name:"La Dorada La 40 (EPMSC)",      ciudad:"Bogotá",       dept:"Bogotá D.C.",     lat: 4.598, lng:-74.086, capacidad:2000, tel:"(601) 410-1212" },
+  { name:"Bellavista (EPMSC Medellín)",  ciudad:"Medellín",     dept:"Antioquia",       lat: 6.271, lng:-75.549, capacidad:4600, tel:"(604) 233-2066" },
+  { name:"Cómbita (ERON Alta Seguridad)",ciudad:"Cómbita",      dept:"Boyacá",          lat: 5.755, lng:-73.347, capacidad:1200, tel:"(608) 738-6700" },
+  { name:"El Palogordo (ERON)",          ciudad:"Girón",        dept:"Santander",       lat: 7.070, lng:-73.171, capacidad:2100, tel:"(607) 681-2424" },
+  { name:"Valledupar (Alta Seguridad)",  ciudad:"Valledupar",   dept:"Cesar",           lat:10.453, lng:-73.230, capacidad:2200, tel:"(605) 580-0060" },
+  { name:"Palmira (ERON)",              ciudad:"Palmira",       dept:"Valle del Cauca", lat: 3.531, lng:-76.307, capacidad:1800, tel:"(602) 272-2808" },
+  { name:"EPMSC Cali (Villa Hermosa)",   ciudad:"Cali",         dept:"Valle del Cauca", lat: 3.431, lng:-76.530, capacidad:2500, tel:"(602) 550-0707" },
+  { name:"Jamundí (ERON)",              ciudad:"Jamundí",       dept:"Valle del Cauca", lat: 3.265, lng:-76.535, capacidad:1500, tel:"(602) 517-7777" },
+  { name:"Popayán (ERON)",              ciudad:"Popayán",       dept:"Cauca",           lat: 2.445, lng:-76.609, capacidad:900,  tel:"(602) 824-0606" },
+  { name:"EPMSC Barranquilla",          ciudad:"Barranquilla",  dept:"Atlántico",       lat:10.985, lng:-74.806, capacidad:2100, tel:"(605) 380-0001" },
+  { name:"Ternera (EPMSC Cartagena)",   ciudad:"Cartagena",     dept:"Bolívar",         lat:10.393, lng:-75.499, capacidad:1800, tel:"(605) 670-3030" },
+  { name:"Montería (EPMSC)",            ciudad:"Montería",      dept:"Córdoba",         lat: 8.763, lng:-75.880, capacidad:1200, tel:"(604) 789-0909" },
+  { name:"Cúcuta (EPMSC El Rodeo)",     ciudad:"Cúcuta",        dept:"Norte de Santander",lat: 7.882, lng:-72.502, capacidad:1900, tel:"(607) 573-4040" },
+  { name:"Villavicencio (EPMSC)",       ciudad:"Villavicencio", dept:"Meta",            lat: 4.140, lng:-73.628, capacidad:1100, tel:"(608) 662-2020" },
+  { name:"Ibagué (EPMSC)",             ciudad:"Ibagué",        dept:"Tolima",          lat: 4.430, lng:-75.247, capacidad:900,  tel:"(608) 261-5050" },
+  { name:"Pereira (EPMSC)",            ciudad:"Pereira",       dept:"Risaralda",       lat: 4.807, lng:-75.693, capacidad:1200, tel:"(606) 335-1515" },
+  { name:"Manizales (EPMSC La Blanca)", ciudad:"Manizales",     dept:"Caldas",          lat: 5.059, lng:-75.507, capacidad:800,  tel:"(606) 872-0505" },
+  { name:"Neiva (EPMSC La Picaleña)",   ciudad:"Neiva",         dept:"Huila",           lat: 2.932, lng:-75.288, capacidad:900,  tel:"(608) 872-4040" },
+  { name:"Florencia (EPMSC)",          ciudad:"Florencia",     dept:"Caquetá",         lat: 1.616, lng:-75.613, capacidad:700,  tel:"(608) 435-1212" },
+  { name:"Santa Marta (EPMSC)",        ciudad:"Santa Marta",   dept:"Magdalena",       lat:11.235, lng:-74.192, capacidad:800,  tel:"(605) 420-1616" },
+  { name:"Tunja (EPMSC)",              ciudad:"Tunja",         dept:"Boyacá",          lat: 5.534, lng:-73.365, capacidad:750,  tel:"(608) 740-0404" },
+  { name:"Armenia (EPMSC)",            ciudad:"Armenia",       dept:"Quindío",         lat: 4.534, lng:-75.670, capacidad:700,  tel:"(606) 747-0303" },
+  { name:"Pasto (EPMSC La Paz)",        ciudad:"Pasto",         dept:"Nariño",          lat: 1.213, lng:-77.281, capacidad:900,  tel:"(602) 723-3535" },
+];
+
+/* ── ZONAS MINERAS ACTIVAS ── */
+interface ZonaMinera { name: string; mineral: string; tipo: "Legal"|"Ilegal"|"Mixto"; dept: string; lat: number; lng: number; nota?: string; }
+const ZONAS_MINERAS: ZonaMinera[] = [
+  { name:"El Bagre / Zaragoza / Nechí",  mineral:"Oro",    tipo:"Mixto",  dept:"Antioquia",         lat: 7.530, lng:-74.830, nota:"Triángulo minero — alta presencia grupos armados" },
+  { name:"Segovia / Remedios",           mineral:"Oro",    tipo:"Mixto",  dept:"Antioquia",         lat: 7.078, lng:-74.718, nota:"Explotación legal + ilegal — conflicto activo" },
+  { name:"Caucasia / Tarazá",            mineral:"Oro",    tipo:"Mixto",  dept:"Antioquia",         lat: 7.931, lng:-75.297, nota:"Minería aluvial Bajo Cauca — extorsión" },
+  { name:"Ituango",                      mineral:"Oro",    tipo:"Ilegal", dept:"Antioquia",         lat: 7.166, lng:-75.764, nota:"Minería ilegal — financiación grupos armados" },
+  { name:"Muzo",                         mineral:"Esmeralda",tipo:"Legal",dept:"Boyacá",            lat: 5.534, lng:-74.112, nota:"Capital esmeraldas — 90% producción mundial" },
+  { name:"Coscuez / Chivor",             mineral:"Esmeralda",tipo:"Legal",dept:"Boyacá",            lat: 5.635, lng:-73.889, nota:"Zona esmeraldífera oriente boyacense" },
+  { name:"Tibú / El Tarra",              mineral:"Carbón", tipo:"Mixto",  dept:"Norte de Santander",lat: 8.620, lng:-72.908, nota:"Cuenca carbonífera Catatumbo — activo conflicto" },
+  { name:"Barrancas / La Jagua",         mineral:"Carbón", tipo:"Legal",  dept:"Cesar/La Guajira",  lat:10.787, lng:-72.797, nota:"Minas El Cerrejón y Pribbenow — exportación" },
+  { name:"El Cerrejón",                  mineral:"Carbón", tipo:"Legal",  dept:"La Guajira",        lat:11.029, lng:-72.674, nota:"Mayor mina carbón cielo abierto Latinoamérica" },
+  { name:"Puerto Nariño (Amazonas)",     mineral:"Oro",    tipo:"Ilegal", dept:"Amazonas",          lat:-3.769, lng:-70.383, nota:"Minería ilegal zonas de frontera" },
+  { name:"Istmina / Tadó",              mineral:"Oro",    tipo:"Mixto",  dept:"Chocó",             lat: 5.162, lng:-76.672, nota:"Chocó — mayor producción oro Colombia" },
+  { name:"Quibdó / Río Atrato",         mineral:"Oro",    tipo:"Mixto",  dept:"Chocó",             lat: 5.696, lng:-76.641, nota:"Minería fluvial — impacto ambiental severo" },
+  { name:"Tumaco / Barbacoas",          mineral:"Oro",    tipo:"Ilegal", dept:"Nariño",            lat: 1.730, lng:-78.452, nota:"Minería ilegal — grupos armados" },
+  { name:"Buenaventura (Dagua)",        mineral:"Oro",    tipo:"Ilegal", dept:"Valle del Cauca",   lat: 3.745, lng:-77.025, nota:"Zona serranía — presencia irregular" },
+  { name:"Puerto Libertador / Montelíbano",mineral:"Carbón/Níquel",tipo:"Legal",dept:"Córdoba",   lat: 7.888, lng:-75.792, nota:"Cerro Matoso — mayor productor níquel LATAM" },
+  { name:"La Dorada / Puerto Salgar",   mineral:"Oro",    tipo:"Ilegal", dept:"Caldas/Cundinamarca",lat: 5.468, lng:-74.659, nota:"Minería aluvial Río Magdalena" },
+  { name:"San José del Guaviare",       mineral:"Oro",    tipo:"Ilegal", dept:"Guaviare",          lat: 2.568, lng:-72.641, nota:"Minería ilegal Amazonia" },
+  { name:"Vistahermosa / La Macarena",  mineral:"Oro",    tipo:"Ilegal", dept:"Meta",              lat: 2.650, lng:-73.765, nota:"Minería ilegal zona PDET — alta tensión" },
+];
+
+/* ── DEPÓSITOS HABILITADOS DIAN ── */
+interface DepositoDIAN { name: string; operador: string; ciudad: string; dept: string; lat: number; lng: number; tipo: string; tel?: string; }
+const DEPOSITOS_DIAN: DepositoDIAN[] = [
+  { name:"Almaviva El Dorado Bogotá",       operador:"Almaviva",     ciudad:"Bogotá",       dept:"Bogotá D.C.",     lat: 4.699, lng:-74.138, tipo:"Aéreo — carga general y perecederos",  tel:"(601) 413-5900" },
+  { name:"Almaviva Zona Franca Bogotá",     operador:"Almaviva",     ciudad:"Bogotá",       dept:"Bogotá D.C.",     lat: 4.691, lng:-74.153, tipo:"Zona franca — almacenaje aduanero",    tel:"(601) 413-5910" },
+  { name:"Almaviva Medellín (Rionegro)",    operador:"Almaviva",     ciudad:"Rionegro",     dept:"Antioquia",       lat: 6.165, lng:-75.421, tipo:"Aéreo — carga internacional",           tel:"(604) 569-0050" },
+  { name:"Almaviva Barranquilla",           operador:"Almaviva",     ciudad:"Barranquilla", dept:"Atlántico",       lat:10.976, lng:-74.808, tipo:"Portuario — carga marítima",           tel:"(605) 379-1200" },
+  { name:"Almaviva Buenaventura",           operador:"Almaviva",     ciudad:"Buenaventura", dept:"Valle del Cauca", lat: 3.887, lng:-77.027, tipo:"Portuario — contenedores",             tel:"(602) 240-1100" },
+  { name:"Almaviva Cali (Palmaseca)",       operador:"Almaviva",     ciudad:"Palmira",      dept:"Valle del Cauca", lat: 3.546, lng:-76.389, tipo:"Aéreo — carga y perecederos",          tel:"(602) 665-1200" },
+  { name:"Almagrario Bogotá El Dorado",     operador:"Almagrario",   ciudad:"Bogotá",       dept:"Bogotá D.C.",     lat: 4.701, lng:-74.141, tipo:"Aéreo — valorables y especiales",     tel:"(601) 266-1800" },
+  { name:"Almagrario Barranquilla Puerto",  operador:"Almagrario",   ciudad:"Barranquilla", dept:"Atlántico",       lat:10.963, lng:-74.803, tipo:"Portuario — granel y carga general",  tel:"(605) 379-0500" },
+  { name:"Almagrario Cartagena",            operador:"Almagrario",   ciudad:"Cartagena",    dept:"Bolívar",         lat:10.388, lng:-75.488, tipo:"Portuario — contenedores, granel",    tel:"(605) 693-1100" },
+  { name:"Almagrario Buenaventura",         operador:"Almagrario",   ciudad:"Buenaventura", dept:"Valle del Cauca", lat: 3.883, lng:-77.030, tipo:"Portuario — contenedores",            tel:"(602) 240-1050" },
+  { name:"Alpopular Bogotá El Dorado",      operador:"Alpopular",    ciudad:"Bogotá",       dept:"Bogotá D.C.",     lat: 4.700, lng:-74.143, tipo:"Aéreo — carga general y courier",     tel:"(601) 266-2300" },
+  { name:"Alpopular Barranquilla",          operador:"Alpopular",    ciudad:"Barranquilla", dept:"Atlántico",       lat:10.972, lng:-74.806, tipo:"Portuario — almacenaje y distribución",tel:"(605) 379-0600" },
+  { name:"Alpopular Cartagena Puerto",      operador:"Alpopular",    ciudad:"Cartagena",    dept:"Bolívar",         lat:10.391, lng:-75.485, tipo:"Portuario — carga general",            tel:"(605) 693-1200" },
+  { name:"Depósito SPRBUN Buenaventura",    operador:"SPRBUN",       ciudad:"Buenaventura", dept:"Valle del Cauca", lat: 3.886, lng:-77.026, tipo:"Portuario habilitado — contenedores", tel:"(602) 240-1000" },
+  { name:"Depósito Contecar Cartagena",     operador:"Contecar",     ciudad:"Cartagena",    dept:"Bolívar",         lat:10.365, lng:-75.503, tipo:"Portuario habilitado — contenedores", tel:"(605) 693-9100" },
+  { name:"DHL Global Forwarding Bogotá",    operador:"DHL",          ciudad:"Bogotá",       dept:"Bogotá D.C.",     lat: 4.703, lng:-74.146, tipo:"Aéreo habilitado — courier y carga",  tel:"(601) 800-0345" },
+];
+
 /* ── AEROPUERTOS CIVILES Y DE CARGA ── */
 interface Aeropuerto { name: string; codigo: string; ciudad: string; dept: string; lat: number; lng: number; tipo: string; pista?: string; carga: boolean; }
 const AEROPUERTOS: Aeropuerto[] = [
@@ -790,6 +995,13 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
   const [showCruzRoja,         setShowCruzRoja]         = useState(false);
   const [showTalleres,         setShowTalleres]         = useState(false);
   const [showTerminales,       setShowTerminales]       = useState(false);
+  const [showPuentes,          setShowPuentes]          = useState(false);
+  const [showOleoductos,       setShowOleoductos]       = useState(false);
+  const [showPDET,             setShowPDET]             = useState(false);
+  const [showMinasAP,          setShowMinasAP]          = useState(false);
+  const [showINPEC,            setShowINPEC]            = useState(false);
+  const [showMineras,          setShowMineras]          = useState(false);
+  const [showDepositosDIAN,    setShowDepositosDIAN]    = useState(false);
   const [basemap, setBasemap] = useState<BasemapKey>("dark");
   const [panelOpen, setPanelOpen] = useState(true);
   const [geoData, setGeoData] = useState<any>(null);
@@ -868,6 +1080,13 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
     { key:"cruzroja",    label:"Cruz Roja / Defensa Civil",  icon:AlertTriangle,color:"#fb7185", active:showCruzRoja,         toggle:()=>setShowCruzRoja(p=>!p),          count:EMERGENCIAS_HUMANITARIAS.length },
     { key:"talleres",    label:"Talleres Mecánica Pesada",   icon:Car,          color:"#94a3b8", active:showTalleres,         toggle:()=>setShowTalleres(p=>!p),          count:TALLERES_PESADOS.length },
     { key:"terminales",  label:"Terminales de Carga",        icon:Building2,    color:"#d97706", active:showTerminales,       toggle:()=>setShowTerminales(p=>!p),        count:TERMINALES_CARGA.length },
+    { key:"puentes",     label:"Puentes Estratégicos",       icon:AlertTriangle,color:"#64748b", active:showPuentes,          toggle:()=>setShowPuentes(p=>!p),           count:PUENTES_ESTRATEGICOS.length },
+    { key:"oleoductos",  label:"Infraestructura Petrolera",  icon:AlertTriangle,color:"#92400e", active:showOleoductos,       toggle:()=>setShowOleoductos(p=>!p),        count:OLEODUCTOS.length },
+    { key:"pdet",        label:"Municipios PDET",            icon:AlertTriangle,color:"#fb923c", active:showPDET,             toggle:()=>setShowPDET(p=>!p),              count:MUNICIPIOS_PDET.length },
+    { key:"minasap",     label:"Riesgo Minas Antipersonal",  icon:AlertTriangle,color:"#dc2626", active:showMinasAP,          toggle:()=>setShowMinasAP(p=>!p),           count:ZONAS_MINAS_AP.length },
+    { key:"inpec",       label:"Centros Penitenciarios INPEC",icon:Building2,   color:"#6b7280", active:showINPEC,            toggle:()=>setShowINPEC(p=>!p),             count:CENTROS_INPEC.length },
+    { key:"mineras",     label:"Zonas Mineras Activas",      icon:AlertTriangle,color:"#ca8a04", active:showMineras,          toggle:()=>setShowMineras(p=>!p),           count:ZONAS_MINERAS.length },
+    { key:"depositosdian",label:"Depósitos Habilitados DIAN",icon:Building2,   color:"#8b5cf6", active:showDepositosDIAN,    toggle:()=>setShowDepositosDIAN(p=>!p),     count:DEPOSITOS_DIAN.length },
   ];
 
   const activeLayerMeta = LAYERS.find(l=>l.key===activeLayer)!;
@@ -889,6 +1108,13 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
   const cruzRojaIcon      = makeIcon("✚", "rgba(251,113,133,0.92)", "#fb7185", 22);
   const tallerIcon        = makeIcon("🔧","rgba(148,163,184,0.92)", "#94a3b8", 22);
   const terminalIcon      = makeIcon("📦","rgba(217,119,6,0.92)",   "#d97706", 22);
+  const puenteIcon        = makeIcon("🌉","rgba(100,116,139,0.92)","#64748b", 22);
+  const oleoductoIcon     = makeIcon("🛢","rgba(146,64,14,0.92)",  "#92400e", 22);
+  const pdetIcon          = makeIcon("🕊","rgba(251,146,60,0.92)", "#fb923c", 22);
+  const minasApIcon       = makeIcon("💣","rgba(220,38,38,0.92)",  "#dc2626", 22);
+  const inpecIcon         = makeIcon("🔒","rgba(107,114,128,0.92)","#6b7280", 22);
+  const mineraIcon        = makeIcon("⛏","rgba(202,138,4,0.92)",  "#ca8a04", 22);
+  const depositoDianIcon  = makeIcon("🏛","rgba(139,92,246,0.92)", "#8b5cf6", 22);
 
   return (
     <div style={{ position:"relative", width:"100%", height:"calc(100vh - 120px)", minHeight:500, borderRadius:12, overflow:"hidden" }}>
@@ -1189,6 +1415,130 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
           </Marker>
         ))}
 
+        {/* ── PUENTES ESTRATÉGICOS ── */}
+        {showPuentes&&PUENTES_ESTRATEGICOS.map((p,i)=>(
+          <Marker key={`pte-${i}`} position={[p.lat,p.lng]} icon={puenteIcon}>
+            <Popup className="dark-popup">
+              <div style={{ fontFamily:"sans-serif",fontSize:13,color:"#e2e8f0",minWidth:230 }}>
+                <div style={{ fontWeight:700,color:"#94a3b8",marginBottom:6 }}>🌉 {p.name}</div>
+                <table style={{ width:"100%",borderCollapse:"collapse" }}>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Ruta</td><td style={{ textAlign:"right",fontWeight:700,color:"#64748b" }}>{p.ruta}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Municipio</td><td style={{ textAlign:"right" }}>{p.municipio}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Departamento</td><td style={{ textAlign:"right" }}>{p.dept}</td></tr>
+                  {p.longitud&&<tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Longitud</td><td style={{ textAlign:"right",fontWeight:600 }}>{p.longitud}</td></tr>}
+                  {p.nota&&<tr><td colSpan={2} style={{ borderTop:"1px solid rgba(255,255,255,0.08)",paddingTop:5,color:"#f59e0b",fontSize:12 }}>⚠ {p.nota}</td></tr>}
+                </table>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* ── INFRAESTRUCTURA PETROLERA / OLEODUCTOS ── */}
+        {showOleoductos&&OLEODUCTOS.map((o,i)=>(
+          <Marker key={`oil-${i}`} position={[o.lat,o.lng]} icon={oleoductoIcon}>
+            <Popup className="dark-popup">
+              <div style={{ fontFamily:"sans-serif",fontSize:13,color:"#e2e8f0",minWidth:230 }}>
+                <div style={{ fontWeight:700,color:"#92400e",marginBottom:6 }}>🛢 {o.name}</div>
+                <table style={{ width:"100%",borderCollapse:"collapse" }}>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Tipo</td><td style={{ textAlign:"right",fontWeight:700,color:"#d97706" }}>{o.tipo}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Operador</td><td style={{ textAlign:"right" }}>{o.operador}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Municipio</td><td style={{ textAlign:"right" }}>{o.municipio}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Departamento</td><td style={{ textAlign:"right" }}>{o.dept}</td></tr>
+                  {o.nota&&<tr><td colSpan={2} style={{ borderTop:"1px solid rgba(255,255,255,0.08)",paddingTop:5,color:"#f59e0b",fontSize:12 }}>ℹ {o.nota}</td></tr>}
+                </table>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* ── MUNICIPIOS PDET ── */}
+        {showPDET&&MUNICIPIOS_PDET.map((m,i)=>(
+          <Marker key={`pdet-${i}`} position={[m.lat,m.lng]} icon={pdetIcon}>
+            <Popup className="dark-popup">
+              <div style={{ fontFamily:"sans-serif",fontSize:13,color:"#e2e8f0",minWidth:220 }}>
+                <div style={{ fontWeight:700,color:"#fb923c",marginBottom:6 }}>🕊 {m.name}</div>
+                <table style={{ width:"100%",borderCollapse:"collapse" }}>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Subregión PDET</td><td style={{ textAlign:"right",fontSize:11,color:"#fb923c" }}>{m.subregion}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Departamento</td><td style={{ textAlign:"right" }}>{m.dept}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Nivel de riesgo</td><td style={{ textAlign:"right",fontWeight:700,color:m.riesgo==="Crítico"?"#ef4444":m.riesgo==="Alto"?"#f97316":"#eab308" }}>{m.riesgo}</td></tr>
+                </table>
+                <div style={{ marginTop:6,fontSize:11,color:"#64748b" }}>Programa Desarrollo con Enfoque Territorial — Acuerdo de Paz 2016</div>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* ── RIESGO MINAS ANTIPERSONAL ── */}
+        {showMinasAP&&ZONAS_MINAS_AP.map((z,i)=>(
+          <Marker key={`map-${i}`} position={[z.lat,z.lng]} icon={minasApIcon}>
+            <Popup className="dark-popup">
+              <div style={{ fontFamily:"sans-serif",fontSize:13,color:"#e2e8f0",minWidth:220 }}>
+                <div style={{ fontWeight:700,color:"#dc2626",marginBottom:6 }}>💣 {z.name} — Alerta MAP/MUSE</div>
+                <table style={{ width:"100%",borderCollapse:"collapse" }}>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Departamento</td><td style={{ textAlign:"right" }}>{z.dept}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Nivel de riesgo</td><td style={{ textAlign:"right",fontWeight:700,color:z.nivel==="Crítico"?"#ef4444":z.nivel==="Alto"?"#f97316":"#eab308" }}>{z.nivel}</td></tr>
+                  {z.eventos&&<tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Eventos acumulados</td><td style={{ textAlign:"right",fontWeight:700,color:"#ef4444" }}>{z.eventos}</td></tr>}
+                </table>
+                <div style={{ marginTop:6,fontSize:11,color:"#ef4444" }}>Fuente: AICMA / Descontamina Colombia</div>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* ── CENTROS PENITENCIARIOS INPEC ── */}
+        {showINPEC&&CENTROS_INPEC.map((c,i)=>(
+          <Marker key={`inpec-${i}`} position={[c.lat,c.lng]} icon={inpecIcon}>
+            <Popup className="dark-popup">
+              <div style={{ fontFamily:"sans-serif",fontSize:13,color:"#e2e8f0",minWidth:230 }}>
+                <div style={{ fontWeight:700,color:"#9ca3af",marginBottom:6 }}>🔒 {c.name}</div>
+                <table style={{ width:"100%",borderCollapse:"collapse" }}>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Ciudad</td><td style={{ textAlign:"right" }}>{c.ciudad}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Departamento</td><td style={{ textAlign:"right" }}>{c.dept}</td></tr>
+                  {c.capacidad&&<tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Capacidad</td><td style={{ textAlign:"right",fontWeight:700 }}>{c.capacidad.toLocaleString()} internos</td></tr>}
+                  {c.tel&&<tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Tel.</td><td style={{ textAlign:"right" }}>{c.tel}</td></tr>}
+                </table>
+                <div style={{ marginTop:6,fontSize:11,color:"#64748b" }}>INPEC — Instituto Nacional Penitenciario</div>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* ── ZONAS MINERAS ACTIVAS ── */}
+        {showMineras&&ZONAS_MINERAS.map((z,i)=>(
+          <Marker key={`min-${i}`} position={[z.lat,z.lng]} icon={mineraIcon}>
+            <Popup className="dark-popup">
+              <div style={{ fontFamily:"sans-serif",fontSize:13,color:"#e2e8f0",minWidth:230 }}>
+                <div style={{ fontWeight:700,color:"#ca8a04",marginBottom:6 }}>⛏ {z.name}</div>
+                <table style={{ width:"100%",borderCollapse:"collapse" }}>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Mineral</td><td style={{ textAlign:"right",fontWeight:700,color:"#fbbf24" }}>{z.mineral}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Tipo</td><td style={{ textAlign:"right",color:z.tipo==="Ilegal"?"#ef4444":z.tipo==="Mixto"?"#f97316":"#22d3ee",fontWeight:600 }}>{z.tipo}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Departamento</td><td style={{ textAlign:"right" }}>{z.dept}</td></tr>
+                  {z.nota&&<tr><td colSpan={2} style={{ borderTop:"1px solid rgba(255,255,255,0.08)",paddingTop:5,color:"#f59e0b",fontSize:11 }}>{z.nota}</td></tr>}
+                </table>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* ── DEPÓSITOS HABILITADOS DIAN ── */}
+        {showDepositosDIAN&&DEPOSITOS_DIAN.map((d,i)=>(
+          <Marker key={`dep-${i}`} position={[d.lat,d.lng]} icon={depositoDianIcon}>
+            <Popup className="dark-popup">
+              <div style={{ fontFamily:"sans-serif",fontSize:13,color:"#e2e8f0",minWidth:240 }}>
+                <div style={{ fontWeight:700,color:"#8b5cf6",marginBottom:6 }}>🏛 {d.name}</div>
+                <table style={{ width:"100%",borderCollapse:"collapse" }}>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Operador</td><td style={{ textAlign:"right",fontWeight:700,color:"#a78bfa" }}>{d.operador}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Ciudad</td><td style={{ textAlign:"right" }}>{d.ciudad}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Departamento</td><td style={{ textAlign:"right" }}>{d.dept}</td></tr>
+                  <tr><td colSpan={2} style={{ borderTop:"1px solid rgba(255,255,255,0.08)",paddingTop:5,fontSize:11,color:"#a78bfa" }}>{d.tipo}</td></tr>
+                  {d.tel&&<tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Tel.</td><td style={{ textAlign:"right" }}>{d.tel}</td></tr>}
+                </table>
+                <div style={{ marginTop:6,fontSize:11,color:"#64748b" }}>Depósito habilitado DIAN — Almacenaje bajo control aduanero</div>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
         {/* ── ESTACIONES DE SERVICIO ── */}
         {showEstaciones&&ESTACIONES_SERVICIO.map((e,i)=>(
           <Marker key={`est-${i}`} position={[e.lat,e.lng]} icon={estacionIcon}>
@@ -1371,6 +1721,13 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
               {showCruzRoja&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(251,113,133,0.92)",border:"2px solid #fb7185",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff" }}>✚</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Cruz Roja / Defensa Civil</span></div>}
               {showTalleres&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(148,163,184,0.92)",border:"2px solid #94a3b8",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>🔧</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Taller Mecánica Pesada</span></div>}
               {showTerminales&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(217,119,6,0.92)",border:"2px solid #d97706",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>📦</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Terminal de Carga / Logística</span></div>}
+              {showPuentes&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(100,116,139,0.92)",border:"2px solid #64748b",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>🌉</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Puente Estratégico — Ruta nacional</span></div>}
+              {showOleoductos&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(146,64,14,0.92)",border:"2px solid #92400e",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>🛢</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Infraestructura Petrolera / Oleoducto</span></div>}
+              {showPDET&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(251,146,60,0.92)",border:"2px solid #fb923c",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>🕊</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Municipio PDET — Post-conflicto</span></div>}
+              {showMinasAP&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(220,38,38,0.92)",border:"2px solid #dc2626",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>💣</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Riesgo Minas Antipersonal (AICMA)</span></div>}
+              {showINPEC&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(107,114,128,0.92)",border:"2px solid #6b7280",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>🔒</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Centro Penitenciario INPEC</span></div>}
+              {showMineras&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(202,138,4,0.92)",border:"2px solid #ca8a04",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>⛏</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Zona Minera Activa — Legal / Ilegal</span></div>}
+              {showDepositosDIAN&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(139,92,246,0.92)",border:"2px solid #8b5cf6",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>🏛</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Depósito Habilitado DIAN</span></div>}
             </div>
           </div>
         )}
