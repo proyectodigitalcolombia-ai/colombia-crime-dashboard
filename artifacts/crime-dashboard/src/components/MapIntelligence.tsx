@@ -309,6 +309,72 @@ const BOMBEROS: Bombero[] = [
   { name:"Cuerpo de Bomberos de Tuluá",                ciudad:"Tuluá",          lat: 4.086,  lng:-76.197, dept:"Valle del Cauca",      tipo:"Voluntarios",       address:"Calle 25 No. 25-00, Tuluá",              tel:"119" },
 ];
 
+/* ── BÁSCULAS DE PESAJE INVIAS (fuente: INVIAS — Subdirección de Gestión de la Red) ── */
+interface Bascula { name: string; route: string; lat: number; lng: number; dept: string; km?: string; }
+const BASCULAS: Bascula[] = [
+  { name:"Báscula Siberia",          route:"Ruta 25 Bogotá–Medellín",         lat: 4.920, lng:-74.093, dept:"Cundinamarca",       km:"Km 18" },
+  { name:"Báscula La Caro",          route:"Autopista Norte Bogotá–Tunja",    lat: 4.919, lng:-74.010, dept:"Cundinamarca",       km:"Km 22" },
+  { name:"Báscula Briceño",          route:"Autopista Norte Bogotá–Tunja",    lat: 5.222, lng:-74.023, dept:"Cundinamarca",       km:"Km 51" },
+  { name:"Báscula Gachancipá",       route:"Ruta 45 Bogotá–Sogamoso",         lat: 5.013, lng:-73.892, dept:"Cundinamarca",       km:"Km 49" },
+  { name:"Báscula Choachí",          route:"Vía al Llano (Ruta 40)",          lat: 4.306, lng:-73.930, dept:"Cundinamarca",       km:"Km 44" },
+  { name:"Báscula Facatativá",       route:"Ruta 50 Bogotá–Manizales",        lat: 4.819, lng:-74.356, dept:"Cundinamarca",       km:"Km 40" },
+  { name:"Báscula El Vino",          route:"Ruta 50 Bogotá–Honda",            lat: 5.233, lng:-74.343, dept:"Cundinamarca",       km:"Km 78" },
+  { name:"Báscula Girardot",         route:"Ruta 40 Bogotá–Ibagué",           lat: 4.303, lng:-74.804, dept:"Cundinamarca",       km:"Km 132" },
+  { name:"Báscula Honda",            route:"Ruta 50 Honda–Puerto Berrío",     lat: 5.213, lng:-74.741, dept:"Tolima",             km:"Km 4" },
+  { name:"Báscula Espinal",          route:"Ruta 40 Ibagué–Neiva",            lat: 4.153, lng:-74.884, dept:"Tolima",             km:"Km 60" },
+  { name:"Báscula Ibagué",           route:"Ruta 40 Ibagué",                  lat: 4.433, lng:-75.241, dept:"Tolima",             km:"Km 202" },
+  { name:"Báscula Neiva",            route:"Ruta 45 Neiva–Bogotá",            lat: 2.934, lng:-75.292, dept:"Huila",              km:"Km 305" },
+  { name:"Báscula Pitalito",         route:"Ruta 45B Huila–Mocoa",            lat: 1.856, lng:-76.050, dept:"Huila",              km:"Km 15" },
+  { name:"Báscula Tunja",            route:"Ruta 55 Tunja–Sogamoso",          lat: 5.597, lng:-73.316, dept:"Boyacá",             km:"Km 148" },
+  { name:"Báscula Sogamoso",         route:"Ruta 55 Boyacá",                  lat: 5.717, lng:-72.932, dept:"Boyacá",             km:"Km 198" },
+  { name:"Báscula Barbosa",          route:"Ruta 45A Bogotá–Bucaramanga",     lat: 5.936, lng:-73.618, dept:"Santander",          km:"Km 180" },
+  { name:"Báscula Puente Nacional",  route:"Ruta 45A Bogotá–Bucaramanga",     lat: 5.879, lng:-73.691, dept:"Santander",          km:"Km 160" },
+  { name:"Báscula San Gil",          route:"Ruta 45A Bucaramanga–Bogotá",     lat: 6.556, lng:-73.135, dept:"Santander",          km:"Km 93" },
+  { name:"Báscula La Lizama",        route:"Ruta 45A Bucaramanga–Barranca",   lat: 7.108, lng:-73.424, dept:"Santander",          km:"Km 24" },
+  { name:"Báscula Bucaramanga",      route:"Autopista Florida–Piedecuesta",   lat: 7.013, lng:-73.140, dept:"Santander",          km:"Km 4" },
+  { name:"Báscula Pamplona",         route:"Ruta 55 Cúcuta–Bucaramanga",      lat: 7.375, lng:-72.654, dept:"Norte de Santander", km:"Km 78" },
+  { name:"Báscula Cúcuta",           route:"Ruta 55 Cúcuta",                  lat: 7.890, lng:-72.507, dept:"Norte de Santander", km:"Km 2" },
+  { name:"Báscula Aguachica",        route:"Ruta 45 Bogotá–Barranquilla",     lat: 8.307, lng:-73.617, dept:"Cesar",              km:"Km 518" },
+  { name:"Báscula Bosconia",         route:"Ruta 80 Costa Atlántica",         lat: 9.970, lng:-73.878, dept:"Cesar",              km:"Km 50" },
+  { name:"Báscula Valledupar",       route:"Ruta 80 Valledupar",              lat:10.481, lng:-73.253, dept:"Cesar",              km:"Km 94" },
+  { name:"Báscula Ciénaga",          route:"Ruta 90 Santa Marta–Barranquilla",lat:11.001, lng:-74.251, dept:"Magdalena",          km:"Km 14" },
+  { name:"Báscula Santa Marta",      route:"Ruta 90 Santa Marta",             lat:11.231, lng:-74.199, dept:"Magdalena",          km:"Km 0" },
+  { name:"Báscula Palermo",          route:"Ruta 45 Magdalena",               lat:10.543, lng:-74.661, dept:"Magdalena",          km:"Km 58" },
+  { name:"Báscula Galapa",           route:"Ruta 90 Barranquilla–Cartagena",  lat:10.899, lng:-74.889, dept:"Atlántico",          km:"Km 16" },
+  { name:"Báscula Sabanalarga",      route:"Ruta 90 Atlántico",               lat:10.634, lng:-74.922, dept:"Atlántico",          km:"Km 47" },
+  { name:"Báscula Turbaco",          route:"Ruta 90 Cartagena–Barranquilla",  lat:10.337, lng:-75.423, dept:"Bolívar",            km:"Km 12" },
+  { name:"Báscula Carmen de Bolívar",route:"Ruta 25 Bolívar",                 lat: 9.722, lng:-75.121, dept:"Bolívar",            km:"Km 95" },
+  { name:"Báscula La Caucana",       route:"Ruta 25 Sucre",                   lat: 8.802, lng:-75.142, dept:"Sucre",              km:"Km 145" },
+  { name:"Báscula Sincelejo",        route:"Ruta 25 Sincelejo",               lat: 9.305, lng:-75.399, dept:"Sucre",              km:"Km 108" },
+  { name:"Báscula Planeta Rica",     route:"Ruta 25 Córdoba",                 lat: 8.411, lng:-75.584, dept:"Córdoba",            km:"Km 178" },
+  { name:"Báscula Montería",         route:"Ruta 25 Montería",                lat: 8.758, lng:-75.887, dept:"Córdoba",            km:"Km 210" },
+  { name:"Báscula El Tigre",         route:"Ruta 62 Antioquia",               lat: 7.082, lng:-74.764, dept:"Antioquia",          km:"Km 105" },
+  { name:"Báscula La Pintada",       route:"Ruta 25 Antioquia–Caldas",        lat: 5.753, lng:-75.597, dept:"Antioquia",          km:"Km 310" },
+  { name:"Báscula La Felisa",        route:"Ruta 25 Caldas",                  lat: 5.514, lng:-75.649, dept:"Caldas",             km:"Km 338" },
+  { name:"Báscula Irra",             route:"Ruta 25 Eje Cafetero",            lat: 5.367, lng:-75.567, dept:"Caldas",             km:"Km 361" },
+  { name:"Báscula Manizales",        route:"Ruta 50 Manizales",               lat: 5.073, lng:-75.467, dept:"Caldas",             km:"Km 280" },
+  { name:"Báscula Pereira",          route:"Ruta 25 Risaralda",               lat: 4.812, lng:-75.696, dept:"Risaralda",          km:"Km 385" },
+  { name:"Báscula Armenia",          route:"Ruta 40 Eje Cafetero",            lat: 4.534, lng:-75.675, dept:"Quindío",            km:"Km 297" },
+  { name:"Báscula Cartago",          route:"Ruta 25 Risaralda–Valle",         lat: 4.756, lng:-75.913, dept:"Valle del Cauca",    km:"Km 419" },
+  { name:"Báscula La Paila",         route:"Ruta 25 Valle del Cauca",         lat: 4.308, lng:-75.905, dept:"Valle del Cauca",    km:"Km 445" },
+  { name:"Báscula Tulúa",            route:"Ruta 25 Bogotá–Cali",             lat: 4.094, lng:-76.193, dept:"Valle del Cauca",    km:"Km 471" },
+  { name:"Báscula Buga",             route:"Ruta 25 Bogotá–Cali",             lat: 3.902, lng:-76.297, dept:"Valle del Cauca",    km:"Km 493" },
+  { name:"Báscula Mediacanoa",       route:"Ruta 25 Bogotá–Cali",             lat: 3.756, lng:-76.256, dept:"Valle del Cauca",    km:"Km 511" },
+  { name:"Báscula Cali Norte",       route:"Autopista Cali–Bogotá",           lat: 3.550, lng:-76.534, dept:"Valle del Cauca",    km:"Km 537" },
+  { name:"Báscula El Bordo",         route:"Ruta 25 Cali–Popayán",            lat: 2.836, lng:-76.543, dept:"Cauca",              km:"Km 600" },
+  { name:"Báscula Popayán",          route:"Ruta 25 Cauca",                   lat: 2.442, lng:-76.607, dept:"Cauca",              km:"Km 638" },
+  { name:"Báscula Pescador",         route:"Ruta 25 Cauca",                   lat: 2.716, lng:-76.499, dept:"Cauca",              km:"Km 618" },
+  { name:"Báscula Pasto",            route:"Ruta 25 Nariño",                  lat: 1.213, lng:-77.287, dept:"Nariño",             km:"Km 738" },
+  { name:"Báscula Ipiales",          route:"Ruta 25 Frontera Ecuador",        lat: 0.831, lng:-77.644, dept:"Nariño",             km:"Km 807" },
+  { name:"Báscula Villavicencio",    route:"Ruta 40 Vía al Llano",            lat: 4.151, lng:-73.636, dept:"Meta",               km:"Km 90" },
+  { name:"Báscula Florencia",        route:"Ruta 45A Caquetá",                lat: 1.614, lng:-75.607, dept:"Caquetá",            km:"Km 12" },
+  { name:"Báscula Mocoa",            route:"Ruta 45A Putumayo",               lat: 1.149, lng:-76.650, dept:"Putumayo",           km:"Km 5" },
+  { name:"Báscula Arauca",           route:"Ruta 55 Arauca–Bogotá",           lat: 7.087, lng:-70.759, dept:"Arauca",             km:"Km 8" },
+  { name:"Báscula Yopal",            route:"Ruta 65 Casanare",                lat: 5.337, lng:-72.396, dept:"Casanare",           km:"Km 10" },
+  { name:"Báscula Riohacha",         route:"Ruta 90A La Guajira",             lat:11.544, lng:-72.908, dept:"La Guajira",         km:"Km 6" },
+  { name:"Báscula Buenaventura",     route:"Ruta 25 Puerto–Cali",             lat: 3.883, lng:-77.018, dept:"Valle del Cauca",    km:"Km 3" },
+];
+
 /* ── tipos / helpers ── */
 type LayerKey = "grupos" | "riesgo" | "delitos" | "vias" | "ninguna";
 type BasemapKey = "dark" | "streets" | "satellite";
@@ -365,6 +431,7 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
   const [showFAC,        setShowFAC]        = useState(false);
   const [showArmada,     setShowArmada]     = useState(false);
   const [showBomberos,   setShowBomberos]   = useState(false);
+  const [showBasculas,   setShowBasculas]   = useState(false);
   const [basemap, setBasemap] = useState<BasemapKey>("dark");
   const [panelOpen, setPanelOpen] = useState(true);
   const [geoData, setGeoData] = useState<any>(null);
@@ -432,6 +499,7 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
     { key:"fac",        label:"Fuerza Aérea Colombiana", icon:Building2,  color:"#38bdf8", active:showFAC,        toggle:()=>setShowFAC(p=>!p),         count:FUERZA_AEREA.length },
     { key:"armada",     label:"Armada Nacional",         icon:MapPin,     color:"#818cf8", active:showArmada,     toggle:()=>setShowArmada(p=>!p),      count:ARMADA.length },
     { key:"bomberos",   label:"Cuerpos de Bomberos",     icon:AlertTriangle, color:"#fb923c", active:showBomberos,toggle:()=>setShowBomberos(p=>!p),    count:BOMBEROS.length },
+    { key:"basculas",   label:"Básculas de Pesaje INVIAS",icon:Car,          color:"#e879f9", active:showBasculas, toggle:()=>setShowBasculas(p=>!p),   count:BASCULAS.length },
   ];
 
   const activeLayerMeta = LAYERS.find(l=>l.key===activeLayer)!;
@@ -442,6 +510,7 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
   const facIcon        = makeIcon("✈",  "rgba(56,189,248,0.92)",  "#38bdf8", 22);
   const armadaIcon     = makeIcon("⚓",  "rgba(129,140,248,0.92)", "#818cf8", 22);
   const bomberoIcon    = makeIcon("🔥", "rgba(251,146,60,0.92)",  "#fb923c", 22);
+  const basculaIcon    = makeIcon("⚖",  "rgba(232,121,249,0.92)", "#e879f9", 20);
 
   return (
     <div style={{ position:"relative", width:"100%", height:"calc(100vh - 120px)", minHeight:500, borderRadius:12, overflow:"hidden" }}>
@@ -600,6 +669,23 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
             </Popup>
           </Marker>
         ))}
+
+        {/* Básculas de Pesaje INVIAS */}
+        {showBasculas && BASCULAS.map((b,i) => (
+          <Marker key={`bas-${i}`} position={[b.lat,b.lng]} icon={basculaIcon}>
+            <Popup className="dark-popup">
+              <div style={{ fontFamily:"sans-serif",fontSize:13,color:"#e2e8f0",minWidth:210 }}>
+                <div style={{ fontWeight:700,color:"#e879f9",marginBottom:6 }}>⚖ {b.name}</div>
+                <table style={{ width:"100%",borderCollapse:"collapse" }}>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Ruta</td><td style={{ textAlign:"right",fontSize:12 }}>{b.route}</td></tr>
+                  <tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Departamento</td><td style={{ textAlign:"right" }}>{b.dept}</td></tr>
+                  {b.km&&<tr><td style={{ color:"#94a3b8",padding:"2px 0" }}>Punto</td><td style={{ textAlign:"right",fontWeight:600,color:"#e879f9" }}>{b.km}</td></tr>}
+                  <tr><td colSpan={2} style={{ color:"#64748b",fontSize:11,paddingTop:4,borderTop:"1px solid rgba(255,255,255,0.08)" }}>Control de peso vehicular INVIAS</td></tr>
+                </table>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
       </MapContainer>
 
       {/* PANEL */}
@@ -700,7 +786,7 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
         )}
 
         {/* Overlay legend */}
-        {(showPeajes||showPolicia||showHospitales||showBlockades||showEjercito||showFAC||showArmada||showBomberos)&&(
+        {(showPeajes||showPolicia||showHospitales||showBlockades||showEjercito||showFAC||showArmada||showBomberos||showBasculas)&&(
           <div style={{ padding:"10px 14px", borderBottom:"1px solid rgba(255,255,255,0.07)" }}>
             <div style={{ fontSize:10,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:"rgba(255,255,255,0.35)",marginBottom:8 }}>Símbolos activos</div>
             <div style={{ display:"flex",flexDirection:"column",gap:5 }}>
@@ -712,6 +798,7 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
               {showFAC&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(56,189,248,0.92)",border:"2px solid #38bdf8",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff" }}>✈</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>FAC — Base / CACOM</span></div>}
               {showArmada&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(129,140,248,0.92)",border:"2px solid #818cf8",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff" }}>⚓</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Armada — Base Naval/Fluvial</span></div>}
               {showBomberos&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(251,146,60,0.92)",border:"2px solid #fb923c",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11 }}>🔥</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Cuerpo de Bomberos — 119</span></div>}
+              {showBasculas&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(232,121,249,0.92)",border:"2px solid #e879f9",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff" }}>⚖</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Báscula de Pesaje INVIAS</span></div>}
             </div>
           </div>
         )}
