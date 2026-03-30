@@ -1003,8 +1003,10 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
 
         {/* Overlays */}
         <div style={{ padding:"10px 14px", borderBottom:"1px solid rgba(255,255,255,0.07)" }}>
-          <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.1em", textTransform:"uppercase", color:"rgba(255,255,255,0.35)", marginBottom:8 }}>Superposiciones</div>
-          <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
+          <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.1em", textTransform:"uppercase", color:"rgba(255,255,255,0.35)", marginBottom:8 }}>
+            Superposiciones <span style={{ color:"rgba(255,255,255,0.2)", fontWeight:400, textTransform:"none" }}>({OVERLAYS.length})</span>
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", gap:4, maxHeight:310, overflowY:"auto", paddingRight:2 }}>
             {OVERLAYS.map(o => {
               const Icon=o.icon;
               return (
