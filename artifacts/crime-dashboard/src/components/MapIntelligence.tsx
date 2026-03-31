@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { MapContainer, TileLayer, GeoJSON, CircleMarker, Popup, useMap, Marker, Polyline } from "react-leaflet";
 import { PUNTOS_CRITICOS_BUN_BOG, WAYPOINTS_BUN_BOG } from "./routeDataBunBog";
+import RouteManager, { type UserRoute, type RoutePoint } from "./RouteManager";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import "react-leaflet-cluster/dist/assets/MarkerCluster.css";
 import "react-leaflet-cluster/dist/assets/MarkerCluster.Default.css";
@@ -1125,6 +1126,7 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
   const [showCultivos,         setShowCultivos]         = useState(false);
   const [showGruposArmados,    setShowGruposArmados]    = useState(false);
   const [showRutaBunBog,       setShowRutaBunBog]       = useState(false);
+  const [activeUserRoutes,     setActiveUserRoutes]     = useState<{ route: UserRoute; points: RoutePoint[] }[]>([]);
 
   // ── BUSCADOR DE MUNICIPIO ──
   const [searchQ,     setSearchQ]     = useState('');
@@ -1346,6 +1348,48 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
         })}
 
         <FlyController target={flyTarget} />
+
+        {/* ── RUTAS DE USUARIO CARGADAS DESDE BD ── */}
+        {activeUserRoutes.map(({ route, points }, ri) => {
+          const ROUTE_COLORS = ["#f59e0b","#22d3ee","#a78bfa","#34d399","#fb923c"];
+          const lineColor = ROUTE_COLORS[ri % ROUTE_COLORS.length];
+          const waypoints = points.map(p => [p.lat, p.lng] as [number, number]);
+          return (
+            <span key={`user-route-${route.id}`}>
+              <Polyline positions={waypoints} pathOptions={{ color: lineColor, weight: 3, opacity: 0.9, dashArray: "7 4" }} />
+              {points.map((p, pi) => {
+                const color = p.tipo === "PUNTO CRITICO" ? "#ef4444"
+                  : p.tipo === "CUERPOS DE AGUA" ? "#38bdf8"
+                  : p.tipo === "INFRAESTRUCTURA Y EQUIPAMIENTO" ? "#a78bfa"
+                  : p.tipo === "CENTRO POBLADO" ? "#34d399"
+                  : "#94a3b8";
+                const r = p.riesgo >= 5 ? 7 : p.riesgo >= 4 ? 5 : 4;
+                return (
+                  <CircleMarker key={`ur-${route.id}-${pi}`} center={[p.lat, p.lng]} radius={r}
+                    pathOptions={{ color, fillColor: color, fillOpacity: 0.88, weight: 1.5 }}>
+                    <Popup>
+                      <div style={{ minWidth: 220, fontFamily: "sans-serif" }}>
+                        <div style={{ fontSize: 10, letterSpacing: 1, color: lineColor, fontWeight: 700, marginBottom: 2 }}>{route.name}</div>
+                        <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 3 }}>#{p.n} — {p.nombre}</div>
+                        <div style={{ fontSize: 11, color: "#64748b", marginBottom: 6 }}>{p.mun}, {p.dept}</div>
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
+                          <span style={{ background: p.tipo === "PUNTO CRITICO" ? "#fee2e2" : "#f3e8ff", color: p.tipo === "PUNTO CRITICO" ? "#dc2626" : "#7e22ce", padding: "2px 7px", borderRadius: 10, fontSize: 10, fontWeight: 600 }}>{p.tipo}</span>
+                          <span style={{ background: p.riesgo >= 5 ? "#fee2e2" : p.riesgo >= 4 ? "#fef3c7" : "#f0fdf4", color: p.riesgo >= 5 ? "#dc2626" : p.riesgo >= 4 ? "#d97706" : "#16a34a", padding: "2px 7px", borderRadius: 10, fontSize: 10, fontWeight: 700 }}>Riesgo: {p.riesgo}</span>
+                        </div>
+                        {p.desc && <div style={{ fontSize: 11, marginBottom: 4 }}><b>Descripción:</b> {p.desc}</div>}
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, fontSize: 11, marginBottom: 4 }}>
+                          <div>⛰ <b>{p.alt} msnm</b></div>
+                          <div>🚗 <b>{p.vel} km/h</b></div>
+                        </div>
+                        {p.controles && <div style={{ fontSize: 10, color: "#475569" }}><b>Controles:</b> {p.controles}</div>}
+                      </div>
+                    </Popup>
+                  </CircleMarker>
+                );
+              })}
+            </span>
+          );
+        })}
 
         {/* ── RUTA REAL: BUENAVENTURA → BOGOTÁ ── */}
         {showRutaBunBog && (<>
@@ -1917,6 +1961,9 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
           </div>
         )}
       </div>
+
+      {/* ── GESTOR DE RUTAS DE USUARIO ── */}
+      <RouteManager onRoutesChange={setActiveUserRoutes} />
 
       {/* ── BOTÓN BRIEFING DE CORREDOR ── */}
       <div style={{ position:"absolute",bottom:24,left:16,zIndex:1000 }}>

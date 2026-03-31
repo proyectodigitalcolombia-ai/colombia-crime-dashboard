@@ -144,6 +144,38 @@ async function ensureSchema() {
         updated_at TIMESTAMP NOT NULL DEFAULT NOW()
       );
       ALTER TABLE email_alert_configs ADD COLUMN IF NOT EXISTS include_companies BOOLEAN NOT NULL DEFAULT FALSE;
+
+      CREATE TABLE IF NOT EXISTS safenode_routes (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        origin TEXT NOT NULL,
+        destination TEXT NOT NULL,
+        ruta_code TEXT NOT NULL DEFAULT '',
+        description TEXT NOT NULL DEFAULT '',
+        total_points INTEGER NOT NULL DEFAULT 0,
+        sheet_name TEXT NOT NULL DEFAULT '',
+        uploaded_by INTEGER,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS safenode_routes_name_idx ON safenode_routes (name);
+
+      CREATE TABLE IF NOT EXISTS safenode_route_points (
+        id SERIAL PRIMARY KEY,
+        route_id INTEGER NOT NULL REFERENCES safenode_routes(id) ON DELETE CASCADE,
+        n INTEGER NOT NULL,
+        dept TEXT NOT NULL DEFAULT '',
+        mun TEXT NOT NULL DEFAULT '',
+        nombre TEXT NOT NULL DEFAULT '',
+        tipo TEXT NOT NULL DEFAULT '',
+        desc TEXT NOT NULL DEFAULT '',
+        lat REAL NOT NULL,
+        lng REAL NOT NULL,
+        alt REAL NOT NULL DEFAULT 0,
+        vel REAL NOT NULL DEFAULT 0,
+        controles TEXT NOT NULL DEFAULT '',
+        riesgo REAL NOT NULL DEFAULT 0
+      );
+      CREATE INDEX IF NOT EXISTS safenode_route_points_route_idx ON safenode_route_points (route_id);
     `);
 
     logger.info("Database schema ensured (all tables)");

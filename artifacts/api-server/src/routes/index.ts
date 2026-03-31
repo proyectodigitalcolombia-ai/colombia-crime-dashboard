@@ -11,6 +11,7 @@ import newsMonitorRouter from "./news-monitor";
 import restrictionsSyncRouter from "./restrictions-sync";
 import companiesRouter from "./companies";
 import emailAlertsRouter from "./email-alerts";
+import userRoutesRouter from "./user-routes";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(newsMonitorRouter);
 router.use(restrictionsSyncRouter);
 router.use(companiesRouter);
 router.use(emailAlertsRouter);
+router.use(userRoutesRouter);
 
 export default router;
