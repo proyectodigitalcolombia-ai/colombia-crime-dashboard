@@ -232,8 +232,14 @@ router.post("/user-routes/upload", requireAuth, (req, res, next) => {
 
   const parsed = parseExcel(req.file.buffer);
   if (!parsed) return res.status(400).json({ error: "No se pudo leer el archivo Excel" });
-  if (parsed.points.length === 0)
-    return res.status(400).json({ error: "El archivo no tiene puntos con coordenadas GPS válidas" });
+  if (parsed.points.length === 0) {
+    // Build debug sample: raw cells from first data rows
+    const wb2 = XLSX.read(req.file.buffer, { type: "buffer" });
+    const ws2 = wb2.Sheets[wb2.SheetNames[0]];
+    const raw: any[][] = XLSX.utils.sheet_to_json(ws2, { header: 1, defval: "" });
+    const sample = raw.slice(5, 14).map((row, i) => `Fila ${i+6}: col6="${String(row[6]??'').slice(0,60)}" col7="${String(row[7]??'').slice(0,30)}"`).join(" | ");
+    return res.status(400).json({ error: `El archivo no tiene puntos con coordenadas GPS válidas. Muestra: ${sample}` });
+  }
 
   const { sheetName, origin, destination, points } = parsed;
   const customName = req.body.name?.trim() || `${origin} → ${destination}`;
