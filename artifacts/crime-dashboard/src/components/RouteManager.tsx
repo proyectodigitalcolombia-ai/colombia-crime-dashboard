@@ -239,10 +239,11 @@ export default function RouteManager({ onRoutesChange }: Props) {
 
             {uploadMsg && (
               <div style={{
-                marginTop: 8, padding: "8px 12px", borderRadius: 8, fontSize: 12,
+                marginTop: 8, padding: "8px 12px", borderRadius: 8, fontSize: 11,
                 background: uploadMsg.ok ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
                 border: `1px solid ${uploadMsg.ok ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
                 color: uploadMsg.ok ? "#4ade80" : "#f87171",
+                maxHeight: 120, overflowY: "auto", wordBreak: "break-word", whiteSpace: "pre-wrap",
               }}>
                 {uploadMsg.text}
               </div>

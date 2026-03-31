@@ -125,14 +125,21 @@ function parseExcel(buffer: Buffer): {
   }
 
   const points: any[] = [];
+  const failedCoords: string[] = [];
+  const skippedN: string[] = [];
+
   for (let i = headerRow + 1; i < data.length; i++) {
     const row = data[i];
     if (!row || row.length === 0) continue;
     const n = row[colN];
-    if (!n || String(n).trim() === "" || isNaN(Number(n))) continue;
+    if (!n || String(n).trim() === "" || isNaN(Number(n))) {
+      if (String(n ?? "").trim() !== "") skippedN.push(`F${i}:N="${String(n).slice(0, 10)}"`);
+      continue;
+    }
 
     // Try coordinate column first, then scan entire row for valid coord
-    let coord = parseCoord(String(row[colCoord] ?? ""));
+    const rawCoord = String(row[colCoord] ?? "");
+    let coord = parseCoord(rawCoord);
     if (!coord) {
       // Scan all cells in row for a valid coordinate string
       for (let ci = 0; ci < row.length && !coord; ci++) {
@@ -141,7 +148,10 @@ function parseExcel(buffer: Buffer): {
         if (cellStr.length > 5) coord = parseCoord(cellStr);
       }
     }
-    if (!coord) continue;
+    if (!coord) {
+      if (failedCoords.length < 6) failedCoords.push(`F${i}(col${colCoord})="${rawCoord.slice(0, 50)}"`);
+      continue;
+    }
 
     points.push({
       n: Number(n),
@@ -159,7 +169,11 @@ function parseExcel(buffer: Buffer): {
     });
   }
 
-  return { sheetName, origin, destination, points };
+  const debug = points.length === 0
+    ? `DIAGNÓSTICO: hoja="${sheetName}" filaHeader=${headerRow} colCoord=${colCoord} colN=${colN} totalFilas=${data.length} | SkippedN(primeros): ${skippedN.slice(0,4).join("; ")} | CoordsNoReconocidas: ${failedCoords.join(" || ")}`
+    : undefined;
+
+  return { sheetName, origin, destination, points, debug };
 }
 
 // POST /api/user-routes/debug — parse Excel and return raw preview (no DB storage)
@@ -233,12 +247,7 @@ router.post("/user-routes/upload", requireAuth, (req, res, next) => {
   const parsed = parseExcel(req.file.buffer);
   if (!parsed) return res.status(400).json({ error: "No se pudo leer el archivo Excel" });
   if (parsed.points.length === 0) {
-    // Build debug sample: raw cells from first data rows
-    const wb2 = XLSX.read(req.file.buffer, { type: "buffer" });
-    const ws2 = wb2.Sheets[wb2.SheetNames[0]];
-    const raw: any[][] = XLSX.utils.sheet_to_json(ws2, { header: 1, defval: "" });
-    const sample = raw.slice(5, 14).map((row, i) => `Fila ${i+6}: col6="${String(row[6]??'').slice(0,60)}" col7="${String(row[7]??'').slice(0,30)}"`).join(" | ");
-    return res.status(400).json({ error: `El archivo no tiene puntos con coordenadas GPS válidas. Muestra: ${sample}` });
+    return res.status(400).json({ error: parsed.debug ?? "El archivo no tiene puntos con coordenadas GPS válidas" });
   }
 
   const { sheetName, origin, destination, points } = parsed;
