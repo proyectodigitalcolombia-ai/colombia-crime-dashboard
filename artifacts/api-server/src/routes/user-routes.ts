@@ -130,15 +130,15 @@ function parseExcel(buffer: Buffer): {
   const points: any[] = [];
   const failedCoords: string[] = [];
   const skippedN: string[] = [];
+  let autoIndex = 0;
 
   for (let i = headerRow + 1; i < data.length; i++) {
     const row = data[i];
     if (!row || row.length === 0) continue;
-    const n = row[colN];
-    if (!n || String(n).trim() === "" || isNaN(Number(n))) {
-      if (String(n ?? "").trim() !== "") skippedN.push(`F${i}:N="${String(n).slice(0, 10)}"`);
-      continue;
-    }
+
+    // Skip completely blank rows
+    const rowText = row.map((c: any) => String(c ?? "").trim()).join("");
+    if (!rowText) continue;
 
     // Strategy A: separate lat/lng columns (most reliable when headers detected)
     let coord: [number, number] | null = null;
@@ -180,8 +180,12 @@ function parseExcel(buffer: Buffer): {
       continue;
     }
 
+    // N° can come from the expected column or be auto-assigned
+    const nRaw = row[colN];
+    const n = (nRaw !== undefined && nRaw !== "" && !isNaN(Number(nRaw))) ? Number(nRaw) : ++autoIndex;
+
     points.push({
-      n: Number(n),
+      n,
       dept: String(row[colDept] ?? "").trim(),
       mun: String(row[colMun] ?? "").trim(),
       nombre: String(row[colNombre] ?? "").trim(),
@@ -196,8 +200,10 @@ function parseExcel(buffer: Buffer): {
     });
   }
 
+  const headerContent = (data[headerRow] ?? []).slice(0, 12).map((c: any, ci: number) => `[${ci}]=${String(c).slice(0, 20)}`).join(" ");
+  const row9Sample = (data[headerRow + 1] ?? []).slice(0, 8).map((c: any, ci: number) => `[${ci}]=${String(c).slice(0, 15)}`).join(" ");
   const debug = points.length === 0
-    ? `DIAGNÓSTICO: hoja="${sheetName}" filaHeader=${headerRow} colCoord=${colCoord} colLat=${colLat} colLng=${colLng} colN=${colN} totalFilas=${data.length} | SkippedN(primeros): ${skippedN.slice(0,4).join("; ")} | CoordsNoReconocidas: ${failedCoords.join(" || ")}`
+    ? `DIAGNÓSTICO: hoja="${sheetName}" filaHeader=${headerRow} colCoord=${colCoord} colLat=${colLat} colLng=${colLng} colN=${colN} totalFilas=${data.length}\nCABECERA: ${headerContent}\nFILA DATOS+1: ${row9Sample}\nCoordsNoRec: ${failedCoords.join(" | ")}`
     : undefined;
 
   return { sheetName, origin, destination, points, debug };
