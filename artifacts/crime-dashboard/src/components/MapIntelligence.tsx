@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { MapContainer, TileLayer, GeoJSON, CircleMarker, Popup, useMap, Marker } from "react-leaflet";
+import { MapContainer, TileLayer, GeoJSON, CircleMarker, Popup, useMap, Marker, Polyline } from "react-leaflet";
+import { PUNTOS_CRITICOS_BUN_BOG, WAYPOINTS_BUN_BOG } from "./routeDataBunBog";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import "react-leaflet-cluster/dist/assets/MarkerCluster.css";
 import "react-leaflet-cluster/dist/assets/MarkerCluster.Default.css";
@@ -11,7 +12,7 @@ import {
 } from "@workspace/api-client-react";
 import {
   Layers, Eye, EyeOff, AlertTriangle, MapPin, Moon, Shield, Route,
-  ChevronLeft, ChevronRight, Info, Building2, Hospital, Car,
+  ChevronLeft, ChevronRight, Info, Building2, Hospital, Car, Truck,
 } from "lucide-react";
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -1123,6 +1124,7 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
   const [showDepositosDIAN,    setShowDepositosDIAN]    = useState(false);
   const [showCultivos,         setShowCultivos]         = useState(false);
   const [showGruposArmados,    setShowGruposArmados]    = useState(false);
+  const [showRutaBunBog,       setShowRutaBunBog]       = useState(false);
 
   // ── BUSCADOR DE MUNICIPIO ──
   const [searchQ,     setSearchQ]     = useState('');
@@ -1278,6 +1280,7 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
     { key:"depositosdian",label:"Depósitos Habilitados DIAN",icon:Building2,   color:"#8b5cf6", active:showDepositosDIAN,    toggle:()=>setShowDepositosDIAN(p=>!p),     count:DEPOSITOS_DIAN.length },
     { key:"cultivos",     label:"Cultivos Ilícitos SIMCI",   icon:AlertTriangle,color:"#16a34a",active:showCultivos,          toggle:()=>setShowCultivos(p=>!p),          count:CULTIVOS_ILICITOS.length },
     { key:"gruposarmados",label:"Grupos Armados — Presencia", icon:Shield,      color:"#b91c1c", active:showGruposArmados,    toggle:()=>setShowGruposArmados(p=>!p),     count:GRUPOS_ARMADOS.length },
+    { key:"rutabunbog",   label:"Ruta Buenaventura→Bogotá",  icon:Truck,        color:"#f59e0b", active:showRutaBunBog,       toggle:()=>setShowRutaBunBog(p=>!p),        count:PUNTOS_CRITICOS_BUN_BOG.length },
   ];
 
   const activeLayerMeta = LAYERS.find(l=>l.key===activeLayer)!;
@@ -1343,6 +1346,47 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
         })}
 
         <FlyController target={flyTarget} />
+
+        {/* ── RUTA REAL: BUENAVENTURA → BOGOTÁ ── */}
+        {showRutaBunBog && (<>
+          {/* Polilínea de la ruta */}
+          <Polyline
+            positions={WAYPOINTS_BUN_BOG}
+            pathOptions={{ color:"#f59e0b", weight:3, opacity:0.85, dashArray:"6 4" }}
+          />
+          {/* Puntos críticos como CircleMarkers (fuera del cluster para no mezclar) */}
+          {PUNTOS_CRITICOS_BUN_BOG.map((p,i)=>{
+            const color = p.tipo==="PUNTO CRITICO" ? "#ef4444"
+              : p.tipo==="CUERPOS DE AGUA" ? "#38bdf8"
+              : p.tipo==="INFRAESTRUCTURA Y EQUIPAMIENTO" ? "#a78bfa"
+              : p.tipo==="CENTRO POBLADO" ? "#34d399"
+              : p.tipo==="ZONA AGRICOLA" ? "#86efac"
+              : p.tipo==="AREAS NATURALES PROTEGIDAS" ? "#4ade80"
+              : "#94a3b8";
+            const r = p.riesgo>=5 ? 7 : p.riesgo>=4 ? 5 : 4;
+            return (
+              <CircleMarker key={`bun-bog-${i}`} center={[p.coord[0],p.coord[1]]} radius={r}
+                pathOptions={{ color, fillColor:color, fillOpacity:0.9, weight:1.5 }}>
+                <Popup>
+                  <div style={{ minWidth:220, fontFamily:"sans-serif" }}>
+                    <div style={{ fontWeight:700, fontSize:13, marginBottom:4 }}>#{p.n} — {p.nombre}</div>
+                    <div style={{ fontSize:11, color:"#64748b", marginBottom:6 }}>{p.mun}, {p.dept}</div>
+                    <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:6 }}>
+                      <span style={{ background: p.tipo==="PUNTO CRITICO"?"#fee2e2":p.tipo==="CUERPOS DE AGUA"?"#e0f2fe":"#f3e8ff", color: p.tipo==="PUNTO CRITICO"?"#dc2626":p.tipo==="CUERPOS DE AGUA"?"#0369a1":"#7e22ce", padding:"2px 7px", borderRadius:10, fontSize:10, fontWeight:600 }}>{p.tipo}</span>
+                      <span style={{ background: p.riesgo>=5?"#fee2e2":p.riesgo>=4?"#fef3c7":"#f0fdf4", color: p.riesgo>=5?"#dc2626":p.riesgo>=4?"#d97706":"#16a34a", padding:"2px 7px", borderRadius:10, fontSize:10, fontWeight:700 }}>Riesgo: {p.riesgo}</span>
+                    </div>
+                    {p.desc&&<div style={{ fontSize:11, marginBottom:4 }}><b>Descripción:</b> {p.desc}</div>}
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:4, fontSize:11, marginBottom:4 }}>
+                      <div>⛰ Altimetría: <b>{p.alt} msnm</b></div>
+                      <div>🚗 Velocidad: <b>{p.vel} km/h</b></div>
+                    </div>
+                    {p.controles&&<div style={{ fontSize:10, color:"#475569" }}><b>Controles:</b> {p.controles}</div>}
+                  </div>
+                </Popup>
+              </CircleMarker>
+            );
+          })}
+        </>)}
 
         {/* ══ MARKER CLUSTER GROUP — agrupa todos los marcadores punto ══ */}
         <MarkerClusterGroup chunkedLoading maxClusterRadius={50} showCoverageOnHover={false}>
@@ -2152,6 +2196,18 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
               {showDepositosDIAN&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(139,92,246,0.92)",border:"2px solid #8b5cf6",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>🏛</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Depósito Habilitado DIAN</span></div>}
               {showCultivos&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(22,163,74,0.92)",border:"2px solid #16a34a",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>🌿</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Cultivos Ilícitos — SIMCI/UNODC</span></div>}
               {showGruposArmados&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(185,28,28,0.92)",border:"2px solid #b91c1c",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12 }}>⚔</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Grupos Armados — ELN / FARC-EMC / Clan</span></div>}
+              {showRutaBunBog&&<div style={{ display:"flex",alignItems:"center",gap:8 }}>
+                <div style={{ width:28,height:4,background:"#f59e0b",borderRadius:2,marginLeft:4 }}/>
+                <span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Ruta Buenaventura→Bogotá (175 puntos)</span>
+              </div>}
+              {showRutaBunBog&&<div style={{ display:"flex",gap:8,flexWrap:"wrap",paddingLeft:4 }}>
+                {[["#ef4444","Punto crítico"],["#38bdf8","Cuerpo de agua"],["#a78bfa","Infraestructura"],["#34d399","Centro poblado"]].map(([c,l])=>(
+                  <div key={l} style={{ display:"flex",alignItems:"center",gap:4 }}>
+                    <div style={{ width:10,height:10,borderRadius:"50%",background:c }}/>
+                    <span style={{ fontSize:10,color:"rgba(255,255,255,0.5)" }}>{l}</span>
+                  </div>
+                ))}
+              </div>}
             </div>
           </div>
         )}
