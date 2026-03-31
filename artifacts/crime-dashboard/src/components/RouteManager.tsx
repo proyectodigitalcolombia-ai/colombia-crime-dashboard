@@ -1,6 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
+const BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
+
+function authHeaders(extra?: Record<string, string>): Record<string, string> {
+  const token = localStorage.getItem("safenode_token");
+  const h: Record<string, string> = { ...(extra ?? {}) };
+  if (token) h["Authorization"] = `Bearer ${token}`;
+  return h;
+}
 
 export interface UserRoute {
   id: number;
@@ -59,7 +66,7 @@ export default function RouteManager({ onRoutesChange }: Props) {
   async function fetchRoutes() {
     setLoading(true);
     try {
-      const r = await fetch(`${BASE}/api/user-routes`, { credentials: "include" });
+      const r = await fetch(`${BASE}/api/user-routes`, { headers: authHeaders() });
       if (r.ok) setRoutes(await r.json());
     } finally {
       setLoading(false);
@@ -86,7 +93,7 @@ export default function RouteManager({ onRoutesChange }: Props) {
     }
     setLoadingIds(prev => new Set(prev).add(id));
     try {
-      const r = await fetch(`${BASE}/api/user-routes/${id}/points`, { credentials: "include" });
+      const r = await fetch(`${BASE}/api/user-routes/${id}/points`, { headers: authHeaders() });
       if (!r.ok) return;
       const points: RoutePoint[] = await r.json();
       const next = new Set(activeIds);
@@ -103,7 +110,7 @@ export default function RouteManager({ onRoutesChange }: Props) {
 
   async function deleteRoute(id: number) {
     if (!confirm("¿Eliminar esta ruta permanentemente?")) return;
-    await fetch(`${BASE}/api/user-routes/${id}`, { method: "DELETE", credentials: "include" });
+    await fetch(`${BASE}/api/user-routes/${id}`, { method: "DELETE", headers: authHeaders() });
     const next = new Set(activeIds);
     next.delete(id);
     setActiveIds(next);
@@ -121,7 +128,7 @@ export default function RouteManager({ onRoutesChange }: Props) {
     fd.append("file", file);
     if (customName.trim()) fd.append("name", customName.trim());
     try {
-      const r = await fetch(`${BASE}/api/user-routes/upload`, { method: "POST", body: fd, credentials: "include" });
+      const r = await fetch(`${BASE}/api/user-routes/upload`, { method: "POST", body: fd, headers: authHeaders() });
       const data = await r.json();
       if (r.ok) {
         setUploadMsg({ ok: true, text: `✓ "${data.name}" importada — ${data.total_points} puntos GPS` });
