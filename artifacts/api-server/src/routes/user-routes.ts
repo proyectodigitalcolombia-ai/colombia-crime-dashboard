@@ -5,7 +5,7 @@ import { pool } from "@workspace/db";
 import { requireAuth } from "./auth";
 
 const router = Router();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 200 * 1024 * 1024 } });
 
 function parseCoord(s: string): [number, number] | null {
   if (!s) return null;
@@ -103,7 +103,17 @@ router.get("/user-routes/:id/points", requireAuth, async (req, res) => {
 });
 
 // POST /api/user-routes/upload — upload Excel file, parse, store
-router.post("/user-routes/upload", requireAuth, upload.single("file"), async (req, res) => {
+router.post("/user-routes/upload", requireAuth, (req, res, next) => {
+  upload.single("file")(req, res, (err: any) => {
+    if (err) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        return res.status(413).json({ error: "Archivo demasiado grande (máx 200 MB). El archivo Excel no debería superar ese tamaño." });
+      }
+      return res.status(400).json({ error: `Error al recibir el archivo: ${err.message}` });
+    }
+    next();
+  });
+}, async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No se recibió archivo" });
 
   const parsed = parseExcel(req.file.buffer);
