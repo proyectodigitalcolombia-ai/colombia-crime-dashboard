@@ -12,6 +12,10 @@ import restrictionsSyncRouter from "./restrictions-sync";
 import companiesRouter from "./companies";
 import emailAlertsRouter from "./email-alerts";
 import userRoutesRouter from "./user-routes";
+import transportAuthRouter from "./transport-auth";
+import transportTenantsRouter from "./transport-tenants";
+import transportUsersRouter from "./transport-users";
+import transportDispatchesRouter from "./transport-dispatches";
 
 const router: IRouter = Router();
 
@@ -28,5 +32,9 @@ router.use(restrictionsSyncRouter);
 router.use(companiesRouter);
 router.use(emailAlertsRouter);
 router.use(userRoutesRouter);
+router.use(transportAuthRouter);
+router.use(transportTenantsRouter);
+router.use(transportUsersRouter);
+router.use(transportDispatchesRouter);
 
 export default router;

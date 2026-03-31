@@ -6,11 +6,37 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./checkpoint";
+export * from "./createCheckpointBody";
+export * from "./createDispatchBody";
+export * from "./createDispatchBodyStatus";
+export * from "./createObservationBody";
+export * from "./createObservationBodyObservationType";
+export * from "./createTenantBody";
+export * from "./createTransportUserBody";
+export * from "./createTransportUserBodyRole";
 export * from "./crimeType";
 export * from "./departmentStats";
+export * from "./dispatch";
+export * from "./dispatchDetail";
+export * from "./dispatchListResponse";
+export * from "./dispatchStatus";
+export * from "./dispatchSummary";
 export * from "./getCrimesByDepartmentParams";
 export * from "./getNationalMonthlyParams";
 export * from "./healthStatus";
+export * from "./listDispatchesParams";
 export * from "./monthlyStats";
+export * from "./observation";
+export * from "./observationObservationType";
 export * from "./refreshStatus";
 export * from "./refreshStatusStatus";
+export * from "./tenant";
+export * from "./transportLoginBody";
+export * from "./transportLoginResponse";
+export * from "./transportUser";
+export * from "./transportUserRole";
+export * from "./updateCheckpointBody";
+export * from "./updateDispatchBody";
+export * from "./updateTenantBody";
+export * from "./updateTransportUserBody";

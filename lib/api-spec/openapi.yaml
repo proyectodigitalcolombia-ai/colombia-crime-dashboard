@@ -11,6 +11,18 @@ tags:
     description: Health operations
   - name: crimes
     description: Crime statistics from Colombian National Police
+  - name: transport-auth
+    description: Transport platform authentication
+  - name: transport-tenants
+    description: Tenant (company) management — superadmin only
+  - name: transport-users
+    description: User management within a tenant
+  - name: transport-dispatches
+    description: Dispatch / vehicle tracking operations
+  - name: transport-checkpoints
+    description: Checkpoint tracking per dispatch
+  - name: transport-observations
+    description: Observation log per dispatch
 paths:
   /healthz:
     get:
@@ -138,6 +150,415 @@ paths:
                 items:
                   type: integer
 
+  # ─── TRANSPORT AUTH ───────────────────────────────────────────────────────
+  /transport/auth/login:
+    post:
+      operationId: transportLogin
+      tags: [transport-auth]
+      summary: Login to transport platform
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransportLoginBody"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransportLoginResponse"
+        "401":
+          description: Invalid credentials
+
+  /transport/auth/me:
+    get:
+      operationId: transportMe
+      tags: [transport-auth]
+      summary: Get current transport user
+      responses:
+        "200":
+          description: Current user info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransportUser"
+        "401":
+          description: Not authenticated
+
+  # ─── TENANT MANAGEMENT (superadmin) ────────────────────────────────────
+  /transport/tenants:
+    get:
+      operationId: listTenants
+      tags: [transport-tenants]
+      summary: List all tenant companies
+      responses:
+        "200":
+          description: List of tenants
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Tenant"
+    post:
+      operationId: createTenant
+      tags: [transport-tenants]
+      summary: Create a new tenant company
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTenantBody"
+      responses:
+        "201":
+          description: Tenant created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tenant"
+
+  /transport/tenants/{tenantId}:
+    get:
+      operationId: getTenant
+      tags: [transport-tenants]
+      summary: Get a tenant by ID
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Tenant details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tenant"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateTenant
+      tags: [transport-tenants]
+      summary: Update a tenant company
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTenantBody"
+      responses:
+        "200":
+          description: Updated tenant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tenant"
+
+  # ─── USER MANAGEMENT ──────────────────────────────────────────────────────
+  /transport/users:
+    get:
+      operationId: listTransportUsers
+      tags: [transport-users]
+      summary: List users (filtered by tenant for non-superadmin)
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TransportUser"
+    post:
+      operationId: createTransportUser
+      tags: [transport-users]
+      summary: Create a new transport user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTransportUserBody"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransportUser"
+
+  /transport/users/{userId}:
+    patch:
+      operationId: updateTransportUser
+      tags: [transport-users]
+      summary: Update a transport user
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTransportUserBody"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransportUser"
+
+  # ─── DISPATCHES ───────────────────────────────────────────────────────────
+  /transport/dispatches:
+    get:
+      operationId: listDispatches
+      tags: [transport-dispatches]
+      summary: List dispatches for current tenant
+      parameters:
+        - in: query
+          name: plate
+          schema:
+            type: ["string", "null"]
+        - in: query
+          name: origin
+          schema:
+            type: ["string", "null"]
+        - in: query
+          name: destination
+          schema:
+            type: ["string", "null"]
+        - in: query
+          name: generator
+          schema:
+            type: ["string", "null"]
+        - in: query
+          name: status
+          schema:
+            type: ["string", "null"]
+        - in: query
+          name: page
+          schema:
+            type: ["integer", "null"]
+        - in: query
+          name: pageSize
+          schema:
+            type: ["integer", "null"]
+      responses:
+        "200":
+          description: Paginated list of dispatches
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DispatchListResponse"
+    post:
+      operationId: createDispatch
+      tags: [transport-dispatches]
+      summary: Create a new dispatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDispatchBody"
+      responses:
+        "201":
+          description: Dispatch created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dispatch"
+
+  /transport/dispatches/summary:
+    get:
+      operationId: getDispatchSummary
+      tags: [transport-dispatches]
+      summary: Get status summary counts for current tenant
+      responses:
+        "200":
+          description: Summary of dispatch statuses
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DispatchSummary"
+
+  /transport/dispatches/{dispatchId}:
+    get:
+      operationId: getDispatch
+      tags: [transport-dispatches]
+      summary: Get a dispatch by ID with full details
+      parameters:
+        - in: path
+          name: dispatchId
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Dispatch details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DispatchDetail"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateDispatch
+      tags: [transport-dispatches]
+      summary: Update dispatch status or info
+      parameters:
+        - in: path
+          name: dispatchId
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateDispatchBody"
+      responses:
+        "200":
+          description: Updated dispatch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dispatch"
+
+  # ─── CHECKPOINTS ──────────────────────────────────────────────────────────
+  /transport/dispatches/{dispatchId}/checkpoints:
+    get:
+      operationId: listCheckpoints
+      tags: [transport-checkpoints]
+      summary: List checkpoints for a dispatch
+      parameters:
+        - in: path
+          name: dispatchId
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of checkpoints
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Checkpoint"
+    post:
+      operationId: createCheckpoint
+      tags: [transport-checkpoints]
+      summary: Add a checkpoint to a dispatch
+      parameters:
+        - in: path
+          name: dispatchId
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCheckpointBody"
+      responses:
+        "201":
+          description: Checkpoint created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Checkpoint"
+
+  /transport/dispatches/{dispatchId}/checkpoints/{checkpointId}:
+    patch:
+      operationId: updateCheckpoint
+      tags: [transport-checkpoints]
+      summary: Update checkpoint actual arrival time or notes
+      parameters:
+        - in: path
+          name: dispatchId
+          required: true
+          schema:
+            type: integer
+        - in: path
+          name: checkpointId
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCheckpointBody"
+      responses:
+        "200":
+          description: Updated checkpoint
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Checkpoint"
+
+  # ─── OBSERVATIONS ─────────────────────────────────────────────────────────
+  /transport/dispatches/{dispatchId}/observations:
+    get:
+      operationId: listObservations
+      tags: [transport-observations]
+      summary: List observations for a dispatch in chronological order
+      parameters:
+        - in: path
+          name: dispatchId
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of observations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Observation"
+    post:
+      operationId: createObservation
+      tags: [transport-observations]
+      summary: Add an observation to a dispatch
+      parameters:
+        - in: path
+          name: dispatchId
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateObservationBody"
+      responses:
+        "201":
+          description: Observation created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Observation"
+
 components:
   schemas:
     HealthStatus:
@@ -230,3 +651,499 @@ components:
         - status
         - message
         - recordCount
+
+    # ─── TRANSPORT SCHEMAS ───────────────────────────────────────────────────
+
+    TransportLoginBody:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    TransportLoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/TransportUser"
+      required:
+        - token
+        - user
+
+    TransportUser:
+      type: object
+      properties:
+        id:
+          type: integer
+        tenantId:
+          type: ["integer", "null"]
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+          enum: [superadmin, admin, controlador]
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - tenantId
+        - email
+        - name
+        - role
+        - isActive
+        - createdAt
+        - updatedAt
+
+    CreateTransportUserBody:
+      type: object
+      properties:
+        tenantId:
+          type: ["integer", "null"]
+        email:
+          type: string
+        password:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+          enum: [admin, controlador]
+      required:
+        - email
+        - password
+        - name
+        - role
+
+    UpdateTransportUserBody:
+      type: object
+      properties:
+        name:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        password:
+          type: ["string", "null"]
+        role:
+          type: ["string", "null"]
+        isActive:
+          type: ["boolean", "null"]
+
+    Tenant:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        nit:
+          type: string
+        contactName:
+          type: string
+        contactEmail:
+          type: string
+        contactPhone:
+          type: string
+        address:
+          type: string
+        city:
+          type: string
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - name
+        - nit
+        - contactName
+        - contactEmail
+        - contactPhone
+        - address
+        - city
+        - isActive
+        - createdAt
+        - updatedAt
+
+    CreateTenantBody:
+      type: object
+      properties:
+        name:
+          type: string
+        nit:
+          type: string
+        contactName:
+          type: string
+        contactEmail:
+          type: string
+        contactPhone:
+          type: string
+        address:
+          type: string
+        city:
+          type: string
+      required:
+        - name
+
+    UpdateTenantBody:
+      type: object
+      properties:
+        name:
+          type: ["string", "null"]
+        nit:
+          type: ["string", "null"]
+        contactName:
+          type: ["string", "null"]
+        contactEmail:
+          type: ["string", "null"]
+        contactPhone:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        city:
+          type: ["string", "null"]
+        isActive:
+          type: ["boolean", "null"]
+
+    Dispatch:
+      type: object
+      properties:
+        id:
+          type: integer
+        tenantId:
+          type: integer
+        consecutive:
+          type: string
+        manifest:
+          type: ["string", "null"]
+        plate:
+          type: string
+        trailer:
+          type: ["string", "null"]
+        brand:
+          type: ["string", "null"]
+        vehicleClass:
+          type: ["string", "null"]
+        model:
+          type: ["string", "null"]
+        color:
+          type: ["string", "null"]
+        transportCompany:
+          type: ["string", "null"]
+        driver:
+          type: ["string", "null"]
+        driverCc:
+          type: ["string", "null"]
+        driverPhone:
+          type: ["string", "null"]
+        generator:
+          type: ["string", "null"]
+        insurer:
+          type: ["string", "null"]
+        origin:
+          type: string
+        destination:
+          type: string
+        via:
+          type: ["string", "null"]
+        departureDate:
+          type: ["string", "null"]
+        departureTime:
+          type: ["string", "null"]
+        restrictionStart:
+          type: ["string", "null"]
+        restrictionEnd:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [a_tiempo, demorado, llegado, salida]
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - tenantId
+        - consecutive
+        - plate
+        - origin
+        - destination
+        - status
+        - createdAt
+        - updatedAt
+
+    DispatchDetail:
+      allOf:
+        - $ref: "#/components/schemas/Dispatch"
+        - type: object
+          properties:
+            checkpoints:
+              type: array
+              items:
+                $ref: "#/components/schemas/Checkpoint"
+            observations:
+              type: array
+              items:
+                $ref: "#/components/schemas/Observation"
+          required:
+            - checkpoints
+            - observations
+
+    DispatchListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Dispatch"
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+      required:
+        - data
+        - total
+        - page
+        - pageSize
+
+    DispatchSummary:
+      type: object
+      properties:
+        total:
+          type: integer
+        aTime:
+          type: integer
+        demorado:
+          type: integer
+        llegado:
+          type: integer
+        salida:
+          type: integer
+      required:
+        - total
+        - aTime
+        - demorado
+        - llegado
+        - salida
+
+    CreateDispatchBody:
+      type: object
+      properties:
+        consecutive:
+          type: string
+        manifest:
+          type: ["string", "null"]
+        plate:
+          type: string
+        trailer:
+          type: ["string", "null"]
+        brand:
+          type: ["string", "null"]
+        vehicleClass:
+          type: ["string", "null"]
+        model:
+          type: ["string", "null"]
+        color:
+          type: ["string", "null"]
+        transportCompany:
+          type: ["string", "null"]
+        driver:
+          type: ["string", "null"]
+        driverCc:
+          type: ["string", "null"]
+        driverPhone:
+          type: ["string", "null"]
+        generator:
+          type: ["string", "null"]
+        insurer:
+          type: ["string", "null"]
+        origin:
+          type: string
+        destination:
+          type: string
+        via:
+          type: ["string", "null"]
+        departureDate:
+          type: ["string", "null"]
+        departureTime:
+          type: ["string", "null"]
+        restrictionStart:
+          type: ["string", "null"]
+        restrictionEnd:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [a_tiempo, demorado, llegado, salida]
+        notes:
+          type: ["string", "null"]
+      required:
+        - plate
+        - origin
+        - destination
+
+    UpdateDispatchBody:
+      type: object
+      properties:
+        status:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        departureDate:
+          type: ["string", "null"]
+        departureTime:
+          type: ["string", "null"]
+        driver:
+          type: ["string", "null"]
+        driverPhone:
+          type: ["string", "null"]
+
+    Checkpoint:
+      type: object
+      properties:
+        id:
+          type: integer
+        dispatchId:
+          type: integer
+        order:
+          type: integer
+        location:
+          type: string
+        plannedDate:
+          type: ["string", "null"]
+        plannedTime:
+          type: ["string", "null"]
+        adjustedDate:
+          type: ["string", "null"]
+        adjustedTime:
+          type: ["string", "null"]
+        realDate:
+          type: ["string", "null"]
+        realTime:
+          type: ["string", "null"]
+        novelty:
+          type: ["string", "null"]
+        checkpointNotes:
+          type: ["string", "null"]
+        distanceKm:
+          type: ["number", "null"]
+        timeHours:
+          type: ["number", "null"]
+        speedKmh:
+          type: ["number", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - dispatchId
+        - order
+        - location
+        - createdAt
+        - updatedAt
+
+    CreateCheckpointBody:
+      type: object
+      properties:
+        order:
+          type: integer
+        location:
+          type: string
+        plannedDate:
+          type: ["string", "null"]
+        plannedTime:
+          type: ["string", "null"]
+        adjustedDate:
+          type: ["string", "null"]
+        adjustedTime:
+          type: ["string", "null"]
+        novelty:
+          type: ["string", "null"]
+        checkpointNotes:
+          type: ["string", "null"]
+        distanceKm:
+          type: ["number", "null"]
+        timeHours:
+          type: ["number", "null"]
+        speedKmh:
+          type: ["number", "null"]
+      required:
+        - location
+
+    UpdateCheckpointBody:
+      type: object
+      properties:
+        realDate:
+          type: ["string", "null"]
+        realTime:
+          type: ["string", "null"]
+        adjustedDate:
+          type: ["string", "null"]
+        adjustedTime:
+          type: ["string", "null"]
+        novelty:
+          type: ["string", "null"]
+        checkpointNotes:
+          type: ["string", "null"]
+        distanceKm:
+          type: ["number", "null"]
+        timeHours:
+          type: ["number", "null"]
+        speedKmh:
+          type: ["number", "null"]
+
+    Observation:
+      type: object
+      properties:
+        id:
+          type: integer
+        dispatchId:
+          type: integer
+        observationType:
+          type: string
+          enum: [gestion_interna, informacion_cliente, recomendado_en, otro]
+        detail:
+          type: string
+        createdBy:
+          type: integer
+        createdByName:
+          type: string
+        createdAt:
+          type: string
+      required:
+        - id
+        - dispatchId
+        - observationType
+        - detail
+        - createdBy
+        - createdByName
+        - createdAt
+
+    CreateObservationBody:
+      type: object
+      properties:
+        observationType:
+          type: string
+          enum: [gestion_interna, informacion_cliente, recomendado_en, otro]
+        detail:
+          type: string
+      required:
+        - observationType
+        - detail

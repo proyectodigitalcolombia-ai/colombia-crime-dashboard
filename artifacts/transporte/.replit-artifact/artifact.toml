@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/transporte/"
+title = "Plataforma de Seguimiento de Transporte"
+version = "1.0.0"
+id = "artifacts/transporte"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/transporte/" ]
+localPort = 23889
+
+[services.development]
+run = "pnpm --filter @workspace/transporte run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/transporte", "run", "build" ]
+publicDir = "artifacts/transporte/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23889"
+BASE_PATH = "/transporte/"

@@ -122,3 +122,521 @@ export const GetAvailableYearsResponseItem = zod.number();
 export const GetAvailableYearsResponse = zod.array(
   GetAvailableYearsResponseItem,
 );
+
+/**
+ * @summary Login to transport platform
+ */
+export const TransportLoginBody = zod.object({
+  email: zod.string(),
+  password: zod.string(),
+});
+
+export const TransportLoginResponse = zod.object({
+  token: zod.string(),
+  user: zod.object({
+    id: zod.number(),
+    tenantId: zod.number().nullable(),
+    email: zod.string(),
+    name: zod.string(),
+    role: zod.enum(["superadmin", "admin", "controlador"]),
+    isActive: zod.boolean(),
+    createdAt: zod.string(),
+    updatedAt: zod.string(),
+  }),
+});
+
+/**
+ * @summary Get current transport user
+ */
+export const TransportMeResponse = zod.object({
+  id: zod.number(),
+  tenantId: zod.number().nullable(),
+  email: zod.string(),
+  name: zod.string(),
+  role: zod.enum(["superadmin", "admin", "controlador"]),
+  isActive: zod.boolean(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+
+/**
+ * @summary List all tenant companies
+ */
+export const ListTenantsResponseItem = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  nit: zod.string(),
+  contactName: zod.string(),
+  contactEmail: zod.string(),
+  contactPhone: zod.string(),
+  address: zod.string(),
+  city: zod.string(),
+  isActive: zod.boolean(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+export const ListTenantsResponse = zod.array(ListTenantsResponseItem);
+
+/**
+ * @summary Create a new tenant company
+ */
+export const CreateTenantBody = zod.object({
+  name: zod.string(),
+  nit: zod.string().optional(),
+  contactName: zod.string().optional(),
+  contactEmail: zod.string().optional(),
+  contactPhone: zod.string().optional(),
+  address: zod.string().optional(),
+  city: zod.string().optional(),
+});
+
+/**
+ * @summary Get a tenant by ID
+ */
+export const GetTenantParams = zod.object({
+  tenantId: zod.coerce.number(),
+});
+
+export const GetTenantResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  nit: zod.string(),
+  contactName: zod.string(),
+  contactEmail: zod.string(),
+  contactPhone: zod.string(),
+  address: zod.string(),
+  city: zod.string(),
+  isActive: zod.boolean(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+
+/**
+ * @summary Update a tenant company
+ */
+export const UpdateTenantParams = zod.object({
+  tenantId: zod.coerce.number(),
+});
+
+export const UpdateTenantBody = zod.object({
+  name: zod.string().nullish(),
+  nit: zod.string().nullish(),
+  contactName: zod.string().nullish(),
+  contactEmail: zod.string().nullish(),
+  contactPhone: zod.string().nullish(),
+  address: zod.string().nullish(),
+  city: zod.string().nullish(),
+  isActive: zod.boolean().nullish(),
+});
+
+export const UpdateTenantResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  nit: zod.string(),
+  contactName: zod.string(),
+  contactEmail: zod.string(),
+  contactPhone: zod.string(),
+  address: zod.string(),
+  city: zod.string(),
+  isActive: zod.boolean(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+
+/**
+ * @summary List users (filtered by tenant for non-superadmin)
+ */
+export const ListTransportUsersResponseItem = zod.object({
+  id: zod.number(),
+  tenantId: zod.number().nullable(),
+  email: zod.string(),
+  name: zod.string(),
+  role: zod.enum(["superadmin", "admin", "controlador"]),
+  isActive: zod.boolean(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+export const ListTransportUsersResponse = zod.array(
+  ListTransportUsersResponseItem,
+);
+
+/**
+ * @summary Create a new transport user
+ */
+export const CreateTransportUserBody = zod.object({
+  tenantId: zod.number().nullish(),
+  email: zod.string(),
+  password: zod.string(),
+  name: zod.string(),
+  role: zod.enum(["admin", "controlador"]),
+});
+
+/**
+ * @summary Update a transport user
+ */
+export const UpdateTransportUserParams = zod.object({
+  userId: zod.coerce.number(),
+});
+
+export const UpdateTransportUserBody = zod.object({
+  name: zod.string().nullish(),
+  email: zod.string().nullish(),
+  password: zod.string().nullish(),
+  role: zod.string().nullish(),
+  isActive: zod.boolean().nullish(),
+});
+
+export const UpdateTransportUserResponse = zod.object({
+  id: zod.number(),
+  tenantId: zod.number().nullable(),
+  email: zod.string(),
+  name: zod.string(),
+  role: zod.enum(["superadmin", "admin", "controlador"]),
+  isActive: zod.boolean(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+
+/**
+ * @summary List dispatches for current tenant
+ */
+export const ListDispatchesQueryParams = zod.object({
+  plate: zod.coerce.string().nullish(),
+  origin: zod.coerce.string().nullish(),
+  destination: zod.coerce.string().nullish(),
+  generator: zod.coerce.string().nullish(),
+  status: zod.coerce.string().nullish(),
+  page: zod.coerce.number().nullish(),
+  pageSize: zod.coerce.number().nullish(),
+});
+
+export const ListDispatchesResponse = zod.object({
+  data: zod.array(
+    zod.object({
+      id: zod.number(),
+      tenantId: zod.number(),
+      consecutive: zod.string(),
+      manifest: zod.string().nullish(),
+      plate: zod.string(),
+      trailer: zod.string().nullish(),
+      brand: zod.string().nullish(),
+      vehicleClass: zod.string().nullish(),
+      model: zod.string().nullish(),
+      color: zod.string().nullish(),
+      transportCompany: zod.string().nullish(),
+      driver: zod.string().nullish(),
+      driverCc: zod.string().nullish(),
+      driverPhone: zod.string().nullish(),
+      generator: zod.string().nullish(),
+      insurer: zod.string().nullish(),
+      origin: zod.string(),
+      destination: zod.string(),
+      via: zod.string().nullish(),
+      departureDate: zod.string().nullish(),
+      departureTime: zod.string().nullish(),
+      restrictionStart: zod.string().nullish(),
+      restrictionEnd: zod.string().nullish(),
+      status: zod.enum(["a_tiempo", "demorado", "llegado", "salida"]),
+      notes: zod.string().nullish(),
+      createdAt: zod.string(),
+      updatedAt: zod.string(),
+    }),
+  ),
+  total: zod.number(),
+  page: zod.number(),
+  pageSize: zod.number(),
+});
+
+/**
+ * @summary Create a new dispatch
+ */
+export const CreateDispatchBody = zod.object({
+  consecutive: zod.string().optional(),
+  manifest: zod.string().nullish(),
+  plate: zod.string(),
+  trailer: zod.string().nullish(),
+  brand: zod.string().nullish(),
+  vehicleClass: zod.string().nullish(),
+  model: zod.string().nullish(),
+  color: zod.string().nullish(),
+  transportCompany: zod.string().nullish(),
+  driver: zod.string().nullish(),
+  driverCc: zod.string().nullish(),
+  driverPhone: zod.string().nullish(),
+  generator: zod.string().nullish(),
+  insurer: zod.string().nullish(),
+  origin: zod.string(),
+  destination: zod.string(),
+  via: zod.string().nullish(),
+  departureDate: zod.string().nullish(),
+  departureTime: zod.string().nullish(),
+  restrictionStart: zod.string().nullish(),
+  restrictionEnd: zod.string().nullish(),
+  status: zod.enum(["a_tiempo", "demorado", "llegado", "salida"]).optional(),
+  notes: zod.string().nullish(),
+});
+
+/**
+ * @summary Get status summary counts for current tenant
+ */
+export const GetDispatchSummaryResponse = zod.object({
+  total: zod.number(),
+  aTime: zod.number(),
+  demorado: zod.number(),
+  llegado: zod.number(),
+  salida: zod.number(),
+});
+
+/**
+ * @summary Get a dispatch by ID with full details
+ */
+export const GetDispatchParams = zod.object({
+  dispatchId: zod.coerce.number(),
+});
+
+export const GetDispatchResponse = zod
+  .object({
+    id: zod.number(),
+    tenantId: zod.number(),
+    consecutive: zod.string(),
+    manifest: zod.string().nullish(),
+    plate: zod.string(),
+    trailer: zod.string().nullish(),
+    brand: zod.string().nullish(),
+    vehicleClass: zod.string().nullish(),
+    model: zod.string().nullish(),
+    color: zod.string().nullish(),
+    transportCompany: zod.string().nullish(),
+    driver: zod.string().nullish(),
+    driverCc: zod.string().nullish(),
+    driverPhone: zod.string().nullish(),
+    generator: zod.string().nullish(),
+    insurer: zod.string().nullish(),
+    origin: zod.string(),
+    destination: zod.string(),
+    via: zod.string().nullish(),
+    departureDate: zod.string().nullish(),
+    departureTime: zod.string().nullish(),
+    restrictionStart: zod.string().nullish(),
+    restrictionEnd: zod.string().nullish(),
+    status: zod.enum(["a_tiempo", "demorado", "llegado", "salida"]),
+    notes: zod.string().nullish(),
+    createdAt: zod.string(),
+    updatedAt: zod.string(),
+  })
+  .and(
+    zod.object({
+      checkpoints: zod.array(
+        zod.object({
+          id: zod.number(),
+          dispatchId: zod.number(),
+          order: zod.number(),
+          location: zod.string(),
+          plannedDate: zod.string().nullish(),
+          plannedTime: zod.string().nullish(),
+          adjustedDate: zod.string().nullish(),
+          adjustedTime: zod.string().nullish(),
+          realDate: zod.string().nullish(),
+          realTime: zod.string().nullish(),
+          novelty: zod.string().nullish(),
+          checkpointNotes: zod.string().nullish(),
+          distanceKm: zod.number().nullish(),
+          timeHours: zod.number().nullish(),
+          speedKmh: zod.number().nullish(),
+          createdAt: zod.string(),
+          updatedAt: zod.string(),
+        }),
+      ),
+      observations: zod.array(
+        zod.object({
+          id: zod.number(),
+          dispatchId: zod.number(),
+          observationType: zod.enum([
+            "gestion_interna",
+            "informacion_cliente",
+            "recomendado_en",
+            "otro",
+          ]),
+          detail: zod.string(),
+          createdBy: zod.number(),
+          createdByName: zod.string(),
+          createdAt: zod.string(),
+        }),
+      ),
+    }),
+  );
+
+/**
+ * @summary Update dispatch status or info
+ */
+export const UpdateDispatchParams = zod.object({
+  dispatchId: zod.coerce.number(),
+});
+
+export const UpdateDispatchBody = zod.object({
+  status: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  departureDate: zod.string().nullish(),
+  departureTime: zod.string().nullish(),
+  driver: zod.string().nullish(),
+  driverPhone: zod.string().nullish(),
+});
+
+export const UpdateDispatchResponse = zod.object({
+  id: zod.number(),
+  tenantId: zod.number(),
+  consecutive: zod.string(),
+  manifest: zod.string().nullish(),
+  plate: zod.string(),
+  trailer: zod.string().nullish(),
+  brand: zod.string().nullish(),
+  vehicleClass: zod.string().nullish(),
+  model: zod.string().nullish(),
+  color: zod.string().nullish(),
+  transportCompany: zod.string().nullish(),
+  driver: zod.string().nullish(),
+  driverCc: zod.string().nullish(),
+  driverPhone: zod.string().nullish(),
+  generator: zod.string().nullish(),
+  insurer: zod.string().nullish(),
+  origin: zod.string(),
+  destination: zod.string(),
+  via: zod.string().nullish(),
+  departureDate: zod.string().nullish(),
+  departureTime: zod.string().nullish(),
+  restrictionStart: zod.string().nullish(),
+  restrictionEnd: zod.string().nullish(),
+  status: zod.enum(["a_tiempo", "demorado", "llegado", "salida"]),
+  notes: zod.string().nullish(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+
+/**
+ * @summary List checkpoints for a dispatch
+ */
+export const ListCheckpointsParams = zod.object({
+  dispatchId: zod.coerce.number(),
+});
+
+export const ListCheckpointsResponseItem = zod.object({
+  id: zod.number(),
+  dispatchId: zod.number(),
+  order: zod.number(),
+  location: zod.string(),
+  plannedDate: zod.string().nullish(),
+  plannedTime: zod.string().nullish(),
+  adjustedDate: zod.string().nullish(),
+  adjustedTime: zod.string().nullish(),
+  realDate: zod.string().nullish(),
+  realTime: zod.string().nullish(),
+  novelty: zod.string().nullish(),
+  checkpointNotes: zod.string().nullish(),
+  distanceKm: zod.number().nullish(),
+  timeHours: zod.number().nullish(),
+  speedKmh: zod.number().nullish(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+export const ListCheckpointsResponse = zod.array(ListCheckpointsResponseItem);
+
+/**
+ * @summary Add a checkpoint to a dispatch
+ */
+export const CreateCheckpointParams = zod.object({
+  dispatchId: zod.coerce.number(),
+});
+
+export const CreateCheckpointBody = zod.object({
+  order: zod.number().optional(),
+  location: zod.string(),
+  plannedDate: zod.string().nullish(),
+  plannedTime: zod.string().nullish(),
+  adjustedDate: zod.string().nullish(),
+  adjustedTime: zod.string().nullish(),
+  novelty: zod.string().nullish(),
+  checkpointNotes: zod.string().nullish(),
+  distanceKm: zod.number().nullish(),
+  timeHours: zod.number().nullish(),
+  speedKmh: zod.number().nullish(),
+});
+
+/**
+ * @summary Update checkpoint actual arrival time or notes
+ */
+export const UpdateCheckpointParams = zod.object({
+  dispatchId: zod.coerce.number(),
+  checkpointId: zod.coerce.number(),
+});
+
+export const UpdateCheckpointBody = zod.object({
+  realDate: zod.string().nullish(),
+  realTime: zod.string().nullish(),
+  adjustedDate: zod.string().nullish(),
+  adjustedTime: zod.string().nullish(),
+  novelty: zod.string().nullish(),
+  checkpointNotes: zod.string().nullish(),
+  distanceKm: zod.number().nullish(),
+  timeHours: zod.number().nullish(),
+  speedKmh: zod.number().nullish(),
+});
+
+export const UpdateCheckpointResponse = zod.object({
+  id: zod.number(),
+  dispatchId: zod.number(),
+  order: zod.number(),
+  location: zod.string(),
+  plannedDate: zod.string().nullish(),
+  plannedTime: zod.string().nullish(),
+  adjustedDate: zod.string().nullish(),
+  adjustedTime: zod.string().nullish(),
+  realDate: zod.string().nullish(),
+  realTime: zod.string().nullish(),
+  novelty: zod.string().nullish(),
+  checkpointNotes: zod.string().nullish(),
+  distanceKm: zod.number().nullish(),
+  timeHours: zod.number().nullish(),
+  speedKmh: zod.number().nullish(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+
+/**
+ * @summary List observations for a dispatch in chronological order
+ */
+export const ListObservationsParams = zod.object({
+  dispatchId: zod.coerce.number(),
+});
+
+export const ListObservationsResponseItem = zod.object({
+  id: zod.number(),
+  dispatchId: zod.number(),
+  observationType: zod.enum([
+    "gestion_interna",
+    "informacion_cliente",
+    "recomendado_en",
+    "otro",
+  ]),
+  detail: zod.string(),
+  createdBy: zod.number(),
+  createdByName: zod.string(),
+  createdAt: zod.string(),
+});
+export const ListObservationsResponse = zod.array(ListObservationsResponseItem);
+
+/**
+ * @summary Add an observation to a dispatch
+ */
+export const CreateObservationParams = zod.object({
+  dispatchId: zod.coerce.number(),
+});
+
+export const CreateObservationBody = zod.object({
+  observationType: zod.enum([
+    "gestion_interna",
+    "informacion_cliente",
+    "recomendado_en",
+    "otro",
+  ]),
+  detail: zod.string(),
+});

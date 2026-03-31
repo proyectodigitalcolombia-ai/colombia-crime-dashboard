@@ -61,6 +61,367 @@ export interface RefreshStatus {
   recordCount: number;
 }
 
+export interface TransportLoginBody {
+  email: string;
+  password: string;
+}
+
+export type TransportUserRole =
+  (typeof TransportUserRole)[keyof typeof TransportUserRole];
+
+export const TransportUserRole = {
+  superadmin: "superadmin",
+  admin: "admin",
+  controlador: "controlador",
+} as const;
+
+export interface TransportUser {
+  id: number;
+  /** @nullable */
+  tenantId: number | null;
+  email: string;
+  name: string;
+  role: TransportUserRole;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TransportLoginResponse {
+  token: string;
+  user: TransportUser;
+}
+
+export type CreateTransportUserBodyRole =
+  (typeof CreateTransportUserBodyRole)[keyof typeof CreateTransportUserBodyRole];
+
+export const CreateTransportUserBodyRole = {
+  admin: "admin",
+  controlador: "controlador",
+} as const;
+
+export interface CreateTransportUserBody {
+  /** @nullable */
+  tenantId?: number | null;
+  email: string;
+  password: string;
+  name: string;
+  role: CreateTransportUserBodyRole;
+}
+
+export interface UpdateTransportUserBody {
+  /** @nullable */
+  name?: string | null;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  password?: string | null;
+  /** @nullable */
+  role?: string | null;
+  /** @nullable */
+  isActive?: boolean | null;
+}
+
+export interface Tenant {
+  id: number;
+  name: string;
+  nit: string;
+  contactName: string;
+  contactEmail: string;
+  contactPhone: string;
+  address: string;
+  city: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateTenantBody {
+  name: string;
+  nit?: string;
+  contactName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  address?: string;
+  city?: string;
+}
+
+export interface UpdateTenantBody {
+  /** @nullable */
+  name?: string | null;
+  /** @nullable */
+  nit?: string | null;
+  /** @nullable */
+  contactName?: string | null;
+  /** @nullable */
+  contactEmail?: string | null;
+  /** @nullable */
+  contactPhone?: string | null;
+  /** @nullable */
+  address?: string | null;
+  /** @nullable */
+  city?: string | null;
+  /** @nullable */
+  isActive?: boolean | null;
+}
+
+export type DispatchStatus =
+  (typeof DispatchStatus)[keyof typeof DispatchStatus];
+
+export const DispatchStatus = {
+  a_tiempo: "a_tiempo",
+  demorado: "demorado",
+  llegado: "llegado",
+  salida: "salida",
+} as const;
+
+export interface Dispatch {
+  id: number;
+  tenantId: number;
+  consecutive: string;
+  /** @nullable */
+  manifest?: string | null;
+  plate: string;
+  /** @nullable */
+  trailer?: string | null;
+  /** @nullable */
+  brand?: string | null;
+  /** @nullable */
+  vehicleClass?: string | null;
+  /** @nullable */
+  model?: string | null;
+  /** @nullable */
+  color?: string | null;
+  /** @nullable */
+  transportCompany?: string | null;
+  /** @nullable */
+  driver?: string | null;
+  /** @nullable */
+  driverCc?: string | null;
+  /** @nullable */
+  driverPhone?: string | null;
+  /** @nullable */
+  generator?: string | null;
+  /** @nullable */
+  insurer?: string | null;
+  origin: string;
+  destination: string;
+  /** @nullable */
+  via?: string | null;
+  /** @nullable */
+  departureDate?: string | null;
+  /** @nullable */
+  departureTime?: string | null;
+  /** @nullable */
+  restrictionStart?: string | null;
+  /** @nullable */
+  restrictionEnd?: string | null;
+  status: DispatchStatus;
+  /** @nullable */
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Checkpoint {
+  id: number;
+  dispatchId: number;
+  order: number;
+  location: string;
+  /** @nullable */
+  plannedDate?: string | null;
+  /** @nullable */
+  plannedTime?: string | null;
+  /** @nullable */
+  adjustedDate?: string | null;
+  /** @nullable */
+  adjustedTime?: string | null;
+  /** @nullable */
+  realDate?: string | null;
+  /** @nullable */
+  realTime?: string | null;
+  /** @nullable */
+  novelty?: string | null;
+  /** @nullable */
+  checkpointNotes?: string | null;
+  /** @nullable */
+  distanceKm?: number | null;
+  /** @nullable */
+  timeHours?: number | null;
+  /** @nullable */
+  speedKmh?: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ObservationObservationType =
+  (typeof ObservationObservationType)[keyof typeof ObservationObservationType];
+
+export const ObservationObservationType = {
+  gestion_interna: "gestion_interna",
+  informacion_cliente: "informacion_cliente",
+  recomendado_en: "recomendado_en",
+  otro: "otro",
+} as const;
+
+export interface Observation {
+  id: number;
+  dispatchId: number;
+  observationType: ObservationObservationType;
+  detail: string;
+  createdBy: number;
+  createdByName: string;
+  createdAt: string;
+}
+
+export type DispatchDetail = Dispatch & {
+  checkpoints: Checkpoint[];
+  observations: Observation[];
+};
+
+export interface DispatchListResponse {
+  data: Dispatch[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface DispatchSummary {
+  total: number;
+  aTime: number;
+  demorado: number;
+  llegado: number;
+  salida: number;
+}
+
+export type CreateDispatchBodyStatus =
+  (typeof CreateDispatchBodyStatus)[keyof typeof CreateDispatchBodyStatus];
+
+export const CreateDispatchBodyStatus = {
+  a_tiempo: "a_tiempo",
+  demorado: "demorado",
+  llegado: "llegado",
+  salida: "salida",
+} as const;
+
+export interface CreateDispatchBody {
+  consecutive?: string;
+  /** @nullable */
+  manifest?: string | null;
+  plate: string;
+  /** @nullable */
+  trailer?: string | null;
+  /** @nullable */
+  brand?: string | null;
+  /** @nullable */
+  vehicleClass?: string | null;
+  /** @nullable */
+  model?: string | null;
+  /** @nullable */
+  color?: string | null;
+  /** @nullable */
+  transportCompany?: string | null;
+  /** @nullable */
+  driver?: string | null;
+  /** @nullable */
+  driverCc?: string | null;
+  /** @nullable */
+  driverPhone?: string | null;
+  /** @nullable */
+  generator?: string | null;
+  /** @nullable */
+  insurer?: string | null;
+  origin: string;
+  destination: string;
+  /** @nullable */
+  via?: string | null;
+  /** @nullable */
+  departureDate?: string | null;
+  /** @nullable */
+  departureTime?: string | null;
+  /** @nullable */
+  restrictionStart?: string | null;
+  /** @nullable */
+  restrictionEnd?: string | null;
+  status?: CreateDispatchBodyStatus;
+  /** @nullable */
+  notes?: string | null;
+}
+
+export interface UpdateDispatchBody {
+  /** @nullable */
+  status?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
+  departureDate?: string | null;
+  /** @nullable */
+  departureTime?: string | null;
+  /** @nullable */
+  driver?: string | null;
+  /** @nullable */
+  driverPhone?: string | null;
+}
+
+export interface CreateCheckpointBody {
+  order?: number;
+  location: string;
+  /** @nullable */
+  plannedDate?: string | null;
+  /** @nullable */
+  plannedTime?: string | null;
+  /** @nullable */
+  adjustedDate?: string | null;
+  /** @nullable */
+  adjustedTime?: string | null;
+  /** @nullable */
+  novelty?: string | null;
+  /** @nullable */
+  checkpointNotes?: string | null;
+  /** @nullable */
+  distanceKm?: number | null;
+  /** @nullable */
+  timeHours?: number | null;
+  /** @nullable */
+  speedKmh?: number | null;
+}
+
+export interface UpdateCheckpointBody {
+  /** @nullable */
+  realDate?: string | null;
+  /** @nullable */
+  realTime?: string | null;
+  /** @nullable */
+  adjustedDate?: string | null;
+  /** @nullable */
+  adjustedTime?: string | null;
+  /** @nullable */
+  novelty?: string | null;
+  /** @nullable */
+  checkpointNotes?: string | null;
+  /** @nullable */
+  distanceKm?: number | null;
+  /** @nullable */
+  timeHours?: number | null;
+  /** @nullable */
+  speedKmh?: number | null;
+}
+
+export type CreateObservationBodyObservationType =
+  (typeof CreateObservationBodyObservationType)[keyof typeof CreateObservationBodyObservationType];
+
+export const CreateObservationBodyObservationType = {
+  gestion_interna: "gestion_interna",
+  informacion_cliente: "informacion_cliente",
+  recomendado_en: "recomendado_en",
+  otro: "otro",
+} as const;
+
+export interface CreateObservationBody {
+  observationType: CreateObservationBodyObservationType;
+  detail: string;
+}
+
 export type GetNationalMonthlyParams = {
   /**
    * Filter by year (e.g. 2024). Returns all years if omitted.
@@ -72,11 +433,6 @@ export type GetNationalMonthlyParams = {
    * @nullable
    */
   crimeType?: string | null;
-  /**
-   * Filter by department name. Returns national aggregate if omitted.
-   * @nullable
-   */
-  department?: string | null;
 };
 
 export type GetCrimesByDepartmentParams = {
@@ -92,58 +448,33 @@ export type GetCrimesByDepartmentParams = {
   crimeType?: string | null;
 };
 
-export type BlockadeCause =
-  | "comunidad"
-  | "protesta_social"
-  | "paro_camionero"
-  | "grupos_ilegales"
-  | "otro";
-
-export type BlockadeStatus = "activo" | "levantado" | "intermitente";
-
-export interface Blockade {
-  id: number;
-  corridorId: string;
-  department: string;
-  date: string;
-  cause: BlockadeCause;
-  location: string;
-  /** @nullable */
-  durationHours: number | null;
-  status: BlockadeStatus;
-  /** @nullable */
-  notes: string | null;
-  /** @nullable */
-  reporter: string | null;
-  /** @nullable */
-  lat: number | null;
-  /** @nullable */
-  lng: number | null;
-  source: string;
-  /** @nullable */
-  sourceUrl: string | null;
-  /** @nullable */
-  expiresAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface CreateBlockadeBody {
-  corridorId: string;
-  department: string;
-  date: string;
-  cause: BlockadeCause;
-  location: string;
-  /** @nullable */
-  durationHours?: number | null;
-  status?: BlockadeStatus;
-  /** @nullable */
-  notes?: string | null;
-  /** @nullable */
-  reporter?: string | null;
-}
-
-export interface GetBlockadesParams {
-  /** @nullable */
-  corridorId?: string | null;
-}
+export type ListDispatchesParams = {
+  /**
+   * @nullable
+   */
+  plate?: string | null;
+  /**
+   * @nullable
+   */
+  origin?: string | null;
+  /**
+   * @nullable
+   */
+  destination?: string | null;
+  /**
+   * @nullable
+   */
+  generator?: string | null;
+  /**
+   * @nullable
+   */
+  status?: string | null;
+  /**
+   * @nullable
+   */
+  page?: number | null;
+  /**
+   * @nullable
+   */
+  pageSize?: number | null;
+};
