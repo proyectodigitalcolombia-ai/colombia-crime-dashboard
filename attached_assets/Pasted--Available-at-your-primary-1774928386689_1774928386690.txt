@@ -1,0 +1,154 @@
+==> ///////////////////////////////////////////////////////////
+==> 
+==> Available at your primary URL https://safenode-risk-platform.onrender.com
+==> 
+==> ///////////////////////////////////////////////////////////
+[DIAN] Lista OK: 456 proveedores ficticios en BD
+[GET]
+safenode-risk-platform.onrender.com/ clientIP="186.116.2.164" requestID="d74bd641-d6f1-422f" responseTimeMS=7 responseBytes=293 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+[GET]
+safenode-risk-platform.onrender.com/login clientIP="186.116.2.164" requestID="ee2f1255-010a-4fa5" responseTimeMS=4 responseBytes=1375 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+[POST]
+safenode-risk-platform.onrender.com/login clientIP="186.116.2.164" requestID="d0fff9eb-1067-40bc" responseTimeMS=379 responseBytes=454 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+[GET]
+safenode-risk-platform.onrender.com/ clientIP="186.116.2.164" requestID="9d9a410c-969e-4f58" responseTimeMS=27 responseBytes=59075 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+[GET]
+safenode-risk-platform.onrender.com/api/me clientIP="186.116.2.164" requestID="a572fa61-8f21-4148" responseTimeMS=192 responseBytes=424782 userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+[Transporte] Iniciando Promise.all — propietario: 830051028 tenedor: 1073157223 conductor: 1024523284 placa: WFL190
+[Procuraduria Socrata] curl ds=iaeu-rcn6 (directo)
+[SFC] Consultando cedula=830051028 nombre=
+[SFC] Descargando lista completa de sanciones...
+[UIAF] Consultando cedula=830051028 nombre=
+[RNDC] consultarPorCedula → 830051028
+[Procuraduria Socrata] curl ds=iaeu-rcn6 (directo)
+[SFC] Consultando cedula=1073157223 nombre=
+[SFC] Descarga en curso — esperando resultado compartido...
+[UIAF] Consultando cedula=1073157223 nombre=
+[RNDC] consultarPorCedula → 1073157223
+[Procuraduria Socrata] curl ds=iaeu-rcn6 (directo)
+[SFC] Consultando cedula=1024523284 nombre=
+[SFC] Descarga en curso — esperando resultado compartido...
+[UIAF] Consultando cedula=1024523284 nombre=
+[RNDC] consultarPorCedula → 1024523284
+[RUNT-V] consultarVehiculo placa=WFL190 cedula=830051028
+[RUNT-V] Iniciando consulta HTTP directa...
+[RUNT-V] Intento captcha 1/4 — placa=WFL190
+[RNDC] consultarPorPlaca → WFL190
+[SIMIT] Batch PoW para WFL190 (máx 3 intentos × 15s)...
+[SIMIT PoW] Solicitando question a qxcaptcha...
+[RUNT-V] Captcha id: 958bbbeb-ecce-41bc-8832-b1ad98dfe5bd
+(node:71) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[RNDC] cedula OK → 830051028 | manifiestos: 0 | hdrs: 6 | ms: 1331
+[RNDC] cedula OK → 1024523284 | manifiestos: 0 | hdrs: 6 | ms: 1305
+[RNDC] cedula OK → 1073157223 | manifiestos: 0 | hdrs: 6 | ms: 1330
+[RNDC] placa OK → WFL190 | matricula: HABILITADO / VIGENTE | soat: HABILITADO / VIGENTE | manifiestos: 0 | hdrs: 6 | ms: 1304
+[Procuraduria Socrata] status=200 len=3
+[Procuraduria Socrata] status=200 len=3
+[Procuraduria Socrata] status=200 len=3
+[SIMIT PoW] Question obtenida: 35fd598cbf80551c2c76b9c26884918a
+[SIMIT PoW] Resuelto en 934ms | nonce: 91381
+[SIMIT PoW] Llamando API SIMIT directa...
+[RUNT-V] Tesseract captcha: "F3Qp38" conf:34
+[RUNT-V] Error en auth: HTTP 400: {"codigoResultado":"ERROR","descripcionRespuesta":"El captcha no es valido.","result":null
+[RUNT-V] Captcha rechazado (HTTP 4xx) — reintentando
+[RUNT-V] Intento captcha 2/4 — placa=WFL190
+[RUNT-V] Captcha id: a58628bf-1dd7-4ed0-bef6-749c3d865f56
+[SIMIT PoW] Respuesta status: 200 | len: 472
+[SIMIT] parsearEstadoCuenta RAW: {"multas":[],"resoluciones":[],"comparendos":[],"personasMismoDocumento":[],"pazSalvo":false,"totalGeneral":0,"totalMultas":0,"totalAp":0,"paramEntradaPlaca":true,"cancelada":false,"suspendida":false,"fechaDesdeCancelSuspen":null,"fechaHastaSuspencion":null,"organismoTransitoCancelSuspen":null,"curs
+[SIMIT] parsearEstadoCuenta fields: {
+  comparendos: 0,
+  multas: 0,
+  acuerdos: 0,
+  totalDeuda: 0,
+  totalGeneral: 0,
+  totalMultasField: 0,
+  pazSalvo: false,
+  resComp: 0,
+  resMult: 0
+}
+[SIMIT PoW] ✓ OK: SIN MULTAS NI COMPARENDOS DE TRANSITO
+[RUNT-V] Tesseract captcha: "UJfPm" conf:26
+[RUNT-V] Fallback → 2captcha...
+[RUNT-V] 2captcha submitted id: 82298028576
+[RUNT-V] 2captcha resultado: UJfPm
+[RUNT-V] 2captcha resuelto: UJfPm
+[RUNT-V] Auth OK — consultando todos los endpoints en paralelo
+[RUNT-V] SOAT OK — keys: 
+[RUNT-V] DIJIN err: HTTP 500: {"codigoResultado":"ERROR","descripcionRespuesta":
+[RUNT-V] NORMALIZACION err: HTTP 500: {"codigoResultado":"ERROR","descripcionRespuesta":
+[RUNT-V] LIMITACIONES err: HTTP 500: {"codigoResultado":"ERROR","descripcionRespuesta":
+[RUNT-V] DATOS-TEC err: HTTP 500: {"codigoResultado":"ERROR","descripcionRespuesta":
+[RUNT-V] DESINTEGRACION err: HTTP 500: {"codigoResultado":"ERROR","descripcionRespuesta":
+[RUNT-V] RESP-CIVIL OK — keys: 
+[RUNT-V] REPOTENCIADO err: HTTP 500: {"codigoResultado":"ERROR","descripcionRespuesta":
+[RUNT-V] TARJETA-OP err: HTTP 500: {"codigoResultado":"ERROR","descripcionRespuesta":
+[RUNT-V] PRENDAS err: HTTP 500: {"codigoResultado":"ERROR","descripcionRespuesta":
+[RUNT-V] HTTP directo falló: Los datos registrados no corresponden con los propietarios activos para el vehículo consultado.
+[RUNT-V] Fallback SBR Puppeteer...
+[RUNT-V] Conectando SBR — placa=WFL190 cedula=830051028
+[RUNT-V] CDP SSL ignore OK
+[RUNT-V] evaluateOnNewDocument OK — perfil fake en SS pre-Angular
+[RUNT-V] Navegando al portal...
+[RUNT-V MF-REQ] GET /monorepos/rnf/migracion-usuario/remoteEntry.js
+[RUNT-V MF-REQ] GET /monorepos/portalempresarial/migracion-usuario/remoteEntry.js
+[RUNT-V MF-REQ] GET /monorepos/historicos/historico-publico/remoteEntry.js
+[RUNT-V MF-REQ] GET /monorepos/recaudo/fupas/remoteEntry.js
+[RUNT-V MF-REQ] GET /monorepos/recaudo/liquidaciones/remoteEntry.js
+[RUNT-V MF-REQ] GET /monorepos/recaudo/recaudos-pagos/remoteEntry.js
+[RUNT-V MF-REQ] GET /monorepos/gestion-usuario/remoteEntry.js
+[RUNT-V MF-REQ] GET /monorepos/rnafth/rna-fth-consulta/remoteEntry.js
+[RUNT-V MF-REQ] GET /monorepos/organismosdeapoyo/oa-portal-organismos-mr/remoteEntry.js
+[RUNT-V MF-REQ] GET /monorepos/rnma-tramites/ingresar-guia-movilizacion/remoteEntry.js
+[RUNT-V MF-REQ] GET /monorepos/consultasyreportespublico/consulta-vehiculo/remoteEntry.js
+[RUNT-V MF-REQ] GET /monorepos/consultasyreportespublico/persona-natural/remoteEntry.js
+[RUNT-V MF-REQ] GET /monorepos/consultasyreportespublico/consulta-pbv-rigido/remoteEntry.js
+[RUNT-V MF-REQ] GET /monorepos/consultasyreportespublico/empresa-transporte-internacional/remoteEntr
+[RUNT-V MF-REQ] GET /monorepos/consultasyreportespublico/vehiculo-transporte-internacional/remoteEnt
+[RUNT-V MF-REQ] GET /monorepos/consultasyreportespublico/consulta-ciudadano-documento/remoteEntry.js
+[RUNT-V MF-REQ] GET /monorepos/serviciosinformacion/migracion-usuario/remoteEntry.js
+[RUNT-V MF-PROXY] 200 /monorepos/historicos/historico-publico/remoteEntry.js size: 8823
+[RUNT-V MF-PROXY] 200 /monorepos/consultasyreportespublico/consulta-pbv-rigido/rem size: 9098
+[RUNT-V MF-PROXY] 200 /monorepos/consultasyreportespublico/consulta-ciudadano-docu size: 9124
+[RUNT-V MF-PROXY] 200 /monorepos/rnf/migracion-usuario/remoteEntry.js size: 7116
+[RUNT-V MF-PROXY] 200 /monorepos/recaudo/fupas/remoteEntry.js size: 9015
+[RUNT-V MF-PROXY] 200 /monorepos/recaudo/liquidaciones/remoteEntry.js size: 9123
+[RUNT-V MF-PROXY] 200 /monorepos/consultasyreportespublico/persona-natural/remoteE size: 9096
+[RUNT-V MF-PROXY] 200 /monorepos/rnafth/rna-fth-consulta/remoteEntry.js size: 9062
+[RUNT-V MF-PROXY] 200 /monorepos/consultasyreportespublico/consulta-vehiculo/remot size: 9106
+[RUNT-V MF-PROXY] 200 /monorepos/recaudo/recaudos-pagos/remoteEntry.js size: 8987
+[RUNT-V MF-PROXY] 200 /monorepos/serviciosinformacion/migracion-usuario/remoteEntr size: 8857
+[RUNT-V MF-PROXY] 200 /monorepos/consultasyreportespublico/vehiculo-transporte-int size: 9095
+[RUNT-V MF-PROXY] 200 /monorepos/gestion-usuario/remoteEntry.js size: 8905
+[RUNT-V MF-PROXY] 200 /monorepos/rnma-tramites/ingresar-guia-movilizacion/remoteEn size: 8759
+[RUNT-V MF-PROXY] 200 /monorepos/organismosdeapoyo/oa-portal-organismos-mr/remoteE size: 8998
+[RUNT-V MF-PROXY] 200 /monorepos/consultasyreportespublico/empresa-transporte-inte size: 9090
+[RUNT-V MF-PROXY] 200 /monorepos/portalempresarial/migracion-usuario/remoteEntry.j size: 7121
+[RUNT-V MF-REQ] GET /monorepos/consultasyreportespublico/vehiculo-transporte-internacional/650.a77d2
+[RUNT-V MF-REQ] GET /monorepos/consultasyreportespublico/vehiculo-transporte-internacional/181.abda7
+[RUNT-V MF-REQ] GET /monorepos/consultasyreportespublico/vehiculo-transporte-internacional/299.13e71
+[RUNT-V MF-REQ] GET /monorepos/consultasyreportespublico/vehiculo-transporte-internacional/529.3ce9d
+[RUNT-V MF-REQ] GET /monorepos/consultasyreportespublico/vehiculo-transporte-internacional/238.6c3e7
+[RUNT-V MF-REQ] GET /monorepos/consultasyreportespublico/vehiculo-transporte-internacional/549.67fc3
+[RUNT-V MF-REQ] GET /monorepos/consultasyreportespublico/vehiculo-transporte-internacional/739.64c6b
+[RUNT-V MF-REQ] GET /monorepos/rnafth/rna-fth-consulta/883.a84f420aacbcdef9.js
+[RUNT-V MF-REQ] GET /monorepos/consultasyreportespublico/vehiculo-transporte-internacional/277.ee728
+[RUNT-V MF-REQ] GET /monorepos/organismosdeapoyo/oa-portal-organismos-mr/926.9cbc621f8b0eb2eb.js
+[RUNT-V MF-PROXY] 200 /monorepos/consultasyreportespublico/vehiculo-transporte-int size: 61110
+[SFC] 1303 sanciones cargadas (intento 1).
+[SFC] Hits por cédula: 0
+[SFC] Hits por cédula: 0
+[SFC] Hits por cédula: 0
+[RUNT-V MF-PROXY] 200 /monorepos/consultasyreportespublico/vehiculo-transporte-int size: 34067
+[RUNT-V MF-PROXY] 200 /monorepos/consultasyreportespublico/vehiculo-transporte-int size: 68670
+[RUNT-V MF-PROXY] 200 /monorepos/consultasyreportespublico/vehiculo-transporte-int size: 85119
+[RUNT-V MF-PROXY] 200 /monorepos/consultasyreportespublico/vehiculo-transporte-int size: 116869
+[RUNT-V MF-PROXY] 200 /monorepos/consultasyreportespublico/vehiculo-transporte-int size: 225271
+[RUNT-V MF-PROXY] 200 /monorepos/consultasyreportespublico/vehiculo-transporte-int size: 202900
+Menu
+[RUNT-V MF-PROXY] 200 /monorepos/consultasyreportespublico/vehiculo-transporte-int size: 391459
+[RUNT-V MF-PROXY] 200 /monorepos/organismosdeapoyo/oa-portal-organismos-mr/926.9cb size: 906489
+[RUNT-V MF-PROXY] 200 /monorepos/rnafth/rna-fth-consulta/883.a84f420aacbcdef9.js size: 630424
+[RUNT-V] config.prod.json → baseUrlApi=/runtapi/
+[RUNT-V] Angular OK ng-ver: 14.2.12
+[RUNT-V] bypass+hash: {"ok":true,"hash":"#/consulta-vehiculo/consulta/consulta-ciudadana"}
