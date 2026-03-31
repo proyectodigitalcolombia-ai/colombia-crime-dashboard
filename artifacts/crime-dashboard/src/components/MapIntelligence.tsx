@@ -1125,7 +1125,7 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
   const [showDepositosDIAN,    setShowDepositosDIAN]    = useState(false);
   const [showCultivos,         setShowCultivos]         = useState(false);
   const [showGruposArmados,    setShowGruposArmados]    = useState(false);
-  const [showRutaBunBog,       setShowRutaBunBog]       = useState(false);
+  const [showRutaBunBog,       setShowRutaBunBog]       = useState(true);
   const [activeUserRoutes,     setActiveUserRoutes]     = useState<{ route: UserRoute; points: RoutePoint[] }[]>([]);
 
   // ── BUSCADOR DE MUNICIPIO ──
