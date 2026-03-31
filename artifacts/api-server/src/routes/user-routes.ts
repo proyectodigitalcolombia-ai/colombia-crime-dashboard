@@ -70,7 +70,7 @@ function parseExcel(buffer: Buffer): {
 }
 
 // GET /api/user-routes — list all routes for current user
-router.get("/api/user-routes", requireAuth, async (req, res) => {
+router.get("/user-routes", requireAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     const result = await client.query(
@@ -86,7 +86,7 @@ router.get("/api/user-routes", requireAuth, async (req, res) => {
 });
 
 // GET /api/user-routes/:id/points — get all points for a route
-router.get("/api/user-routes/:id/points", requireAuth, async (req, res) => {
+router.get("/user-routes/:id/points", requireAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     const result = await client.query(
@@ -103,7 +103,7 @@ router.get("/api/user-routes/:id/points", requireAuth, async (req, res) => {
 });
 
 // POST /api/user-routes/upload — upload Excel file, parse, store
-router.post("/api/user-routes/upload", requireAuth, upload.single("file"), async (req, res) => {
+router.post("/user-routes/upload", requireAuth, upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No se recibió archivo" });
 
   const parsed = parseExcel(req.file.buffer);
@@ -143,7 +143,7 @@ router.post("/api/user-routes/upload", requireAuth, upload.single("file"), async
 });
 
 // DELETE /api/user-routes/:id
-router.delete("/api/user-routes/:id", requireAuth, async (req, res) => {
+router.delete("/user-routes/:id", requireAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query("DELETE FROM safenode_routes WHERE id = $1", [req.params.id]);
