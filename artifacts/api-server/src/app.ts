@@ -121,25 +121,6 @@ document.getElementById('mod-row').innerHTML = '&#x2705; <b>ES Modules inline:</
 </html>`);
 });
 
-// ── Transporte app at /transporte/ ──────────────────────────────────────────
-const transporteDist = path.join(__dirname, "../../transporte/dist/public");
-if (fs.existsSync(transporteDist)) {
-  app.use("/transporte", express.static(transporteDist, {
-    index: false,
-    setHeaders: (res, filePath) => {
-      if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
-        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-        res.setHeader('Pragma', 'no-cache');
-      }
-    },
-  }));
-  app.get("/transporte/{*splat}", (_req, res) => {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.sendFile(path.join(transporteDist, "index.html"));
-  });
-}
-
 // ── Crime dashboard at / ─────────────────────────────────────────────────────
 const dashboardDist = path.join(__dirname, "../../crime-dashboard/dist/public");
 if (fs.existsSync(dashboardDist)) {
