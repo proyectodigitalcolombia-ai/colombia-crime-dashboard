@@ -98,7 +98,8 @@ function parseExcel(buffer: Buffer): {
 
   // ── Auto-detect header row by looking for COORDENADAS/N°/DEPTO ──
   let headerRow = 7; // default row index 7
-  let colCoord = 6, colN = 0, colDept = 1, colMun = 2, colNombre = 3, colTipo = 4, colDesc = 5, colAlt = 7, colVel = 8, colControles = 10, colRiesgo = 53;
+  let colCoord = 6, colLat = -1, colLng = -1;
+  let colN = 0, colDept = 1, colMun = 2, colNombre = 3, colTipo = 4, colDesc = 5, colAlt = 7, colVel = 8, colControles = 10, colRiesgo = 53;
 
   for (let ri = 0; ri < Math.min(20, data.length); ri++) {
     const row = data[ri];
@@ -108,14 +109,16 @@ function parseExcel(buffer: Buffer): {
       // Try to find column indices from headers
       row.forEach((cell: any, ci: number) => {
         const h = String(cell).toUpperCase().trim();
-        if (/^N[°º]?$/.test(h) || h === "N°" || h === "NO") colN = ci;
+        if (/^N[°º\s]?$/.test(h) || h === "N°" || h === "NO" || h === "N.") colN = ci;
         else if (h.includes("DEPTO") || h.includes("DPTO") || h.includes("DEPARTAMENTO")) colDept = ci;
         else if (h.includes("MUNIC") || h.includes("MUN")) colMun = ci;
         else if (h.includes("NOMBRE") || h.includes("PUNTO")) colNombre = ci;
         else if (h.includes("TIPO")) colTipo = ci;
         else if (h.includes("DESC")) colDesc = ci;
-        else if (h.includes("COORD") || h.includes("GPS") || h.includes("LATITUD") || h.includes("LAT")) colCoord = ci;
-        else if (h.includes("ALT")) colAlt = ci;
+        else if (h.includes("COORD") || h.includes("GPS")) colCoord = ci;
+        else if ((h.startsWith("LAT") || h.includes("LATITUD")) && !h.includes("LONG")) colLat = ci;
+        else if (h.startsWith("LON") || h.includes("LONGITUD") || h.includes("LONG")) colLng = ci;
+        else if (h.includes("ALT") && !h.includes("LONG")) colAlt = ci;
         else if (h.includes("VEL") || h.includes("VELOC")) colVel = ci;
         else if (h.includes("CONTROL")) colControles = ci;
         else if (h.includes("RIESGO") || h.includes("GRADO")) colRiesgo = ci;
@@ -137,17 +140,41 @@ function parseExcel(buffer: Buffer): {
       continue;
     }
 
-    // Try coordinate column first, then scan entire row for valid coord
+    // Strategy A: separate lat/lng columns (most reliable when headers detected)
+    let coord: [number, number] | null = null;
+    if (colLat >= 0 && colLng >= 0) {
+      const lat = parseFloat(String(row[colLat] ?? ""));
+      const lng = parseFloat(String(row[colLng] ?? ""));
+      if (!isNaN(lat) && !isNaN(lng) && lat >= -5 && lat <= 14 && lng >= -82 && lng <= -66) {
+        coord = [+lat.toFixed(6), +lng.toFixed(6)];
+      }
+    }
+
+    // Strategy B: combined coordinate column
     const rawCoord = String(row[colCoord] ?? "");
-    let coord = parseCoord(rawCoord);
+    if (!coord) coord = parseCoord(rawCoord);
+
+    // Strategy C: scan every cell in the row for any valid GPS string
     if (!coord) {
-      // Scan all cells in row for a valid coordinate string
       for (let ci = 0; ci < row.length && !coord; ci++) {
         if (ci === colN) continue;
         const cellStr = String(row[ci] ?? "").trim();
         if (cellStr.length > 5) coord = parseCoord(cellStr);
       }
     }
+
+    // Strategy D: look for two adjacent numeric cells in Colombia ranges
+    if (!coord) {
+      for (let ci = 0; ci < row.length - 1 && !coord; ci++) {
+        const a = parseFloat(String(row[ci] ?? ""));
+        const b = parseFloat(String(row[ci + 1] ?? ""));
+        if (!isNaN(a) && !isNaN(b)) {
+          if (a >= -5 && a <= 14 && b >= -82 && b <= -66) coord = [+a.toFixed(6), +b.toFixed(6)];
+          else if (b >= -5 && b <= 14 && a >= -82 && a <= -66) coord = [+b.toFixed(6), +a.toFixed(6)];
+        }
+      }
+    }
+
     if (!coord) {
       if (failedCoords.length < 6) failedCoords.push(`F${i}(col${colCoord})="${rawCoord.slice(0, 50)}"`);
       continue;
@@ -170,7 +197,7 @@ function parseExcel(buffer: Buffer): {
   }
 
   const debug = points.length === 0
-    ? `DIAGNÓSTICO: hoja="${sheetName}" filaHeader=${headerRow} colCoord=${colCoord} colN=${colN} totalFilas=${data.length} | SkippedN(primeros): ${skippedN.slice(0,4).join("; ")} | CoordsNoReconocidas: ${failedCoords.join(" || ")}`
+    ? `DIAGNÓSTICO: hoja="${sheetName}" filaHeader=${headerRow} colCoord=${colCoord} colLat=${colLat} colLng=${colLng} colN=${colN} totalFilas=${data.length} | SkippedN(primeros): ${skippedN.slice(0,4).join("; ")} | CoordsNoReconocidas: ${failedCoords.join(" || ")}`
     : undefined;
 
   return { sheetName, origin, destination, points, debug };
