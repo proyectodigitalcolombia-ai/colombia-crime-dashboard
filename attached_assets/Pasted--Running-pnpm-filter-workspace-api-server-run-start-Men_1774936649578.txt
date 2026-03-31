@@ -1,0 +1,67 @@
+==> Running 'pnpm --filter @workspace/api-server run start'
+Menu
+> @workspace/api-server@0.0.0 start /opt/render/project/src/artifacts/api-server
+> node --enable-source-maps ./dist/index.mjs
+{"level":30,"time":1774936467378,"pid":81,"hostname":"srv-d7256m450q8c7390kbbg-695cfbcff-zgbk5","req":{"id":2513,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+/opt/render/project/src/artifacts/api-server/src/routes/transport-auth.ts:16
+      throw new Error("TRANSPORT_SESSION_SECRET must be set in production");
+            ^
+Error: TRANSPORT_SESSION_SECRET must be set in production
+    at <anonymous> (/opt/render/project/src/artifacts/api-server/src/routes/transport-auth.ts:16:13)
+    at <anonymous> (/opt/render/project/src/artifacts/api-server/src/routes/transport-auth.ts:22:1)
+    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+Node.js v22.22.2
+/opt/render/project/src/artifacts/api-server:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/api-server@0.0.0 start: `node --enable-source-maps ./dist/index.mjs`
+Exit status 1
+{"level":30,"time":1774936472383,"pid":81,"hostname":"srv-d7256m450q8c7390kbbg-695cfbcff-zgbk5","req":{"id":2514,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":2,"msg":"request completed"}
+{"level":30,"time":1774936477380,"pid":81,"hostname":"srv-d7256m450q8c7390kbbg-695cfbcff-zgbk5","req":{"id":2515,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774936477383,"pid":81,"hostname":"srv-d7256m450q8c7390kbbg-695cfbcff-zgbk5","req":{"id":2516,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+==> Exited with status 1
+==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys
+==> Running 'pnpm --filter @workspace/api-server run start'
+> @workspace/api-server@0.0.0 start /opt/render/project/src/artifacts/api-server
+> node --enable-source-maps ./dist/index.mjs
+{"level":30,"time":1774936482378,"pid":81,"hostname":"srv-d7256m450q8c7390kbbg-695cfbcff-zgbk5","req":{"id":2517,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+/opt/render/project/src/artifacts/api-server/src/routes/transport-auth.ts:16
+      throw new Error("TRANSPORT_SESSION_SECRET must be set in production");
+            ^
+Error: TRANSPORT_SESSION_SECRET must be set in production
+    at <anonymous> (/opt/render/project/src/artifacts/api-server/src/routes/transport-auth.ts:16:13)
+    at <anonymous> (/opt/render/project/src/artifacts/api-server/src/routes/transport-auth.ts:22:1)
+    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+Node.js v22.22.2
+/opt/render/project/src/artifacts/api-server:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/api-server@0.0.0 start: `node --enable-source-maps ./dist/index.mjs`
+Exit status 1
+{"level":30,"time":1774936487378,"pid":81,"hostname":"srv-d7256m450q8c7390kbbg-695cfbcff-zgbk5","req":{"id":2518,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774936492379,"pid":81,"hostname":"srv-d7256m450q8c7390kbbg-695cfbcff-zgbk5","req":{"id":2519,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774936497378,"pid":81,"hostname":"srv-d7256m450q8c7390kbbg-695cfbcff-zgbk5","req":{"id":2520,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774936502379,"pid":81,"hostname":"srv-d7256m450q8c7390kbbg-695cfbcff-zgbk5","req":{"id":2521,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774936507384,"pid":81,"hostname":"srv-d7256m450q8c7390kbbg-695cfbcff-zgbk5","req":{"id":2522,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":6,"msg":"request completed"}
+{"level":30,"time":1774936507386,"pid":81,"hostname":"srv-d7256m450q8c7390kbbg-695cfbcff-zgbk5","req":{"id":2523,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774936512378,"pid":81,"hostname":"srv-d7256m450q8c7390kbbg-695cfbcff-zgbk5","req":{"id":2524,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774936517378,"pid":81,"hostname":"srv-d7256m450q8c7390kbbg-695cfbcff-zgbk5","req":{"id":2525,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774936522378,"pid":81,"hostname":"srv-d7256m450q8c7390kbbg-695cfbcff-zgbk5","req":{"id":2526,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774936527378,"pid":81,"hostname":"srv-d7256m450q8c7390kbbg-695cfbcff-zgbk5","req":{"id":2527,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774936532379,"pid":81,"hostname":"srv-d7256m450q8c7390kbbg-695cfbcff-zgbk5","req":{"id":2528,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774936537379,"pid":81,"hostname":"srv-d7256m450q8c7390kbbg-695cfbcff-zgbk5","req":{"id":2529,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774936537380,"pid":81,"hostname":"srv-d7256m450q8c7390kbbg-695cfbcff-zgbk5","req":{"id":2530,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774936542378,"pid":81,"hostname":"srv-d7256m450q8c7390kbbg-695cfbcff-zgbk5","req":{"id":2531,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774936547378,"pid":81,"hostname":"srv-d7256m450q8c7390kbbg-695cfbcff-zgbk5","req":{"id":2532,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774936552378,"pid":81,"hostname":"srv-d7256m450q8c7390kbbg-695cfbcff-zgbk5","req":{"id":2533,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774936557378,"pid":81,"hostname":"srv-d7256m450q8c7390kbbg-695cfbcff-zgbk5","req":{"id":2534,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774936562378,"pid":81,"hostname":"srv-d7256m450q8c7390kbbg-695cfbcff-zgbk5","req":{"id":2535,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774936567378,"pid":81,"hostname":"srv-d7256m450q8c7390kbbg-695cfbcff-zgbk5","req":{"id":2536,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774936567378,"pid":81,"hostname":"srv-d7256m450q8c7390kbbg-695cfbcff-zgbk5","req":{"id":2537,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774936572378,"pid":81,"hostname":"srv-d7256m450q8c7390kbbg-695cfbcff-zgbk5","req":{"id":2538,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774936577378,"pid":81,"hostname":"srv-d7256m450q8c7390kbbg-695cfbcff-zgbk5","req":{"id":2539,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774936582378,"pid":81,"hostname":"srv-d7256m450q8c7390kbbg-695cfbcff-zgbk5","req":{"id":2540,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774936587380,"pid":81,"hostname":"srv-d7256m450q8c7390kbbg-695cfbcff-zgbk5","req":{"id":2541,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774936592378,"pid":81,"hostname":"srv-d7256m450q8c7390kbbg-695cfbcff-zgbk5","req":{"id":2542,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1774936597378,"pid":81,"hostname":"srv-d7256m450q8c7390kbbg-695cfbcff-zgbk5","req":{"id":2543,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
+{"level":30,"time":1774936597379,"pid":81,"hostname":"srv-d7256m450q8c7390kbbg-695cfbcff-zgbk5","req":{"id":2544,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":0,"msg":"request completed"}
