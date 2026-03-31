@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { MapContainer, TileLayer, GeoJSON, CircleMarker, Popup, useMap, Marker, Polyline } from "react-leaflet";
 import { PUNTOS_CRITICOS_BUN_BOG, WAYPOINTS_BUN_BOG } from "./routeDataBunBog";
 import RouteManager, { type UserRoute, type RoutePoint } from "./RouteManager";
@@ -1355,7 +1355,7 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
           const lineColor = ROUTE_COLORS[ri % ROUTE_COLORS.length];
           const waypoints = points.map(p => [p.lat, p.lng] as [number, number]);
           return (
-            <span key={`user-route-${route.id}`}>
+            <React.Fragment key={`user-route-${route.id}`}>
               <Polyline positions={waypoints} pathOptions={{ color: lineColor, weight: 3, opacity: 0.9, dashArray: "7 4" }} />
               {points.map((p, pi) => {
                 const color = p.tipo === "PUNTO CRITICO" ? "#ef4444"
@@ -1387,7 +1387,7 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
                   </CircleMarker>
                 );
               })}
-            </span>
+            </React.Fragment>
           );
         })}
 

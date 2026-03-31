@@ -167,7 +167,7 @@ async function ensureSchema() {
         mun TEXT NOT NULL DEFAULT '',
         nombre TEXT NOT NULL DEFAULT '',
         tipo TEXT NOT NULL DEFAULT '',
-        desc TEXT NOT NULL DEFAULT '',
+        descripcion TEXT NOT NULL DEFAULT '',
         lat REAL NOT NULL,
         lng REAL NOT NULL,
         alt REAL NOT NULL DEFAULT 0,

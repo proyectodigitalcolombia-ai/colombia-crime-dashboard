@@ -90,7 +90,7 @@ router.get("/api/user-routes/:id/points", requireAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     const result = await client.query(
-      `SELECT n, dept, mun, nombre, tipo, desc, lat, lng, alt, vel, controles, riesgo
+      `SELECT n, dept, mun, nombre, tipo, descripcion as desc, lat, lng, alt, vel, controles, riesgo
        FROM safenode_route_points WHERE route_id = $1 ORDER BY n`,
       [req.params.id]
     );
@@ -127,7 +127,7 @@ router.post("/api/user-routes/upload", requireAuth, upload.single("file"), async
 
     for (const p of points) {
       await client.query(
-        `INSERT INTO safenode_route_points (route_id,n,dept,mun,nombre,tipo,desc,lat,lng,alt,vel,controles,riesgo)
+        `INSERT INTO safenode_route_points (route_id,n,dept,mun,nombre,tipo,descripcion,lat,lng,alt,vel,controles,riesgo)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
         [routeId, p.n, p.dept, p.mun, p.nombre, p.tipo, p.desc, p.lat, p.lng, p.alt, p.vel, p.controles, p.riesgo]
       );
