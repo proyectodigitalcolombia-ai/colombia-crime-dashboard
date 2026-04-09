@@ -10,6 +10,8 @@ import "leaflet/dist/leaflet.css";
 import {
   useGetBlockades,
   useGetCrimesByDepartment,
+  useGetTelegramAlerts,
+  type TelegramAlert,
 } from "@workspace/api-client-react";
 import {
   Layers, Eye, EyeOff, AlertTriangle, MapPin, Moon, Shield, Route,
@@ -1097,6 +1099,7 @@ function makeIcon(symbol: string, bg: string, border: string, size = 22) {
 
 export function MapIntelligence({ dark = true }: { dark?: boolean }) {
   const [activeLayer, setActiveLayer] = useState<LayerKey>("grupos");
+  const [showTelegramAlerts, setShowTelegramAlerts] = useState(true);
   const [showBlockades,  setShowBlockades]  = useState(true);
   const [showPeajes,     setShowPeajes]     = useState(false);
   const [showPolicia,    setShowPolicia]    = useState(false);
@@ -1200,6 +1203,8 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
   }
 
   const { data: blockades = [] } = useGetBlockades(undefined, { query: { refetchInterval: 60000 } });
+  const { data: telegramAlerts = [] } = useGetTelegramAlerts({ query: { refetchInterval: 60000 } });
+  const telegramWithCoords = (telegramAlerts as TelegramAlert[]).filter(a => a.lat != null && a.lng != null);
   const { data: crimesByDept = [] } = useGetCrimesByDepartment({});
 
   const crimeTotals = crimesByDept.reduce((acc: Record<string,number>, d: any) => {
@@ -1254,6 +1259,7 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
   ];
 
   const OVERLAYS = [
+    { key:"telegram",   label:"Alertas Telegram @notiabel", icon:AlertTriangle, color:"#f97316", active:showTelegramAlerts, toggle:()=>setShowTelegramAlerts(p=>!p), count:telegramWithCoords.length },
     { key:"bloqueos",   label:"Bloqueos activos",        icon:MapPin,     color:"#ef4444", active:showBlockades,  toggle:()=>setShowBlockades(p=>!p),  count:blockades.filter((b:any)=>b.lat&&b.lng).length },
     { key:"peajes",     label:"Peajes",                  icon:Car,        color:"#f59e0b", active:showPeajes,     toggle:()=>setShowPeajes(p=>!p),      count:PEAJES.length },
     { key:"policia",    label:"Policía de Carreteras",   icon:Shield,     color:"#3b82f6", active:showPolicia,    toggle:()=>setShowPolicia(p=>!p),     count:POLICIA_CARRETERAS.length },
@@ -1328,6 +1334,36 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
             data={geoData} style={geoStyle} onEachFeature={onEachFeature}
           />
         )}
+
+        {/* Alertas Telegram @notiabel */}
+        {showTelegramAlerts && telegramWithCoords.map((a: TelegramAlert) => {
+          const typeColors: Record<string,string> = { accidente:"#ef4444", cierre:"#f59e0b", trancon:"#f97316", manifestacion:"#a855f7" };
+          const typeEmoji: Record<string,string> = { accidente:"🚨", cierre:"🚫", trancon:"🚦", manifestacion:"📢" };
+          const c = typeColors[a.eventType] ?? "#94a3b8";
+          const emoji = typeEmoji[a.eventType] ?? "⚠️";
+          const radius = a.severity === "alto" ? 10 : a.severity === "medio" ? 8 : 6;
+          const minutesAgo = Math.round((Date.now() - new Date(a.createdAt).getTime()) / 60000);
+          const timeLabel = minutesAgo < 60 ? `hace ${minutesAgo} min` : `hace ${Math.round(minutesAgo/60)}h`;
+          return (
+            <CircleMarker key={a.id} center={[a.lat!, a.lng!]} radius={radius}
+              pathOptions={{ color:c, fillColor:c, fillOpacity:0.88, weight:2 }}>
+              <Popup className="dark-popup">
+                <div style={{ fontFamily:"sans-serif",fontSize:13,color:"#e2e8f0",minWidth:210 }}>
+                  <div style={{ fontWeight:700,color:c,marginBottom:6,fontSize:14 }}>
+                    {emoji} {a.eventType.charAt(0).toUpperCase()+a.eventType.slice(1)}
+                    <span style={{ fontSize:11,fontWeight:400,color:"#64748b",marginLeft:6 }}>@notiabel</span>
+                  </div>
+                  {a.locationText && <div style={{ marginBottom:4 }}><span style={{ color:"#94a3b8" }}>📍 </span>{a.locationText}</div>}
+                  <div style={{ fontSize:11,color:"#94a3b8",marginBottom:6,lineHeight:1.5 }}>{a.rawText.slice(0,120)}{a.rawText.length>120?"…":""}</div>
+                  <div style={{ display:"flex",gap:8,alignItems:"center" }}>
+                    <span style={{ background: a.severity==="alto"?"#7f1d1d":a.severity==="medio"?"#78350f":"#1a2e1a", color: a.severity==="alto"?"#fca5a5":a.severity==="medio"?"#fcd34d":"#86efac", padding:"2px 8px",borderRadius:10,fontSize:10,fontWeight:700,textTransform:"uppercase" }}>{a.severity}</span>
+                    <span style={{ fontSize:11,color:"#64748b" }}>{timeLabel}</span>
+                  </div>
+                </div>
+              </Popup>
+            </CircleMarker>
+          );
+        })}
 
         {/* Bloqueos */}
         {showBlockades && blockades.filter((b:any)=>b.lat&&b.lng).map((b:any) => {
@@ -2211,10 +2247,16 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
         )}
 
         {/* Overlay legend */}
-        {(showPeajes||showPolicia||showHospitales||showBlockades||showEjercito||showFAC||showArmada||showBomberos||showBasculas||showHoteles||showHotelesCarretera||showEstaciones)&&(
+        {(showPeajes||showPolicia||showHospitales||showBlockades||showEjercito||showFAC||showArmada||showBomberos||showBasculas||showHoteles||showHotelesCarretera||showEstaciones||showTelegramAlerts)&&(
           <div style={{ padding:"10px 14px", borderBottom:"1px solid rgba(255,255,255,0.07)" }}>
             <div style={{ fontSize:10,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:"rgba(255,255,255,0.35)",marginBottom:8 }}>Símbolos activos</div>
             <div style={{ display:"flex",flexDirection:"column",gap:5 }}>
+              {showTelegramAlerts&&<div style={{ display:"flex",flexDirection:"column",gap:3,marginBottom:2 }}>
+                <div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:12,height:12,borderRadius:"50%",background:"#ef4444",border:"2px solid #ef4444" }} /><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>🚨 Accidente @notiabel</span></div>
+                <div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:12,height:12,borderRadius:"50%",background:"#f59e0b",border:"2px solid #f59e0b" }} /><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>🚫 Cierre de vía @notiabel</span></div>
+                <div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:12,height:12,borderRadius:"50%",background:"#f97316",border:"2px solid #f97316" }} /><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>🚦 Trancón @notiabel</span></div>
+                <div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:12,height:12,borderRadius:"50%",background:"#a855f7",border:"2px solid #a855f7" }} /><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>📢 Manifestación @notiabel</span></div>
+              </div>}
               {showBlockades&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:12,height:12,borderRadius:"50%",background:"#ef4444",border:"2px solid #ef4444" }} /><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Bloqueo activo</span></div>}
               {showPeajes&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(245,158,11,0.9)",border:"2px solid #f59e0b",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:"#fff" }}>$</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Peaje INVIAS/ANI</span></div>}
               {showPolicia&&<div style={{ display:"flex",alignItems:"center",gap:8 }}><div style={{ width:18,height:18,borderRadius:"50%",background:"rgba(59,130,246,0.9)",border:"2px solid #3b82f6",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:"#fff" }}>P</div><span style={{ fontSize:11,color:"rgba(255,255,255,0.6)" }}>Policía Carreteras</span></div>}
