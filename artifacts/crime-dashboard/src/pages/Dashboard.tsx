@@ -46,6 +46,7 @@ import { HolidayRestrictions } from "@/components/HolidayRestrictions";
 import { CompanyProfile } from "@/components/CompanyProfile";
 import { MapIntelligence } from "@/components/MapIntelligence";
 import { LiveAlerts } from "@/components/LiveAlerts";
+import { DitraReports } from "@/components/DitraReports";
 import { useAuth } from "@/context/AuthContext";
 
 /* ───────── EXECUTIVE PALETTE ───────── */
@@ -237,7 +238,7 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const { user, logout } = useAuth();
   const [isDark, setIsDark] = useState(true);
-  const [activeTab, setActiveTab] = useState<"estadisticas" | "ruta" | "informe" | "grupos" | "puentes" | "empresa" | "mapa" | "alertas">("estadisticas");
+  const [activeTab, setActiveTab] = useState<"estadisticas" | "ruta" | "informe" | "grupos" | "puentes" | "empresa" | "mapa" | "alertas" | "ditra">("estadisticas");
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -602,6 +603,7 @@ export default function Dashboard() {
             { id: "grupos",       label: "⚠️  Grupos Armados" },
             { id: "mapa",         label: "🗺️  Mapa de Inteligencia" },
             { id: "alertas",      label: telegramAlerts.length > 0 ? `🔴  Alertas en Vivo (${telegramAlerts.length})` : "📡  Alertas en Vivo" },
+            { id: "ditra",        label: "📋  Reportes DITRA / RISTRA" },
             { id: "ruta",         label: "🚛  Análisis de Ruta — Piratería Terrestre" },
             { id: "puentes",      label: "🚧  Restricciones Puentes Festivos" },
             { id: "informe",      label: "📄  Informe Gerencial PDF" },
@@ -636,6 +638,11 @@ export default function Dashboard() {
         <DataAlertBanner dark={isDark} />
 
         {/* ── ALERTAS EN VIVO TAB ── */}
+        {activeTab === "ditra" && (
+          <div style={{ flex: 1, overflow: "auto" }}>
+            <DitraReports />
+          </div>
+        )}
         {activeTab === "alertas" && (
           <LiveAlerts isDark={isDark} />
         )}

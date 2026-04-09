@@ -4,3 +4,4 @@ export { setBaseUrl, setAuthTokenGetter, customFetch } from "./custom-fetch";
 export type { AuthTokenGetter } from "./custom-fetch";
 export * from "./blockades";
 export * from "./telegram-alerts";
+export * from "./ditra";

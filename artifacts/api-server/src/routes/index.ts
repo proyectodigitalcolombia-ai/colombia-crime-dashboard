@@ -13,6 +13,7 @@ import companiesRouter from "./companies";
 import emailAlertsRouter from "./email-alerts";
 import userRoutesRouter from "./user-routes";
 import telegramMonitorRouter from "./telegram-monitor";
+import ditraMonitorRouter from "./ditra-monitor";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(companiesRouter);
 router.use(emailAlertsRouter);
 router.use(userRoutesRouter);
 router.use(telegramMonitorRouter);
+router.use(ditraMonitorRouter);
 
 export default router;

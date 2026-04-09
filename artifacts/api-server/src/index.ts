@@ -7,6 +7,7 @@ import { startNewsMonitor } from "./routes/news-monitor";
 import { startRestrictionsSyncMonitor } from "./routes/restrictions-sync";
 import { startEmailAlertScheduler } from "./routes/email-alerts";
 import { startTelegramMonitor } from "./routes/telegram-monitor";
+import { startDitraMonitor } from "./routes/ditra-monitor";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 
@@ -201,6 +202,26 @@ async function ensureSchema() {
       CREATE INDEX IF NOT EXISTS telegram_alerts_channel_idx ON telegram_alerts (channel);
       CREATE INDEX IF NOT EXISTS telegram_alerts_expire_idx ON telegram_alerts (auto_expire_at);
 
+      CREATE TABLE IF NOT EXISTS ditra_reports (
+        id               SERIAL PRIMARY KEY,
+        email_subject    TEXT NOT NULL,
+        email_from       TEXT NOT NULL DEFAULT '',
+        email_date       TIMESTAMP,
+        pdf_filename     TEXT NOT NULL,
+        raw_text         TEXT,
+        parsed_data      JSONB,
+        periodo          TEXT,
+        fecha_reporte    TEXT,
+        tipo_reporte     TEXT NOT NULL DEFAULT 'DITRA',
+        total_accidentes INTEGER NOT NULL DEFAULT 0,
+        total_muertos    INTEGER NOT NULL DEFAULT 0,
+        total_heridos    INTEGER NOT NULL DEFAULT 0,
+        resumen_ejecutivo TEXT,
+        created_at       TIMESTAMP NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS ditra_reports_created_idx ON ditra_reports (created_at DESC);
+      CREATE INDEX IF NOT EXISTS ditra_reports_tipo_idx    ON ditra_reports (tipo_reporte);
+
     `);
 
     logger.info("Database schema ensured (all tables)");
@@ -265,6 +286,7 @@ app.listen(port, (err) => {
     .then(() => startRestrictionsSyncMonitor())
     .then(() => startEmailAlertScheduler())
     .then(() => startTelegramMonitor())
+    .then(() => startDitraMonitor())
     .catch((err) => {
       logger.error({ err }, "Failed to ensure database schema or load initial data");
     });
