@@ -5,6 +5,10 @@ import { Readable } from "stream";
 import Anthropic from "@anthropic-ai/sdk";
 import Groq from "groq-sdk";
 import { pool } from "@workspace/db";
+import { execSync } from "child_process";
+import { writeFileSync, readFileSync, unlinkSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
 
 const router: IRouter = Router();
 
@@ -60,21 +64,36 @@ const state: MonitorState = {
   totalInserted: 0,
 };
 
-/* ── Parsear PDF a texto (pdfjs-dist con fallback a pdf-parse) ──────────── */
+/* ── Parsear PDF a texto ────────────────────────────────────────────────── */
 async function pdfToText(buffer: Buffer): Promise<string> {
-  // Intento 1: pdfjs-dist — soporta AcroForms y más tipos de PDF
+
+  // Intento 1: pdftotext (poppler-utils) — más robusto, maneja AcroForms
+  const tmpPdf = join(tmpdir(), `ditra_${Date.now()}_${Math.random().toString(36).slice(2)}.pdf`);
+  const tmpTxt = tmpPdf.replace(".pdf", ".txt");
+  try {
+    writeFileSync(tmpPdf, buffer);
+    execSync(`pdftotext -layout -enc UTF-8 "${tmpPdf}" "${tmpTxt}"`, { timeout: 15000, stdio: "pipe" });
+    const text = readFileSync(tmpTxt, "utf-8").trim();
+    console.log(`[DitraMonitor] pdftotext: ${text.length} chars extraídos`);
+    if (text.length > 20) return text;
+    console.log("[DitraMonitor] pdftotext: texto vacío, probando siguiente método");
+  } catch (e) {
+    console.warn("[DitraMonitor] pdftotext falló:", (e as Error).message?.slice(0, 100));
+  } finally {
+    try { unlinkSync(tmpPdf); } catch {}
+    try { unlinkSync(tmpTxt); } catch {}
+  }
+
+  // Intento 2: pdfjs-dist — soporta AcroForms y PDFs con capas de texto
   try {
     const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs").catch(
       () => import("pdfjs-dist")
     ) as any;
-
     const lib = pdfjsLib.default ?? pdfjsLib;
-    // Deshabilitar worker en entorno Node.js
     if (lib.GlobalWorkerOptions) lib.GlobalWorkerOptions.workerSrc = "";
 
-    const uint8 = new Uint8Array(buffer);
     const loadingTask = lib.getDocument({
-      data: uint8,
+      data: new Uint8Array(buffer),
       useWorkerFetch: false,
       isEvalSupported: false,
       useSystemFonts: true,
@@ -86,36 +105,36 @@ async function pdfToText(buffer: Buffer): Promise<string> {
     for (let i = 1; i <= pdfDoc.numPages; i++) {
       const page = await pdfDoc.getPage(i);
       const content = await page.getTextContent();
-      const pageText = content.items
-        .map((item: any) => ("str" in item ? item.str : ""))
-        .join(" ");
-      parts.push(pageText);
-
-      // Extraer campos de formulario AcroForm si existen
+      parts.push(content.items.map((item: any) => item.str ?? "").join(" "));
       try {
         const annotations = await page.getAnnotations();
         for (const ann of annotations) {
-          if (ann.fieldValue && ann.fieldName) {
-            parts.push(`[Campo: ${ann.fieldName} = ${ann.fieldValue}]`);
-          } else if (ann.contents) {
-            parts.push(ann.contents);
-          }
+          if (ann.fieldValue && ann.fieldName) parts.push(`${ann.fieldName}: ${ann.fieldValue}`);
+          else if (ann.contents) parts.push(ann.contents);
         }
       } catch { /* sin annotations */ }
     }
 
     const text = parts.join("\n").trim();
+    console.log(`[DitraMonitor] pdfjs-dist: ${text.length} chars extraídos`);
     if (text.length > 20) return text;
-    console.log("[DitraMonitor] pdfjs: texto vacío, intentando pdf-parse como fallback");
   } catch (e) {
-    console.warn("[DitraMonitor] pdfjs falló:", (e as Error).message?.slice(0, 120));
+    console.warn("[DitraMonitor] pdfjs-dist falló:", (e as Error).message?.slice(0, 100));
   }
 
-  // Intento 2: pdf-parse (fallback)
-  const mod = await import("pdf-parse");
-  const pdfParse: any = mod.default ?? mod;
-  const data = await pdfParse(buffer);
-  return data.text ?? "";
+  // Intento 3: pdf-parse (fallback final)
+  try {
+    const mod = await import("pdf-parse");
+    const pdfParse: any = mod.default ?? mod;
+    const data = await pdfParse(buffer);
+    const text = (data.text ?? "").trim();
+    console.log(`[DitraMonitor] pdf-parse: ${text.length} chars extraídos`);
+    return text;
+  } catch (e) {
+    console.warn("[DitraMonitor] pdf-parse falló:", (e as Error).message?.slice(0, 100));
+  }
+
+  return "";
 }
 
 /* ── JSON schema que la IA debe devolver ────────────────────────────────── */
@@ -154,45 +173,67 @@ IMPORTANTE:
 - El tipo_reporte se infiere del asunto: "ESTADO DE VIAS"→Estado de Vías, "MANIFESTACIONES"→Manifestaciones, etc.
 - Responde SOLO con JSON válido, sin markdown ni texto adicional.`;
 
-/* ── Extraer datos con Claude Vision (PDF como documento nativo) ─────────── */
+/* ── Extraer datos con Claude Vision (PDF como documento nativo con OCR) ─── */
 async function extractWithClaudeVision(pdfBuffer: Buffer, subject: string, emailBodyText: string): Promise<Record<string, any> | null> {
-  if (!_anthropic) return null;
+  if (!_anthropic) {
+    console.warn("[DitraMonitor] Claude Vision: no hay cliente Anthropic disponible");
+    return null;
+  }
+
+  // Limitar tamaño: Anthropic acepta hasta ~5MB base64
+  if (pdfBuffer.length > 4_000_000) {
+    console.warn(`[DitraMonitor] Claude Vision: PDF muy grande (${pdfBuffer.length} bytes), omitiendo`);
+    return null;
+  }
+
   try {
     const b64 = pdfBuffer.toString("base64");
-    const msg = await _anthropic.messages.create({
+    const promptText = `${INSTRUCCION_BASE}
+
+Asunto del correo: ${subject}
+${emailBodyText ? `\nCuerpo del correo:\n${emailBodyText.slice(0, 2000)}` : ""}
+
+IMPORTANTE: Lee el PDF adjunto con atención. Incluso si es un formulario escaneado, extrae todos los datos visibles.
+Si el PDF parece ser una plantilla en blanco, indícalo en resumen_ejecutivo.
+
+Responde SOLO con este JSON (sin texto adicional):
+${JSON_SCHEMA}`;
+
+    // Usar beta.messages para soporte nativo de PDF
+    const betaClient = (_anthropic as any).beta?.messages ?? (_anthropic as any).messages;
+    const createOptions: any = {
       model: "claude-haiku-4-5",
       max_tokens: 4096,
       messages: [{
         role: "user",
         content: [
           {
-            type: "document" as any,
+            type: "document",
             source: { type: "base64", media_type: "application/pdf", data: b64 },
           },
-          {
-            type: "text",
-            text: `${INSTRUCCION_BASE}
-
-Asunto del correo: ${subject}
-${emailBodyText ? `\nCuerpo del correo:\n${emailBodyText.slice(0, 2000)}` : ""}
-
-Responde SOLO con este JSON (sin texto adicional):
-${JSON_SCHEMA}`,
-          },
+          { type: "text", text: promptText },
         ],
       }],
-    });
+    };
+
+    // Añadir betas si está disponible el método beta
+    if ((_anthropic as any).beta?.messages) {
+      createOptions.betas = ["pdfs-2024-09-25"];
+    }
+
+    const msg = await betaClient.create(createOptions);
     const raw = msg.content[0]?.type === "text" ? msg.content[0].text : "";
+    console.log(`[DitraMonitor] Claude Vision respuesta: ${raw.slice(0, 200)}`);
     const match = raw.match(/\{[\s\S]*\}/);
     if (match) {
       const parsed = JSON.parse(match[0]);
       parsed.pdf_legible = true;
       parsed._source = "claude_vision";
-      console.log("[DitraMonitor] Claude Vision extrajo datos del PDF");
+      console.log("[DitraMonitor] ✅ Claude Vision extrajo datos del PDF");
       return parsed;
     }
   } catch (e) {
-    console.warn("[DitraMonitor] Claude Vision falló:", (e as Error).message?.slice(0, 120));
+    console.warn("[DitraMonitor] Claude Vision falló:", (e as Error).message?.slice(0, 200));
   }
   return null;
 }
