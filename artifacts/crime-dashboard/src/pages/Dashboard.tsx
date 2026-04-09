@@ -242,6 +242,7 @@ export default function Dashboard() {
   const [selectedIntervalMs, setSelectedIntervalMs] = useState(INTERVAL_OPTIONS[0].ms);
 
   const [selectedYear, setSelectedYear] = useState<number | "all">("all");
+  const [selectedMonth, setSelectedMonth] = useState<number | "all">("all");
   const [selectedCrimeType, setSelectedCrimeType] = useState<string>("all");
   const [selectedDepartment, setSelectedDepartment] = useState<string>("all");
   const [showComparison, setShowComparison] = useState(false);
@@ -270,6 +271,11 @@ export default function Dashboard() {
     }
   }, [availableYears, selectedYear]);
 
+  /* Reset month when year changes to "all" */
+  useEffect(() => {
+    if (selectedYear === "all") setSelectedMonth("all");
+  }, [selectedYear]);
+
   const { data: crimeTypes = [], isLoading: isLoadingTypes } = useGetCrimeTypes();
   const { data: refreshStatus, isLoading: isLoadingStatus, dataUpdatedAt } = useGetRefreshStatus();
 
@@ -286,6 +292,12 @@ export default function Dashboard() {
 
   const { data: monthlyData = [], isLoading: isLoadingMonthly, isFetching: isFetchingMonthly } = useGetNationalMonthly(queryParams);
   const { data: prevMonthlyData = [] } = useGetNationalMonthly(prevYearParams);
+
+  /* Filter by month client-side — used for KPIs, pie chart and dept map */
+  const filteredMonthlyData = useMemo(() =>
+    selectedMonth === "all" ? monthlyData : monthlyData.filter(d => d.month === selectedMonth),
+    [monthlyData, selectedMonth]
+  );
   const { data: deptData = [], isLoading: isLoadingDept, isFetching: isFetchingDept } = useGetCrimesByDepartment({ year: queryParams.year, crimeType: queryParams.crimeType });
 
   // Subcategory breakdown — only fetched when "hurtos" is selected
@@ -360,7 +372,7 @@ export default function Dashboard() {
     : null;
 
   /* ── KPIs ── */
-  const totalCrimes = monthlyData.reduce((s, d) => s + d.count, 0);
+  const totalCrimes = filteredMonthlyData.reduce((s, d) => s + d.count, 0);
   const totalPrevCrimes = prevMonthlyData.reduce((s, d) => s + d.count, 0);
   const yoyChange = totalPrevCrimes === 0 ? 0 : ((totalCrimes - totalPrevCrimes) / totalPrevCrimes) * 100;
 
@@ -371,14 +383,14 @@ export default function Dashboard() {
   }, [filteredDeptData, deptData]);
 
   const mostFrequentCrime = useMemo(() => {
-    if (monthlyData.length === 0) return { name: "--", count: 0 };
-    const counts = monthlyData.reduce((acc, curr) => {
+    if (filteredMonthlyData.length === 0) return { name: "--", count: 0 };
+    const counts = filteredMonthlyData.reduce((acc, curr) => {
       acc[curr.crimeTypeName] = (acc[curr.crimeTypeName] || 0) + curr.count;
       return acc;
     }, {} as Record<string, number>);
     const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
     return sorted.length > 0 ? { name: sorted[0][0], count: sorted[0][1] } : { name: "--", count: 0 };
-  }, [monthlyData]);
+  }, [filteredMonthlyData]);
 
   /* ── Chart data ── */
   const CHART_COLORS = isDark ? CHART_COLORS_DARK : CHART_COLORS_LIGHT;
@@ -413,18 +425,18 @@ export default function Dashboard() {
   const crimeTypesInMonthlyData = useMemo(() => {
     if (selectedCrimeType !== "all") return [];
     const types = new Set<string>();
-    monthlyData.forEach(d => types.add(d.crimeTypeName));
+    filteredMonthlyData.forEach(d => types.add(d.crimeTypeName));
     return Array.from(types);
-  }, [monthlyData, selectedCrimeType]);
+  }, [filteredMonthlyData, selectedCrimeType]);
 
   const barChartData = useMemo(() => {
     if (selectedCrimeType !== "all") return [];
-    const counts = monthlyData.reduce((acc, curr) => {
+    const counts = filteredMonthlyData.reduce((acc, curr) => {
       acc[curr.crimeTypeName] = (acc[curr.crimeTypeName] || 0) + curr.count;
       return acc;
     }, {} as Record<string, number>);
     return Object.entries(counts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
-  }, [monthlyData, selectedCrimeType]);
+  }, [filteredMonthlyData, selectedCrimeType]);
 
   const [sorting, setSorting] = useState<SortingState>([{ id: "totalCount", desc: true }]);
 
@@ -655,19 +667,21 @@ export default function Dashboard() {
         {/* ── FILTERS ── */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "24px", alignItems: "flex-end" }} className="print:hidden">
           {[
-            { label: "Año", value: selectedYear.toString(), options: [{ value: "all", label: "Todos los años" }, ...availableYears.map(y => ({ value: y.toString(), label: String(y) }))], onChange: (v: string) => setSelectedYear(v === "all" ? "all" : parseInt(v)), width: "150px" },
-            { label: "Tipo de Delito", value: selectedCrimeType, options: [{ value: "all", label: "Todos los delitos" }, ...crimeTypes.map(c => ({ value: c.id, label: c.name }))], onChange: setSelectedCrimeType, width: "220px" },
-            { label: "Departamento", value: selectedDepartment, options: [{ value: "all", label: "Todos los departamentos" }, ...availableDepartments.map(d => ({ value: d, label: d }))], onChange: setSelectedDepartment, width: "220px" },
-          ].map(({ label, value, options, onChange, width }) => (
-            <div key={label} style={{ display: "flex", flexDirection: "column", gap: "5px", minWidth: width }}>
+            { label: "Año", value: selectedYear.toString(), options: [{ value: "all", label: "Todos los años" }, ...availableYears.map(y => ({ value: y.toString(), label: String(y) }))], onChange: (v: string) => setSelectedYear(v === "all" ? "all" : parseInt(v)), width: "140px", disabled: false },
+            { label: "Mes", value: selectedMonth.toString(), options: [{ value: "all", label: "Todos los meses" }, ...[{n:1,l:"Enero"},{n:2,l:"Febrero"},{n:3,l:"Marzo"},{n:4,l:"Abril"},{n:5,l:"Mayo"},{n:6,l:"Junio"},{n:7,l:"Julio"},{n:8,l:"Agosto"},{n:9,l:"Septiembre"},{n:10,l:"Octubre"},{n:11,l:"Noviembre"},{n:12,l:"Diciembre"}].map(m => ({ value: m.n.toString(), label: m.l }))], onChange: (v: string) => setSelectedMonth(v === "all" ? "all" : parseInt(v)), width: "160px", disabled: selectedYear === "all" },
+            { label: "Tipo de Delito", value: selectedCrimeType, options: [{ value: "all", label: "Todos los delitos" }, ...crimeTypes.map(c => ({ value: c.id, label: c.name }))], onChange: setSelectedCrimeType, width: "220px", disabled: false },
+            { label: "Departamento", value: selectedDepartment, options: [{ value: "all", label: "Todos los departamentos" }, ...availableDepartments.map(d => ({ value: d, label: d }))], onChange: setSelectedDepartment, width: "220px", disabled: false },
+          ].map(({ label, value, options, onChange, width, disabled }) => (
+            <div key={label} style={{ display: "flex", flexDirection: "column", gap: "5px", minWidth: width, opacity: disabled ? 0.45 : 1 }}>
               <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: mutedText }}>{label}</span>
-              <Select value={value} onValueChange={onChange}>
+              <Select value={value} onValueChange={onChange} disabled={disabled}>
                 <SelectTrigger style={{
                   height: "34px", fontSize: "13px", fontWeight: 500,
                   background: isDark ? "rgba(255,255,255,0.05)" : "#ffffff",
                   border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"}`,
                   color: isDark ? "rgba(255,255,255,0.85)" : "#1e293b",
                   borderRadius: "8px",
+                  cursor: disabled ? "not-allowed" : "pointer",
                 }}>
                   <SelectValue />
                 </SelectTrigger>
