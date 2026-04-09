@@ -13,6 +13,7 @@ import {
   useGetAvailableYears,
   useTriggerRefresh,
   useGetBlockades,
+  useGetTelegramAlerts,
 } from "@workspace/api-client-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
@@ -44,6 +45,7 @@ import { ArmedGroupsPanel } from "@/components/ArmedGroupsPanel";
 import { HolidayRestrictions } from "@/components/HolidayRestrictions";
 import { CompanyProfile } from "@/components/CompanyProfile";
 import { MapIntelligence } from "@/components/MapIntelligence";
+import { LiveAlerts } from "@/components/LiveAlerts";
 import { useAuth } from "@/context/AuthContext";
 
 /* ───────── EXECUTIVE PALETTE ───────── */
@@ -235,7 +237,7 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const { user, logout } = useAuth();
   const [isDark, setIsDark] = useState(true);
-  const [activeTab, setActiveTab] = useState<"estadisticas" | "ruta" | "informe" | "grupos" | "puentes" | "empresa" | "mapa">("estadisticas");
+  const [activeTab, setActiveTab] = useState<"estadisticas" | "ruta" | "informe" | "grupos" | "puentes" | "empresa" | "mapa" | "alertas">("estadisticas");
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -329,6 +331,7 @@ export default function Dashboard() {
   }, [subcatMonthlyRaw, showSubcategoryPanel]);
 
   const { data: allBlockadesRaw = [] } = useGetBlockades(undefined, { query: { refetchInterval: 60000 } });
+  const { data: telegramAlerts = [] } = useGetTelegramAlerts({ query: { refetchInterval: 60_000 } });
   const blockadeCounts = useMemo<Record<string, number>>(() => {
     const m: Record<string, number> = {};
     for (const b of (Array.isArray(allBlockadesRaw) ? allBlockadesRaw : []) as any[]) {
@@ -598,6 +601,7 @@ export default function Dashboard() {
             { id: "estadisticas", label: "📊  Estadísticas Delictivas" },
             { id: "grupos",       label: "⚠️  Grupos Armados" },
             { id: "mapa",         label: "🗺️  Mapa de Inteligencia" },
+            { id: "alertas",      label: telegramAlerts.length > 0 ? `🔴  Alertas en Vivo (${telegramAlerts.length})` : "📡  Alertas en Vivo" },
             { id: "ruta",         label: "🚛  Análisis de Ruta — Piratería Terrestre" },
             { id: "puentes",      label: "🚧  Restricciones Puentes Festivos" },
             { id: "informe",      label: "📄  Informe Gerencial PDF" },
@@ -630,6 +634,11 @@ export default function Dashboard() {
 
         {/* ── GLOBAL ALERT BANNERS ── */}
         <DataAlertBanner dark={isDark} />
+
+        {/* ── ALERTAS EN VIVO TAB ── */}
+        {activeTab === "alertas" && (
+          <LiveAlerts isDark={isDark} />
+        )}
 
         {/* ── MAPA DE INTELIGENCIA TAB ── */}
         {activeTab === "mapa" && (

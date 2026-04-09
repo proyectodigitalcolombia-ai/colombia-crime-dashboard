@@ -62,6 +62,35 @@ export const insertBlockadeSchema = createInsertSchema(blockadeTable).omit({ id:
 export type InsertBlockade = z.infer<typeof insertBlockadeSchema>;
 export type Blockade = typeof blockadeTable.$inferSelect;
 
+/* ── Telegram Live Alerts ─────────────────────────────────────────────────── */
+export const telegramAlertsTable = pgTable("telegram_alerts", {
+  id:           serial("id").primaryKey(),
+  messageId:    text("message_id").notNull().unique(),
+  channel:      text("channel").notNull().default("notiabel"),
+  rawText:      text("raw_text").notNull(),
+  eventType:    text("event_type").notNull(),       // accidente|cierre|trancon|manifestacion|libre|otro
+  department:   text("department"),
+  via:          text("via"),
+  km:           text("km"),
+  locationText: text("location_text"),
+  severity:     text("severity").notNull().default("medio"), // alto|medio|bajo
+  lat:          real("lat"),
+  lng:          real("lng"),
+  status:       text("status").notNull().default("activo"),  // activo|resuelto|expirado
+  messageDate:  timestamp("message_date"),
+  processedAt:  timestamp("processed_at").defaultNow(),
+  resolvedAt:   timestamp("resolved_at"),
+  autoExpireAt: timestamp("auto_expire_at"),
+}, (table) => [
+  index("telegram_alerts_status_idx").on(table.status),
+  index("telegram_alerts_channel_idx").on(table.channel),
+  index("telegram_alerts_expire_idx").on(table.autoExpireAt),
+]);
+
+export const insertTelegramAlertSchema = createInsertSchema(telegramAlertsTable).omit({ id: true, processedAt: true });
+export type InsertTelegramAlert = z.infer<typeof insertTelegramAlertSchema>;
+export type TelegramAlert = typeof telegramAlertsTable.$inferSelect;
+
 export const usersTable = pgTable("users", {
   id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),

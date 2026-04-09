@@ -6,6 +6,7 @@ import { startBlockadeAutoExpiry } from "./routes/blockades";
 import { startNewsMonitor } from "./routes/news-monitor";
 import { startRestrictionsSyncMonitor } from "./routes/restrictions-sync";
 import { startEmailAlertScheduler } from "./routes/email-alerts";
+import { startTelegramMonitor } from "./routes/telegram-monitor";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 
@@ -177,6 +178,29 @@ async function ensureSchema() {
       );
       CREATE INDEX IF NOT EXISTS safenode_route_points_route_idx ON safenode_route_points (route_id);
 
+      CREATE TABLE IF NOT EXISTS telegram_alerts (
+        id SERIAL PRIMARY KEY,
+        message_id TEXT NOT NULL UNIQUE,
+        channel TEXT NOT NULL DEFAULT 'notiabel',
+        raw_text TEXT NOT NULL,
+        event_type TEXT NOT NULL,
+        department TEXT,
+        via TEXT,
+        km TEXT,
+        location_text TEXT,
+        severity TEXT NOT NULL DEFAULT 'medio',
+        lat REAL,
+        lng REAL,
+        status TEXT NOT NULL DEFAULT 'activo',
+        message_date TIMESTAMP,
+        processed_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        resolved_at TIMESTAMP,
+        auto_expire_at TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS telegram_alerts_status_idx ON telegram_alerts (status);
+      CREATE INDEX IF NOT EXISTS telegram_alerts_channel_idx ON telegram_alerts (channel);
+      CREATE INDEX IF NOT EXISTS telegram_alerts_expire_idx ON telegram_alerts (auto_expire_at);
+
     `);
 
     logger.info("Database schema ensured (all tables)");
@@ -240,6 +264,7 @@ app.listen(port, (err) => {
     .then(() => startNewsMonitor())
     .then(() => startRestrictionsSyncMonitor())
     .then(() => startEmailAlertScheduler())
+    .then(() => startTelegramMonitor())
     .catch((err) => {
       logger.error({ err }, "Failed to ensure database schema or load initial data");
     });

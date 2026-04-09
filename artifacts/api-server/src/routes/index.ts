@@ -12,6 +12,7 @@ import restrictionsSyncRouter from "./restrictions-sync";
 import companiesRouter from "./companies";
 import emailAlertsRouter from "./email-alerts";
 import userRoutesRouter from "./user-routes";
+import telegramMonitorRouter from "./telegram-monitor";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(restrictionsSyncRouter);
 router.use(companiesRouter);
 router.use(emailAlertsRouter);
 router.use(userRoutesRouter);
+router.use(telegramMonitorRouter);
 
 export default router;
