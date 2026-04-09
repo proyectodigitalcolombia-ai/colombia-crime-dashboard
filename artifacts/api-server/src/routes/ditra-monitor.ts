@@ -60,12 +60,141 @@ const state: MonitorState = {
   totalInserted: 0,
 };
 
-/* ── Parsear PDF a texto ────────────────────────────────────────────────── */
+/* ── Parsear PDF a texto (pdfjs-dist con fallback a pdf-parse) ──────────── */
 async function pdfToText(buffer: Buffer): Promise<string> {
+  // Intento 1: pdfjs-dist — soporta AcroForms y más tipos de PDF
+  try {
+    const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs").catch(
+      () => import("pdfjs-dist")
+    ) as any;
+
+    const lib = pdfjsLib.default ?? pdfjsLib;
+    // Deshabilitar worker en entorno Node.js
+    if (lib.GlobalWorkerOptions) lib.GlobalWorkerOptions.workerSrc = "";
+
+    const uint8 = new Uint8Array(buffer);
+    const loadingTask = lib.getDocument({
+      data: uint8,
+      useWorkerFetch: false,
+      isEvalSupported: false,
+      useSystemFonts: true,
+      disableFontFace: true,
+    });
+    const pdfDoc = await loadingTask.promise;
+    const parts: string[] = [];
+
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+      const page = await pdfDoc.getPage(i);
+      const content = await page.getTextContent();
+      const pageText = content.items
+        .map((item: any) => ("str" in item ? item.str : ""))
+        .join(" ");
+      parts.push(pageText);
+
+      // Extraer campos de formulario AcroForm si existen
+      try {
+        const annotations = await page.getAnnotations();
+        for (const ann of annotations) {
+          if (ann.fieldValue && ann.fieldName) {
+            parts.push(`[Campo: ${ann.fieldName} = ${ann.fieldValue}]`);
+          } else if (ann.contents) {
+            parts.push(ann.contents);
+          }
+        }
+      } catch { /* sin annotations */ }
+    }
+
+    const text = parts.join("\n").trim();
+    if (text.length > 20) return text;
+    console.log("[DitraMonitor] pdfjs: texto vacío, intentando pdf-parse como fallback");
+  } catch (e) {
+    console.warn("[DitraMonitor] pdfjs falló:", (e as Error).message?.slice(0, 120));
+  }
+
+  // Intento 2: pdf-parse (fallback)
   const mod = await import("pdf-parse");
   const pdfParse: any = mod.default ?? mod;
   const data = await pdfParse(buffer);
   return data.text ?? "";
+}
+
+/* ── JSON schema que la IA debe devolver ────────────────────────────────── */
+const JSON_SCHEMA = `{
+  "fecha_reporte": "YYYY-MM-DD o vacío",
+  "periodo": "período que cubre el reporte",
+  "tipo_reporte": "DITRA | RISTRA | INVIAS | Estado de Vías | Manifestaciones | Condición Climática | otro",
+  "total_accidentes": 0,
+  "total_muertos": 0,
+  "total_heridos": 0,
+  "total_cierres": 0,
+  "total_obras": 0,
+  "departamentos_afectados": ["lista"],
+  "vias_afectadas": ["lista"],
+  "puntos_criticos": [
+    {
+      "ubicacion": "municipio o punto kilométrico",
+      "departamento": "departamento de Colombia",
+      "via": "nombre de la vía o ruta",
+      "tipo_evento": "accidente|cierre|obra|derrumbe|manifestacion|restriccion|condicion_climatica|otro",
+      "descripcion": "descripción breve"
+    }
+  ],
+  "condiciones_climaticas": "descripción o vacío",
+  "manifestaciones": "descripción o vacío",
+  "resumen_ejecutivo": "2-3 oraciones con las principales novedades",
+  "fuente": "entidad que generó el reporte",
+  "pdf_legible": true
+}`;
+
+const INSTRUCCION_BASE = `Eres un analista de seguridad vial de Colombia. Extrae toda la información de movilidad y seguridad vial del siguiente reporte DITRA/RISTRA/INVIAS.
+
+IMPORTANTE:
+- Extrae TODO: accidentes, cierres, obras, derrumbes, manifestaciones, condiciones climáticas, restricciones.
+- Si el asunto tiene una fecha como "09-04-2026", úsala como fecha_reporte en formato YYYY-MM-DD.
+- El tipo_reporte se infiere del asunto: "ESTADO DE VIAS"→Estado de Vías, "MANIFESTACIONES"→Manifestaciones, etc.
+- Responde SOLO con JSON válido, sin markdown ni texto adicional.`;
+
+/* ── Extraer datos con Claude Vision (PDF como documento nativo) ─────────── */
+async function extractWithClaudeVision(pdfBuffer: Buffer, subject: string, emailBodyText: string): Promise<Record<string, any> | null> {
+  if (!_anthropic) return null;
+  try {
+    const b64 = pdfBuffer.toString("base64");
+    const msg = await _anthropic.messages.create({
+      model: "claude-haiku-4-5",
+      max_tokens: 4096,
+      messages: [{
+        role: "user",
+        content: [
+          {
+            type: "document" as any,
+            source: { type: "base64", media_type: "application/pdf", data: b64 },
+          },
+          {
+            type: "text",
+            text: `${INSTRUCCION_BASE}
+
+Asunto del correo: ${subject}
+${emailBodyText ? `\nCuerpo del correo:\n${emailBodyText.slice(0, 2000)}` : ""}
+
+Responde SOLO con este JSON (sin texto adicional):
+${JSON_SCHEMA}`,
+          },
+        ],
+      }],
+    });
+    const raw = msg.content[0]?.type === "text" ? msg.content[0].text : "";
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (match) {
+      const parsed = JSON.parse(match[0]);
+      parsed.pdf_legible = true;
+      parsed._source = "claude_vision";
+      console.log("[DitraMonitor] Claude Vision extrajo datos del PDF");
+      return parsed;
+    }
+  } catch (e) {
+    console.warn("[DitraMonitor] Claude Vision falló:", (e as Error).message?.slice(0, 120));
+  }
+  return null;
 }
 
 /* ── Extraer datos estructurados del DITRA con IA ──────────────────────── */
@@ -73,69 +202,68 @@ async function extractDitraData(
   pdfText: string,
   subject: string,
   emailBodyText: string = "",
+  pdfBuffer?: Buffer,
 ): Promise<Record<string, any>> {
 
-  // Construir el contenido a analizar: PDF + cuerpo del correo como fuentes
   const pdfAvailable = pdfText.trim().length > 50 &&
     !pdfText.includes("No se pudo leer el texto del PDF");
 
-  const contenidoPDF = pdfAvailable
-    ? `Texto extraído del PDF:\n${pdfText.slice(0, 6000)}`
-    : "(El PDF no pudo extraerse como texto — es posible que sea un archivo escaneado o de imagen)";
-
-  const contenidoBody = emailBodyText.trim().length > 30
-    ? `\n\nCuerpo del correo electrónico:\n${emailBodyText.slice(0, 4000)}`
-    : "";
-
-  const prompt = `Eres un analista de seguridad vial de Colombia. Analiza la siguiente información de un correo DITRA/RISTRA/INVIAS (Estado de Vías) y extrae toda la información relevante de movilidad y seguridad vial.
-
-IMPORTANTE:
-- Extrae TODO lo que encuentres: obras, cierres, manifestaciones, condiciones climáticas, accidentes, restricciones. No solo accidentes.
-- Si el PDF no tiene texto, usa el cuerpo del correo y el asunto como fuente.
-- El asunto puede indicar el tipo de reporte: "MANIFESTACIONES Y CONDICION CLIMATICA", "ESTADO DE VIAS", etc.
-- Si el asunto tiene una fecha (ej. "09-04-2026"), úsala como fecha_reporte.
+  // Estrategia 1: PDF con texto extraído → usar texto
+  if (pdfAvailable) {
+    const prompt = `${INSTRUCCION_BASE}
 
 Asunto del correo: ${subject}
 
-${contenidoPDF}${contenidoBody}
+Texto extraído del PDF:
+${pdfText.slice(0, 7000)}
+${emailBodyText ? `\nCuerpo del correo:\n${emailBodyText.slice(0, 2000)}` : ""}
 
-Responde SOLO con un JSON válido (sin texto adicional, sin markdown):
-{
-  "fecha_reporte": "fecha en formato YYYY-MM-DD o vacío si no se encuentra",
-  "periodo": "período que cubre el reporte o descripción del tipo",
-  "tipo_reporte": "DITRA | RISTRA | INVIAS | Estado de Vías | Manifestaciones | Condición Climática | otro",
-  "total_accidentes": 0,
-  "total_muertos": 0,
-  "total_heridos": 0,
-  "total_cierres": 0,
-  "total_obras": 0,
-  "departamentos_afectados": [],
-  "vias_afectadas": [],
-  "puntos_criticos": [
-    {
-      "ubicacion": "nombre del punto o municipio",
-      "departamento": "departamento",
-      "via": "nombre de la vía o ruta",
-      "tipo_evento": "accidente | cierre | obra | derrumbe | manifestacion | restriccion | condicion_climatica | otro",
-      "descripcion": "descripción breve del evento o novedad"
+Responde SOLO con este JSON (sin texto adicional):
+${JSON_SCHEMA}`;
+
+    try {
+      const raw = await askAI(prompt);
+      const match = raw.match(/\{[\s\S]*\}/);
+      if (match) return JSON.parse(match[0]);
+    } catch (e) {
+      console.warn("[DitraMonitor] Error IA (texto):", e);
     }
-  ],
-  "condiciones_climaticas": "descripción de alertas o condiciones climáticas si aplica, o vacío",
-  "manifestaciones": "descripción de manifestaciones o paros si aplica, o vacío",
-  "resumen_ejecutivo": "resumen ejecutivo de 2-3 oraciones. Si no hay datos en PDF, indicar que es un reporte de tipo [tipo] recibido el [fecha del asunto]",
-  "fuente": "entidad o área que generó el reporte",
-  "pdf_legible": ${pdfAvailable}
-}`;
+  }
+
+  // Estrategia 2: PDF escaneado → Claude Vision con el PDF como documento nativo
+  if (pdfBuffer && pdfBuffer.length > 100) {
+    console.log(`[DitraMonitor] PDF sin texto (${pdfBuffer.length} bytes) → intentando Claude Vision`);
+    const visionResult = await extractWithClaudeVision(pdfBuffer, subject, emailBodyText);
+    if (visionResult) return visionResult;
+  }
+
+  // Estrategia 3: Solo asunto + cuerpo del email
+  console.log("[DitraMonitor] Extrayendo solo de asunto + cuerpo del email");
+  const prompt3 = `${INSTRUCCION_BASE}
+
+Asunto del correo: ${subject}
+${emailBodyText ? `\nCuerpo del correo:\n${emailBodyText.slice(0, 4000)}` : ""}
+
+NOTA: El PDF adjunto es escaneado y no pudo leerse. Extrae lo que puedas del asunto y cuerpo del correo.
+En el resumen ejecutivo indica claramente que el PDF no fue legible.
+
+Responde SOLO con este JSON (sin texto adicional):
+${JSON_SCHEMA}`;
 
   try {
-    const raw = await askAI(prompt);
+    const raw = await askAI(prompt3);
     const match = raw.match(/\{[\s\S]*\}/);
-    if (match) return JSON.parse(match[0]);
+    if (match) {
+      const parsed = JSON.parse(match[0]);
+      parsed.pdf_legible = false;
+      return parsed;
+    }
   } catch (e) {
-    console.warn("[DitraMonitor] Error parseando respuesta IA:", e);
+    console.warn("[DitraMonitor] Error IA (fallback):", e);
   }
+
   return {
-    resumen_ejecutivo: emailBodyText.slice(0, 300) || pdfText.slice(0, 300) || "Reporte recibido sin contenido legible.",
+    resumen_ejecutivo: `Reporte recibido: ${subject}. PDF escaneado no legible; sin datos de IA.`,
     raw_extraction_failed: true,
     pdf_legible: false,
   };
@@ -283,7 +411,7 @@ async function scanInbox(searchAll = false): Promise<number> {
           // Extraer datos estructurados con IA
           let parsedData: Record<string, any> = {};
           try {
-            parsedData = await extractDitraData(pdfText, subject, bodyFallback);
+            parsedData = await extractDitraData(pdfText, subject, bodyFallback, Buffer.isBuffer(pdfBuffer) ? pdfBuffer : undefined);
           } catch (e) {
             console.warn(`[DitraMonitor] Error IA para ${filename}:`, e);
             parsedData = {
