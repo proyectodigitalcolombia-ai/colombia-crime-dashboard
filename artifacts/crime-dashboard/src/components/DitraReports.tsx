@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useGetDitraReports, useGetDitraStatus, type DitraReport } from "@workspace/api-client-react";
-import { FileText, Mail, AlertTriangle, Users, Activity, Clock, RefreshCw, ChevronDown, ChevronUp, Inbox } from "lucide-react";
+import { FileText, Mail, AlertTriangle, Users, Activity, Clock, RefreshCw, ChevronDown, ChevronUp, Inbox, Construction, CloudRain, Megaphone } from "lucide-react";
 
 const BG  = "#070c15";
 const PAN = "#0c1220";
@@ -53,19 +53,19 @@ function ReportCard({ report }: { report: DitraReport }) {
           </div>
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexShrink: 0 }}>
-          {report.total_accidentes > 0 && (
+          {pd?.total_cierres > 0 && (
             <span style={{ background: "rgba(239,68,68,0.15)", color: RED, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
-              {report.total_accidentes} acc.
+              {pd.total_cierres} 🚫
             </span>
           )}
-          {report.total_muertos > 0 && (
-            <span style={{ background: "rgba(239,68,68,0.25)", color: "#fca5a5", padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
-              {report.total_muertos} 💀
-            </span>
-          )}
-          {report.total_heridos > 0 && (
+          {pd?.total_obras > 0 && (
             <span style={{ background: "rgba(245,158,11,0.15)", color: AMB, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
-              {report.total_heridos} her.
+              {pd.total_obras} 🚧
+            </span>
+          )}
+          {report.total_accidentes > 0 && (
+            <span style={{ background: "rgba(239,68,68,0.2)", color: "#fca5a5", padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
+              {report.total_accidentes} 🚨
             </span>
           )}
           <span style={{ background: "rgba(0,212,255,0.1)", color: CYN, padding: "2px 8px", borderRadius: 6, fontSize: 10, fontWeight: 600 }}>
@@ -85,20 +85,33 @@ function ReportCard({ report }: { report: DitraReport }) {
             </div>
           )}
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 14 }}>
-            <div style={{ background: "rgba(239,68,68,0.08)", border: `1px solid rgba(239,68,68,0.15)`, borderRadius: 8, padding: "10px 14px", textAlign: "center" }}>
-              <div style={{ fontSize: 22, fontWeight: 700, color: RED }}>{report.total_accidentes}</div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>Accidentes</div>
-            </div>
-            <div style={{ background: "rgba(239,68,68,0.15)", border: `1px solid rgba(239,68,68,0.25)`, borderRadius: 8, padding: "10px 14px", textAlign: "center" }}>
-              <div style={{ fontSize: 22, fontWeight: 700, color: "#fca5a5" }}>{report.total_muertos}</div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>Fallecidos</div>
-            </div>
-            <div style={{ background: "rgba(245,158,11,0.08)", border: `1px solid rgba(245,158,11,0.15)`, borderRadius: 8, padding: "10px 14px", textAlign: "center" }}>
-              <div style={{ fontSize: 22, fontWeight: 700, color: AMB }}>{report.total_heridos}</div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>Heridos</div>
-            </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 14 }}>
+            {[
+              { label: "Cierres", val: pd?.total_cierres ?? 0, bg: "rgba(239,68,68,0.08)", brd: "rgba(239,68,68,0.2)", clr: RED, icon: "🚫" },
+              { label: "Obras", val: pd?.total_obras ?? 0, bg: "rgba(245,158,11,0.08)", brd: "rgba(245,158,11,0.2)", clr: AMB, icon: "🚧" },
+              { label: "Accidentes", val: report.total_accidentes, bg: "rgba(239,68,68,0.05)", brd: "rgba(239,68,68,0.12)", clr: "#fca5a5", icon: "🚨" },
+              { label: "Fallecidos", val: report.total_muertos, bg: "rgba(239,68,68,0.12)", brd: "rgba(239,68,68,0.2)", clr: "#fca5a5", icon: "💀" },
+              { label: "Heridos", val: report.total_heridos, bg: "rgba(245,158,11,0.05)", brd: "rgba(245,158,11,0.12)", clr: AMB, icon: "🏥" },
+              { label: "Puntos críticos", val: pd?.puntos_criticos?.length ?? 0, bg: "rgba(0,212,255,0.05)", brd: "rgba(0,212,255,0.12)", clr: CYN, icon: "📍" },
+            ].map(({ label, val, bg, brd, clr, icon }) => (
+              <div key={label} style={{ background: bg, border: `1px solid ${brd}`, borderRadius: 8, padding: "10px 12px", textAlign: "center" }}>
+                <div style={{ fontSize: 20, fontWeight: 700, color: clr }}>{icon} {val}</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{label}</div>
+              </div>
+            ))}
           </div>
+          {pd?.condiciones_climaticas && pd.condiciones_climaticas !== "" && (
+            <div style={{ background: "rgba(56,189,248,0.07)", border: "1px solid rgba(56,189,248,0.15)", borderRadius: 8, padding: "10px 14px", marginBottom: 10, display: "flex", gap: 10, alignItems: "flex-start" }}>
+              <CloudRain size={14} color="#38bdf8" style={{ marginTop: 1, flexShrink: 0 }} />
+              <div><span style={{ fontSize: 11, fontWeight: 700, color: "#38bdf8", display: "block", marginBottom: 2 }}>Condiciones climáticas</span><span style={{ fontSize: 12, color: "#cbd5e1" }}>{pd.condiciones_climaticas}</span></div>
+            </div>
+          )}
+          {pd?.manifestaciones && pd.manifestaciones !== "" && (
+            <div style={{ background: "rgba(168,85,247,0.07)", border: "1px solid rgba(168,85,247,0.15)", borderRadius: 8, padding: "10px 14px", marginBottom: 10, display: "flex", gap: 10, alignItems: "flex-start" }}>
+              <Megaphone size={14} color="#a855f7" style={{ marginTop: 1, flexShrink: 0 }} />
+              <div><span style={{ fontSize: 11, fontWeight: 700, color: "#a855f7", display: "block", marginBottom: 2 }}>Manifestaciones / Paros</span><span style={{ fontSize: 12, color: "#cbd5e1" }}>{pd.manifestaciones}</span></div>
+            </div>
+          )}
 
           {pd?.departamentos_afectados?.length > 0 && (
             <div style={{ marginBottom: 12 }}>
@@ -115,17 +128,22 @@ function ReportCard({ report }: { report: DitraReport }) {
             <div style={{ marginBottom: 12 }}>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.07em" }}>Puntos críticos</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {pd.puntos_criticos.slice(0, 8).map((p: any, i: number) => (
+                {pd.puntos_criticos.slice(0, 10).map((p: any, i: number) => {
+                  const tipoColors: Record<string,string> = { accidente: RED, cierre: "#f97316", obra: AMB, derrumbe: "#92400e", manifestacion: "#a855f7", restriccion: "#38bdf8", condicion_climatica: "#38bdf8", otro: "#64748b" };
+                  const tipoEmoji: Record<string,string> = { accidente: "🚨", cierre: "🚫", obra: "🚧", derrumbe: "⛰️", manifestacion: "📢", restriccion: "⚠️", condicion_climatica: "🌧️", otro: "📍" };
+                  const clr = tipoColors[p.tipo_evento] ?? "#64748b";
+                  return (
                   <div key={i} style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${BRD}`, borderRadius: 6, padding: "8px 12px", display: "flex", gap: 10, alignItems: "flex-start" }}>
-                    <AlertTriangle size={12} color={p.tipo_evento === "accidente" ? RED : AMB} style={{ marginTop: 2, flexShrink: 0 }} />
-                    <div>
+                    <span style={{ fontSize: 13, flexShrink: 0, marginTop: 1 }}>{tipoEmoji[p.tipo_evento] ?? "📍"}</span>
+                    <div style={{ flex: 1 }}>
                       <span style={{ fontWeight: 600, fontSize: 12, color: "#e2e8f0" }}>{p.ubicacion}</span>
                       {p.via && <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11 }}> · {p.via}</span>}
                       {p.departamento && <span style={{ color: CYN, fontSize: 11 }}> · {p.departamento}</span>}
                       {p.descripcion && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{p.descripcion}</div>}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -150,6 +168,9 @@ export function DitraReports() {
   const totalAccidentes = reports.reduce((s, r) => s + (r.total_accidentes ?? 0), 0);
   const totalMuertos    = reports.reduce((s, r) => s + (r.total_muertos ?? 0), 0);
   const totalHeridos    = reports.reduce((s, r) => s + (r.total_heridos ?? 0), 0);
+  const totalCierres    = reports.reduce((s, r) => s + ((r.parsed_data as any)?.total_cierres ?? 0), 0);
+  const totalObras      = reports.reduce((s, r) => s + ((r.parsed_data as any)?.total_obras ?? 0), 0);
+  const totalPuntos     = reports.reduce((s, r) => s + (((r.parsed_data as any)?.puntos_criticos?.length) ?? 0), 0);
 
   async function triggerScan() {
     setScanning(true);
@@ -211,9 +232,10 @@ export function DitraReports() {
       {reports.length > 0 && (
         <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
           <KPI label="Reportes" value={reports.length} color={CYN} icon={FileText} />
-          <KPI label="Accidentes (total)" value={totalAccidentes} color={RED} icon={AlertTriangle} />
-          <KPI label="Fallecidos (total)" value={totalMuertos} color="#fca5a5" icon={Users} />
-          <KPI label="Heridos (total)" value={totalHeridos} color={AMB} icon={Activity} />
+          <KPI label="Cierres viales" value={totalCierres} color={RED} icon={AlertTriangle} />
+          <KPI label="Obras en vía" value={totalObras} color={AMB} icon={Construction} />
+          <KPI label="Puntos críticos" value={totalPuntos} color="#a78bfa" icon={Activity} />
+          <KPI label="Accidentes" value={totalAccidentes} color="#fca5a5" icon={AlertTriangle} />
         </div>
       )}
 

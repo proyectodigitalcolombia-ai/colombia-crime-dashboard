@@ -62,41 +62,48 @@ const state: MonitorState = {
 
 /* ── Parsear PDF a texto ────────────────────────────────────────────────── */
 async function pdfToText(buffer: Buffer): Promise<string> {
-  const pdfParse = (await import("pdf-parse")).default;
+  const mod = await import("pdf-parse");
+  const pdfParse: any = mod.default ?? mod;
   const data = await pdfParse(buffer);
   return data.text ?? "";
 }
 
 /* ── Extraer datos estructurados del DITRA con IA ──────────────────────── */
 async function extractDitraData(pdfText: string, subject: string): Promise<Record<string, any>> {
-  const prompt = `Eres un analista de seguridad vial de Colombia. Analiza este reporte DITRA/RISTRA del INVIAS y extrae la información estructurada.
+  const prompt = `Eres un analista de seguridad vial de Colombia. Analiza este reporte DITRA/RISTRA/INVIAS y extrae toda la información relevante de movilidad y seguridad vial.
+
+IMPORTANTE: Estos reportes pueden contener principalmente obras viales, cierres programados, manifestaciones, condiciones climáticas, restricciones de tránsito o accidentes. Extrae TODO lo que encuentres, no solo accidentes.
 
 Asunto del correo: ${subject}
 
 Texto del PDF:
 ${pdfText.slice(0, 8000)}
 
-Extrae y responde SOLO con un JSON con estos campos (deja vacío "" o 0 si no encuentras el dato):
+Responde SOLO con un JSON válido (sin texto adicional):
 {
-  "fecha_reporte": "fecha del reporte en formato YYYY-MM-DD",
-  "periodo": "descripción del período que cubre (ej: Semana 15 del 7 al 13 de abril de 2025)",
-  "tipo_reporte": "DITRA o RISTRA u otro",
-  "total_accidentes": número total de accidentes registrados,
-  "total_muertos": número total de muertos,
-  "total_heridos": número total de heridos,
-  "departamentos_afectados": ["lista", "de", "departamentos"],
-  "vias_afectadas": ["lista de vías principales mencionadas"],
+  "fecha_reporte": "fecha en formato YYYY-MM-DD o '' si no se encuentra",
+  "periodo": "período que cubre el reporte",
+  "tipo_reporte": "DITRA | RISTRA | INVIAS | Estado de Vías | otro",
+  "total_accidentes": 0,
+  "total_muertos": 0,
+  "total_heridos": 0,
+  "total_cierres": número de cierres o restricciones viales,
+  "total_obras": número de obras o trabajos en vía,
+  "departamentos_afectados": ["lista de departamentos mencionados"],
+  "vias_afectadas": ["lista de vías principales: ej. Troncal del Magdalena, Ruta 45"],
   "puntos_criticos": [
     {
-      "ubicacion": "nombre del lugar",
+      "ubicacion": "nombre del punto o municipio",
       "departamento": "departamento",
-      "via": "nombre de la vía",
-      "tipo_evento": "accidente|derrumbe|cierre|otro",
-      "descripcion": "breve descripción"
+      "via": "nombre de la vía o ruta",
+      "tipo_evento": "accidente | cierre | obra | derrumbe | manifestacion | restriccion | condicion_climatica | otro",
+      "descripcion": "descripción breve del evento o novedad"
     }
   ],
-  "resumen_ejecutivo": "resumen en 2-3 oraciones de lo más relevante del reporte",
-  "fuente": "entidad que generó el reporte"
+  "condiciones_climaticas": "descripción de alertas o condiciones de lluvia/neblina/deslizamientos si aplica",
+  "manifestaciones": "descripción de manifestaciones o paros si aplica",
+  "resumen_ejecutivo": "resumen ejecutivo de 2-3 oraciones con las principales novedades del reporte",
+  "fuente": "entidad o área que generó el reporte"
 }`;
 
   try {
