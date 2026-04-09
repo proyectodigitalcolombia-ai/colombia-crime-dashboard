@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, blockadeTable } from "@workspace/db";
-import { eq, desc, lt, and, ne, isNull, or } from "drizzle-orm";
+import { eq, desc, lt, gt, and, ne, isNull, or } from "drizzle-orm";
 import Anthropic from "@anthropic-ai/sdk";
 import Groq from "groq-sdk";
 import { parse as parseHtml } from "node-html-parser";
@@ -88,48 +88,122 @@ function validateBody(body: any): { data: any; error?: string } {
   return { data: body };
 }
 
+/* ─── TTL por fuente ──────────────────────────────────────────────────────────
+   news_rss    → 12 horas  (noticias del día, se resuelven rápido)
+   news_import → 24 horas  (importación manual de URL)
+   manual      → 7 días    (operador los creó, se resuelven manualmente)
+   ──────────────────────────────────────────────────────────────────────────── */
+const TTL_MS: Record<string, number> = {
+  news_rss:    12 * 60 * 60 * 1000,
+  news_import: 24 * 60 * 60 * 1000,
+  manual:       7 * 24 * 60 * 60 * 1000,
+};
+
 /* ─── Auto-expiry background job ─────────────────────────────────────────────
-   Every hour: mark blockades whose expires_at has passed as 'levantado'
-   Only affects auto-generated records (source != 'manual'). Manual blockades
-   are permanent until an operator changes the status.
+   Corre cada hora. Marca como 'levantado' los bloqueos que:
+   1. Tienen expiresAt pasado (lógica original)
+   2. Son RSS/import más viejos que su TTL (incluso si expiresAt es null)
+   3. Son manuales con más de 7 días sin actualización
    ──────────────────────────────────────────────────────────────────────────── */
 export async function runBlockadeExpiry(): Promise<number> {
   const now = new Date();
-  const result = await db
-    .update(blockadeTable)
+  let total = 0;
+
+  // 1. expiresAt explícito ya pasó (non-manual)
+  const r1 = await db.update(blockadeTable)
     .set({ status: "levantado", updatedAt: now })
-    .where(
-      and(
-        lt(blockadeTable.expiresAt, now),
-        ne(blockadeTable.status, "levantado"),
-        ne(blockadeTable.source, "manual"),
-      )
-    )
+    .where(and(
+      lt(blockadeTable.expiresAt, now),
+      ne(blockadeTable.status, "levantado"),
+      ne(blockadeTable.source, "manual"),
+    ))
+    .returning({ id: blockadeTable.id });
+  total += r1.length;
+
+  // 2. news_rss sin expirar aún pero más viejos que 12h
+  const rssAge = new Date(now.getTime() - TTL_MS.news_rss);
+  const r2 = await db.update(blockadeTable)
+    .set({ status: "levantado", updatedAt: now })
+    .where(and(
+      eq(blockadeTable.source, "news_rss"),
+      ne(blockadeTable.status, "levantado"),
+      lt(blockadeTable.createdAt, rssAge),
+    ))
+    .returning({ id: blockadeTable.id });
+  total += r2.length;
+
+  // 3. news_import más viejos que 24h
+  const importAge = new Date(now.getTime() - TTL_MS.news_import);
+  const r3 = await db.update(blockadeTable)
+    .set({ status: "levantado", updatedAt: now })
+    .where(and(
+      eq(blockadeTable.source, "news_import"),
+      ne(blockadeTable.status, "levantado"),
+      lt(blockadeTable.createdAt, importAge),
+    ))
+    .returning({ id: blockadeTable.id });
+  total += r3.length;
+
+  // 4. manual más viejos que 7 días (limpieza automática)
+  const manualAge = new Date(now.getTime() - TTL_MS.manual);
+  const r4 = await db.update(blockadeTable)
+    .set({ status: "levantado", updatedAt: now })
+    .where(and(
+      eq(blockadeTable.source, "manual"),
+      ne(blockadeTable.status, "levantado"),
+      lt(blockadeTable.createdAt, manualAge),
+    ))
+    .returning({ id: blockadeTable.id });
+  total += r4.length;
+
+  return total;
+}
+
+/* Elimina registros ya 'levantado' con más de 30 días para no acumular basura */
+async function runBlockadeCleanup(): Promise<number> {
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const result = await db.delete(blockadeTable)
+    .where(and(
+      eq(blockadeTable.status, "levantado"),
+      lt(blockadeTable.createdAt, cutoff),
+    ))
     .returning({ id: blockadeTable.id });
   return result.length;
 }
 
 export function startBlockadeAutoExpiry(): void {
-  const CHECK_MS = 60 * 60 * 1000; // every 1 hour
-  setTimeout(async () => {
+  const CHECK_MS = 60 * 60 * 1000; // cada hora
+
+  const tick = async () => {
     const expired = await runBlockadeExpiry().catch(() => 0);
-    if (expired > 0) console.log(`[AutoExpiry] ${expired} bloqueo(s) expirado(s) → marcados 'levantado'`);
-    else console.log("[AutoExpiry] Sin bloqueos expirados.");
-    setInterval(async () => {
-      const n = await runBlockadeExpiry().catch(() => 0);
-      if (n > 0) console.log(`[AutoExpiry] ${n} bloqueo(s) expirado(s) → 'levantado'`);
-    }, CHECK_MS);
-  }, 5 * 60 * 1000); // first check after 5 min
-  console.log("[AutoExpiry] Expiración automática de bloqueos activada (revisión cada 1h, inicia en 5 min).");
+    const deleted = await runBlockadeCleanup().catch(() => 0);
+    if (expired > 0) console.log(`[AutoExpiry] ${expired} bloqueo(s) → 'levantado'`);
+    if (deleted > 0) console.log(`[AutoExpiry] ${deleted} registro(s) antiguos eliminados`);
+  };
+
+  // Primera ejecución al arrancar (sin delay, limpia de inmediato)
+  tick();
+  setInterval(tick, CHECK_MS);
+  console.log("[AutoExpiry] Expiración automática activada — TTL: RSS=12h, Import=24h, Manual=7d.");
 }
 
-/* GET /api/blockades?corridorId=bog-med */
+/* GET /api/blockades?corridorId=bog-med
+   Solo devuelve bloqueos ACTIVOS (no 'levantado') de los últimos 7 días.
+   Esto evita que el mapa muestre incidentes ya extintos. */
 router.get("/blockades", async (req, res) => {
   try {
     const { corridorId } = req.query as { corridorId?: string };
-    const rows = corridorId
-      ? await db.select().from(blockadeTable).where(eq(blockadeTable.corridorId, corridorId)).orderBy(desc(blockadeTable.createdAt))
-      : await db.select().from(blockadeTable).orderBy(desc(blockadeTable.createdAt));
+    const maxAge = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const base = and(
+      ne(blockadeTable.status, "levantado"),
+      gt(blockadeTable.createdAt, maxAge), // createdAt > 7 días atrás
+    );
+    const filter = corridorId
+      ? and(base, eq(blockadeTable.corridorId, corridorId))
+      : base;
+    const rows = await db.select().from(blockadeTable)
+      .where(filter)
+      .orderBy(desc(blockadeTable.createdAt));
     res.json(rows);
   } catch (err) {
     console.error("GET /api/blockades error:", err);
