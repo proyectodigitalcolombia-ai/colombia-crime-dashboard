@@ -560,6 +560,49 @@ router.get("/ditra-reports", async (_req, res) => {
   }
 });
 
+/* GET /api/ditra-reports/:id/raw — texto crudo del PDF para diagnóstico */
+router.get("/ditra-reports/:id/raw", async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      "SELECT id, email_subject, pdf_filename, length(raw_text) as raw_len, raw_text FROM ditra_reports WHERE id = $1",
+      [req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: "Reporte no encontrado" });
+    res.json({
+      id: rows[0].id,
+      email_subject: rows[0].email_subject,
+      pdf_filename: rows[0].pdf_filename,
+      raw_text_length: rows[0].raw_len,
+      raw_text_preview: (rows[0].raw_text ?? "").slice(0, 1000),
+      raw_text_full: rows[0].raw_text,
+    });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+/* GET /api/ditra-monitor/check-pdf — verifica disponibilidad de pdftotext */
+router.get("/ditra-monitor/check-pdf", (_req, res) => {
+  const results: Record<string, any> = {};
+  // Verificar pdftotext
+  try {
+    const out = execSync("pdftotext -v 2>&1", { timeout: 3000 }).toString();
+    results.pdftotext = { available: true, version: out.slice(0, 100) };
+  } catch (e: any) {
+    results.pdftotext = { available: false, error: e.message?.slice(0, 100) };
+  }
+  // Verificar pdfjs-dist
+  try {
+    require.resolve("pdfjs-dist");
+    results.pdfjs_dist = { available: true };
+  } catch {
+    results.pdfjs_dist = { available: false };
+  }
+  results.anthropic_configured = !!_anthropic;
+  results.groq_configured = !!_groq;
+  res.json(results);
+});
+
 /* GET /api/ditra-reports/:id — reporte completo con datos IA */
 router.get("/ditra-reports/:id", async (req, res) => {
   try {
