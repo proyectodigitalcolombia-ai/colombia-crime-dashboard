@@ -11,6 +11,7 @@ import {
   useGetBlockades,
   useGetCrimesByDepartment,
   useGetTelegramAlerts,
+  useGetDitraReports,
   type TelegramAlert,
 } from "@workspace/api-client-react";
 import {
@@ -1101,6 +1102,7 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
   const [activeLayer, setActiveLayer] = useState<LayerKey>("grupos");
   const [showTelegramAlerts, setShowTelegramAlerts] = useState(true);
   const [showBlockades,  setShowBlockades]  = useState(true);
+  const [showDitra,      setShowDitra]      = useState(true);
   const [showPeajes,     setShowPeajes]     = useState(false);
   const [showPolicia,    setShowPolicia]    = useState(false);
   const [showHospitales, setShowHospitales] = useState(false);
@@ -1204,7 +1206,23 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
 
   const { data: blockades = [] } = useGetBlockades(undefined, { query: { refetchInterval: 60000 } });
   const { data: telegramAlerts = [] } = useGetTelegramAlerts({ query: { refetchInterval: 60000 } });
+  const { data: ditraReports = [] } = useGetDitraReports({ query: { refetchInterval: 15 * 60 * 1000 } });
   const telegramWithCoords = (telegramAlerts as TelegramAlert[]).filter(a => a.lat != null && a.lng != null);
+
+  // Centroides aproximados por departamento para mostrar puntos DITRA en el mapa
+  const DEPT_CENTROIDS: Record<string, [number, number]> = {
+    "Antioquia": [6.700, -75.530], "Atlántico": [10.680, -74.980], "Bogotá": [4.711, -74.072],
+    "Bolívar": [8.670, -74.035], "Boyacá": [5.454, -73.363], "Caldas": [5.298, -75.248],
+    "Caquetá": [1.350, -75.640], "Cauca": [2.535, -76.540], "Cesar": [9.300, -73.620],
+    "Chocó": [5.694, -76.658], "Córdoba": [8.347, -75.885], "Cundinamarca": [4.600, -74.100],
+    "Huila": [2.535, -75.528], "La Guajira": [11.350, -72.525], "Magdalena": [10.470, -74.400],
+    "Meta": [3.999, -73.634], "Nariño": [1.285, -77.357], "Norte de Santander": [7.946, -72.898],
+    "Putumayo": [0.437, -76.637], "Quindío": [4.534, -75.674], "Risaralda": [5.315, -75.996],
+    "Santander": [6.644, -73.653], "Sucre": [9.304, -75.397], "Tolima": [4.093, -75.153],
+    "Valle del Cauca": [3.810, -76.514], "Vichada": [4.423, -70.374], "Arauca": [7.090, -70.761],
+    "Casanare": [5.336, -72.394], "Guainía": [3.865, -67.920], "Guaviare": [2.040, -72.330],
+    "Vaupés": [0.855, -70.813], "Amazonas": [-1.443, -71.573],
+  };
   const { data: crimesByDept = [] } = useGetCrimesByDepartment({});
 
   const crimeTotals = crimesByDept.reduce((acc: Record<string,number>, d: any) => {
@@ -1261,6 +1279,7 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
   const OVERLAYS = [
     { key:"telegram",   label:"Alertas Telegram @notiabel", icon:AlertTriangle, color:"#f97316", active:showTelegramAlerts, toggle:()=>setShowTelegramAlerts(p=>!p), count:telegramWithCoords.length },
     { key:"bloqueos",   label:"Bloqueos activos",        icon:MapPin,     color:"#ef4444", active:showBlockades,  toggle:()=>setShowBlockades(p=>!p),  count:blockades.filter((b:any)=>b.lat&&b.lng).length },
+    { key:"ditra",      label:"Reportes DITRA / RISTRA", icon:AlertTriangle, color:"#00d4ff", active:showDitra,  toggle:()=>setShowDitra(p=>!p),      count:(ditraReports as any[]).reduce((s,r)=>s+((r.parsed_data as any)?.puntos_criticos?.length ?? 0),0) },
     { key:"peajes",     label:"Peajes",                  icon:Car,        color:"#f59e0b", active:showPeajes,     toggle:()=>setShowPeajes(p=>!p),      count:PEAJES.length },
     { key:"policia",    label:"Policía de Carreteras",   icon:Shield,     color:"#3b82f6", active:showPolicia,    toggle:()=>setShowPolicia(p=>!p),     count:POLICIA_CARRETERAS.length },
     { key:"hospitales", label:"Hospitales de Referencia",icon:Hospital,   color:"#10b981", active:showHospitales, toggle:()=>setShowHospitales(p=>!p), count:HOSPITALES.length },
@@ -1389,6 +1408,45 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
               </Popup>
             </CircleMarker>
           );
+        })}
+
+        {/* ── Puntos críticos DITRA / RISTRA ── */}
+        {showDitra && (ditraReports as any[]).flatMap((report: any) => {
+          const pd = report.parsed_data as any;
+          const pts: any[] = pd?.puntos_criticos ?? [];
+          return pts.map((p: any, i: number) => {
+            const coords = DEPT_CENTROIDS[p.departamento] ?? DEPT_CENTROIDS[matchDept(p.departamento ?? "")];
+            if (!coords) return null;
+            // Pequeño offset para separar múltiples puntos del mismo dept
+            const lat = coords[0] + (i % 5) * 0.08 - 0.16;
+            const lng = coords[1] + Math.floor(i / 5) * 0.1 - 0.2;
+            const tipoColors: Record<string,string> = { accidente:"#ef4444", cierre:"#f97316", obra:"#f59e0b", derrumbe:"#92400e", manifestacion:"#a855f7", restriccion:"#38bdf8", condicion_climatica:"#38bdf8", otro:"#00d4ff" };
+            const tipoEmoji: Record<string,string> = { accidente:"🚨", cierre:"🚫", obra:"🚧", derrumbe:"⛰️", manifestacion:"📢", restriccion:"⚠️", condicion_climatica:"🌧️", otro:"📍" };
+            const c = tipoColors[p.tipo_evento] ?? "#00d4ff";
+            const fechaHora = report.created_at ? new Date(report.created_at).toLocaleString("es-CO", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit", hour12:false }) : "—";
+            return (
+              <CircleMarker key={`ditra-${report.id}-${i}`} center={[lat, lng]} radius={7}
+                pathOptions={{ color: c, fillColor: c, fillOpacity: 0.85, weight: 2 }}>
+                <Popup className="dark-popup">
+                  <div style={{ fontFamily:"sans-serif", fontSize:13, color:"#e2e8f0", minWidth:220 }}>
+                    <div style={{ fontWeight:700, color:"#00d4ff", marginBottom:4, fontSize:12, textTransform:"uppercase", letterSpacing:"0.05em" }}>
+                      📋 DITRA / RISTRA
+                    </div>
+                    <div style={{ fontWeight:700, color:c, marginBottom:6, fontSize:14 }}>
+                      {tipoEmoji[p.tipo_evento] ?? "📍"} {p.tipo_evento?.charAt(0).toUpperCase() + p.tipo_evento?.slice(1).replace(/_/g," ")}
+                    </div>
+                    <div style={{ marginBottom:3 }}><span style={{ color:"#94a3b8" }}>📍 </span><b>{p.ubicacion}</b></div>
+                    {p.via && <div style={{ marginBottom:3 }}><span style={{ color:"#94a3b8" }}>🛣️ </span>{p.via}</div>}
+                    {p.departamento && <div style={{ marginBottom:3 }}><span style={{ color:"#94a3b8" }}>Dept: </span><span style={{ color:"#00d4ff" }}>{p.departamento}</span></div>}
+                    {p.descripcion && <div style={{ fontSize:12, color:"#94a3b8", marginBottom:6, lineHeight:1.5 }}>{p.descripcion}</div>}
+                    <div style={{ borderTop:"1px solid rgba(255,255,255,0.07)", paddingTop:6, fontSize:11, color:"#475569" }}>
+                      🕐 {fechaHora}
+                    </div>
+                  </div>
+                </Popup>
+              </CircleMarker>
+            );
+          }).filter(Boolean);
         })}
 
         <FlyController target={flyTarget} />
