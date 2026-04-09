@@ -78,6 +78,12 @@ function ReportCard({ report }: { report: DitraReport }) {
       {/* Detalle expandido */}
       {open && (
         <div style={{ borderTop: `1px solid ${BRD}`, padding: "16px 18px" }}>
+          {pd?.pdf_legible === false && (
+            <div style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 8, padding: "8px 12px", marginBottom: 10, fontSize: 12, color: "#fcd34d", display: "flex", gap: 8, alignItems: "center" }}>
+              <span>⚠️</span>
+              <span>El PDF adjunto es un archivo de imagen (escaneado) y no contiene texto extraíble. La IA analizó el asunto y el cuerpo del correo.</span>
+            </div>
+          )}
           {report.resumen_ejecutivo && (
             <div style={{ background: "rgba(0,212,255,0.06)", border: `1px solid rgba(0,212,255,0.12)`, borderRadius: 8, padding: "12px 14px", marginBottom: 14 }}>
               <div style={{ fontSize: 11, color: CYN, fontWeight: 700, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.07em" }}>Resumen ejecutivo</div>

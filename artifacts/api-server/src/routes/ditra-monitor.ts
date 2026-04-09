@@ -69,28 +69,48 @@ async function pdfToText(buffer: Buffer): Promise<string> {
 }
 
 /* ── Extraer datos estructurados del DITRA con IA ──────────────────────── */
-async function extractDitraData(pdfText: string, subject: string): Promise<Record<string, any>> {
-  const prompt = `Eres un analista de seguridad vial de Colombia. Analiza este reporte DITRA/RISTRA/INVIAS y extrae toda la información relevante de movilidad y seguridad vial.
+async function extractDitraData(
+  pdfText: string,
+  subject: string,
+  emailBodyText: string = "",
+): Promise<Record<string, any>> {
 
-IMPORTANTE: Estos reportes pueden contener principalmente obras viales, cierres programados, manifestaciones, condiciones climáticas, restricciones de tránsito o accidentes. Extrae TODO lo que encuentres, no solo accidentes.
+  // Construir el contenido a analizar: PDF + cuerpo del correo como fuentes
+  const pdfAvailable = pdfText.trim().length > 50 &&
+    !pdfText.includes("No se pudo leer el texto del PDF");
+
+  const contenidoPDF = pdfAvailable
+    ? `Texto extraído del PDF:\n${pdfText.slice(0, 6000)}`
+    : "(El PDF no pudo extraerse como texto — es posible que sea un archivo escaneado o de imagen)";
+
+  const contenidoBody = emailBodyText.trim().length > 30
+    ? `\n\nCuerpo del correo electrónico:\n${emailBodyText.slice(0, 4000)}`
+    : "";
+
+  const prompt = `Eres un analista de seguridad vial de Colombia. Analiza la siguiente información de un correo DITRA/RISTRA/INVIAS (Estado de Vías) y extrae toda la información relevante de movilidad y seguridad vial.
+
+IMPORTANTE:
+- Extrae TODO lo que encuentres: obras, cierres, manifestaciones, condiciones climáticas, accidentes, restricciones. No solo accidentes.
+- Si el PDF no tiene texto, usa el cuerpo del correo y el asunto como fuente.
+- El asunto puede indicar el tipo de reporte: "MANIFESTACIONES Y CONDICION CLIMATICA", "ESTADO DE VIAS", etc.
+- Si el asunto tiene una fecha (ej. "09-04-2026"), úsala como fecha_reporte.
 
 Asunto del correo: ${subject}
 
-Texto del PDF:
-${pdfText.slice(0, 8000)}
+${contenidoPDF}${contenidoBody}
 
-Responde SOLO con un JSON válido (sin texto adicional):
+Responde SOLO con un JSON válido (sin texto adicional, sin markdown):
 {
-  "fecha_reporte": "fecha en formato YYYY-MM-DD o '' si no se encuentra",
-  "periodo": "período que cubre el reporte",
-  "tipo_reporte": "DITRA | RISTRA | INVIAS | Estado de Vías | otro",
+  "fecha_reporte": "fecha en formato YYYY-MM-DD o vacío si no se encuentra",
+  "periodo": "período que cubre el reporte o descripción del tipo",
+  "tipo_reporte": "DITRA | RISTRA | INVIAS | Estado de Vías | Manifestaciones | Condición Climática | otro",
   "total_accidentes": 0,
   "total_muertos": 0,
   "total_heridos": 0,
-  "total_cierres": número de cierres o restricciones viales,
-  "total_obras": número de obras o trabajos en vía,
-  "departamentos_afectados": ["lista de departamentos mencionados"],
-  "vias_afectadas": ["lista de vías principales: ej. Troncal del Magdalena, Ruta 45"],
+  "total_cierres": 0,
+  "total_obras": 0,
+  "departamentos_afectados": [],
+  "vias_afectadas": [],
   "puntos_criticos": [
     {
       "ubicacion": "nombre del punto o municipio",
@@ -100,10 +120,11 @@ Responde SOLO con un JSON válido (sin texto adicional):
       "descripcion": "descripción breve del evento o novedad"
     }
   ],
-  "condiciones_climaticas": "descripción de alertas o condiciones de lluvia/neblina/deslizamientos si aplica",
-  "manifestaciones": "descripción de manifestaciones o paros si aplica",
-  "resumen_ejecutivo": "resumen ejecutivo de 2-3 oraciones con las principales novedades del reporte",
-  "fuente": "entidad o área que generó el reporte"
+  "condiciones_climaticas": "descripción de alertas o condiciones climáticas si aplica, o vacío",
+  "manifestaciones": "descripción de manifestaciones o paros si aplica, o vacío",
+  "resumen_ejecutivo": "resumen ejecutivo de 2-3 oraciones. Si no hay datos en PDF, indicar que es un reporte de tipo [tipo] recibido el [fecha del asunto]",
+  "fuente": "entidad o área que generó el reporte",
+  "pdf_legible": ${pdfAvailable}
 }`;
 
   try {
@@ -113,11 +134,15 @@ Responde SOLO con un JSON válido (sin texto adicional):
   } catch (e) {
     console.warn("[DitraMonitor] Error parseando respuesta IA:", e);
   }
-  return { resumen_ejecutivo: pdfText.slice(0, 500), raw_extraction_failed: true };
+  return {
+    resumen_ejecutivo: emailBodyText.slice(0, 300) || pdfText.slice(0, 300) || "Reporte recibido sin contenido legible.",
+    raw_extraction_failed: true,
+    pdf_legible: false,
+  };
 }
 
 /* ── Escaneo IMAP ───────────────────────────────────────────────────────── */
-async function scanInbox(): Promise<number> {
+async function scanInbox(searchAll = false): Promise<number> {
   const email    = process.env.DITRA_EMAIL;
   const password = process.env.DITRA_APP_PASSWORD;
 
@@ -143,13 +168,16 @@ async function scanInbox(): Promise<number> {
   try {
     await connection.openBox("INBOX");
 
-    // Busca correos no leídos de los últimos 30 días
+    // Busca correos (no leídos en modo normal, todos en modo rescan) de los últimos 30 días
     const since = new Date();
-    since.setDate(since.getDate() - 30);
+    since.setDate(since.getDate() - (searchAll ? 30 : 30));
     const sinceStr = since.toISOString().split("T")[0];
 
-    const searchCriteria = ["UNSEEN", ["SINCE", sinceStr]];
+    const searchCriteria = searchAll
+      ? [["SINCE", sinceStr]]
+      : ["UNSEEN", ["SINCE", sinceStr]];
     const fetchOptions   = { bodies: ["HEADER", ""], markSeen: false };
+    console.log(`[DitraMonitor] Modo: ${searchAll ? "ALL (rescan)" : "UNSEEN"} desde ${sinceStr}`);
 
     const messages = await connection.search(searchCriteria, fetchOptions);
     state.totalScanned += messages.length;
@@ -167,18 +195,48 @@ async function scanInbox(): Promise<number> {
         const from    = parsed.from?.text ?? "";
         const date    = parsed.date ?? new Date();
 
-        // Filtra solo correos con PDF adjunto
-        const pdfAttachments = (parsed.attachments ?? []).filter(
-          (a: any) => a.contentType === "application/pdf" ||
-                      (a.filename ?? "").toLowerCase().endsWith(".pdf")
-        );
+        // Capturar cuerpo del correo (texto plano o HTML limpio) como respaldo al PDF
+        const emailBodyText = parsed.text?.trim() ??
+          parsed.html?.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() ?? "";
+
+        // Buscar PDFs también en adjuntos de correos reenviados (message/rfc822)
+        const allAttachments = parsed.attachments ?? [];
+        const nestedPdfs: any[] = [];
+        for (const a of allAttachments) {
+          if (a.contentType === "message/rfc822" && a.content) {
+            try {
+              const innerParsed = await simpleParser(
+                Buffer.isBuffer(a.content) ? Readable.from(a.content) : Readable.from(Buffer.from(a.content as string))
+              );
+              const innerPdfs = (innerParsed.attachments ?? []).filter(
+                (ia: any) => ia.contentType === "application/pdf" ||
+                              (ia.filename ?? "").toLowerCase().endsWith(".pdf")
+              );
+              nestedPdfs.push(...innerPdfs);
+              if (!emailBodyText && (innerParsed.text || innerParsed.html)) {
+                const innerBody = innerParsed.text?.trim() ??
+                  innerParsed.html?.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() ?? "";
+                if (innerBody) (parsed as any)._innerBody = innerBody;
+              }
+            } catch { /* nested parse failed */ }
+          }
+        }
+
+        // Filtra solo correos con PDF adjunto (directo o dentro de reenvío)
+        const pdfAttachments = [
+          ...allAttachments.filter(
+            (a: any) => a.contentType === "application/pdf" ||
+                        (a.filename ?? "").toLowerCase().endsWith(".pdf")
+          ),
+          ...nestedPdfs,
+        ];
 
         if (pdfAttachments.length === 0) {
           console.log(`[DitraMonitor] Correo sin PDF (${subject}) — ignorado`);
           continue;
         }
 
-        console.log(`[DitraMonitor] Procesando: "${subject}" — ${pdfAttachments.length} PDF(s)`);
+        console.log(`[DitraMonitor] Procesando: "${subject}" — ${pdfAttachments.length} PDF(s), body: ${emailBodyText.length} chars`);
 
         for (const att of pdfAttachments) {
           const pdfBuffer = att.content as Buffer;
@@ -186,37 +244,53 @@ async function scanInbox(): Promise<number> {
 
           // Verificar si ya procesamos este archivo (por nombre + fecha)
           const existing = await pool.query(
-            "SELECT id, raw_text FROM ditra_reports WHERE email_subject = $1 AND pdf_filename = $2 AND email_date::date = $3::date",
+            "SELECT id, raw_text, parsed_data FROM ditra_reports WHERE email_subject = $1 AND pdf_filename = $2 AND email_date::date = $3::date",
             [subject, filename, date.toISOString()]
           );
           const existingRow = existing.rows[0];
           if (existingRow) {
-            const badPdf = !existingRow.raw_text || existingRow.raw_text.includes("No se pudo leer");
-            if (!badPdf) {
+            // Considerar "malo" si: sin texto, error de PDF, o el resumen dice que no hay información
+            const rawBad = !existingRow.raw_text || existingRow.raw_text.includes("No se pudo leer");
+            let parsedBad = false;
+            try {
+              const pd = typeof existingRow.parsed_data === "string"
+                ? JSON.parse(existingRow.parsed_data) : existingRow.parsed_data;
+              parsedBad = !!(pd?.raw_extraction_failed || pd?.pdf_legible === false);
+            } catch {}
+            if (!rawBad && !parsedBad) {
               console.log(`[DitraMonitor] Ya procesado: ${filename} — omitido`);
               continue;
             }
-            // Si el PDF falló antes, eliminamos el registro para reprocesar
-            console.log(`[DitraMonitor] Reprocesando ${filename} (PDF anterior falló)`);
+            // Reintentar: eliminar registro fallido
+            console.log(`[DitraMonitor] Reprocesando ${filename} (registro anterior incompleto)`);
             await pool.query("DELETE FROM ditra_reports WHERE id = $1", [existingRow.id]);
           }
 
           // Extraer texto del PDF
           let pdfText = "";
           try {
+            if (!Buffer.isBuffer(pdfBuffer) || pdfBuffer.length < 10) throw new Error("Buffer inválido o vacío");
             pdfText = await pdfToText(pdfBuffer);
+            console.log(`[DitraMonitor] PDF "${filename}": ${pdfBuffer.length} bytes → ${pdfText.length} chars texto`);
           } catch (e) {
-            console.warn(`[DitraMonitor] Error leyendo PDF ${filename}:`, e);
-            pdfText = "(No se pudo leer el texto del PDF)";
+            console.warn(`[DitraMonitor] Error leyendo PDF ${filename} (${(pdfBuffer as any)?.length ?? 0} bytes):`, (e as Error).message);
+            pdfText = "";
           }
+
+          // Fuente de texto para IA: PDF + cuerpo del email
+          const bodyFallback = emailBodyText || (parsed as any)._innerBody || "";
 
           // Extraer datos estructurados con IA
           let parsedData: Record<string, any> = {};
           try {
-            parsedData = await extractDitraData(pdfText, subject);
+            parsedData = await extractDitraData(pdfText, subject, bodyFallback);
           } catch (e) {
             console.warn(`[DitraMonitor] Error IA para ${filename}:`, e);
-            parsedData = { error: "No se pudo procesar con IA", raw_text_preview: pdfText.slice(0, 500) };
+            parsedData = {
+              resumen_ejecutivo: `Reporte recibido: ${subject}. PDF de ${(pdfBuffer as any)?.length ?? 0} bytes (no legible como texto).`,
+              pdf_legible: false,
+              raw_extraction_failed: true,
+            };
           }
 
           // Guardar en BD
@@ -350,17 +424,17 @@ router.get("/ditra-monitor/status", (_req, res) => {
   });
 });
 
-/* POST /api/ditra-monitor/scan — escaneo manual */
+/* POST /api/ditra-monitor/scan — escaneo manual (busca TODOS los correos, no solo no leídos) */
 router.post("/ditra-monitor/scan", async (_req, res) => {
   if (state.running) return res.json({ message: "Escaneo ya en progreso", running: true });
-  res.json({ message: "Escaneo iniciado", nextRun: state.nextRun });
-  // ejecutar en background
+  res.json({ message: "Escaneo iniciado (modo rescan: todos los correos de los últimos 30 días)", nextRun: state.nextRun });
+  // ejecutar en background con searchAll=true para reprocesar PDFs fallidos
   (async () => {
     state.running = true;
     state.lastRun = new Date();
     try {
-      const n = await scanInbox();
-      console.log(`[DitraMonitor] Escaneo manual: ${n} reporte(s)`);
+      const n = await scanInbox(true);
+      console.log(`[DitraMonitor] Escaneo manual completo: ${n} reporte(s) nuevos o reprocesados`);
     } catch (err: any) {
       console.error("[DitraMonitor] Error escaneo manual:", err?.message);
       state.errors = [err?.message, ...state.errors.slice(0, 4)];
