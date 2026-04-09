@@ -8,7 +8,8 @@ import { pool } from "@workspace/db";
 import { execSync } from "child_process";
 import { writeFileSync, readFileSync, unlinkSync } from "fs";
 import { tmpdir } from "os";
-import { join } from "path";
+import { join, resolve } from "path";
+import { createRequire } from "module";
 
 const router: IRouter = Router();
 
@@ -84,33 +85,32 @@ async function pdfToText(buffer: Buffer): Promise<string> {
     try { unlinkSync(tmpTxt); } catch {}
   }
 
-  // Intento 2: pdfjs-dist — soporta AcroForms y PDFs con capas de texto
+  // Intento 2: pdfjs-dist legacy — worker configurado explícitamente para Node.js
   try {
-    const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs").catch(
-      () => import("pdfjs-dist")
-    ) as any;
-    const lib = pdfjsLib.default ?? pdfjsLib;
-    if (lib.GlobalWorkerOptions) lib.GlobalWorkerOptions.workerSrc = "";
+    const pdfjsMod = await import("pdfjs-dist/legacy/build/pdf.mjs") as any;
+    const pdfjs = pdfjsMod.default ?? pdfjsMod;
 
-    const loadingTask = lib.getDocument({
-      data: new Uint8Array(buffer),
-      useWorkerFetch: false,
-      isEvalSupported: false,
-      useSystemFonts: true,
-      disableFontFace: true,
-    });
-    const pdfDoc = await loadingTask.promise;
+    // Resolver worker path en tiempo de ejecución
+    try {
+      const _require = createRequire(import.meta.url);
+      const workerPath = _require.resolve("pdfjs-dist/legacy/build/pdf.worker.mjs");
+      pdfjs.GlobalWorkerOptions.workerSrc = `file://${workerPath}`;
+    } catch {
+      // Si no se puede resolver, probar con el path de Render
+      const baseDir = resolve(import.meta.url.replace("file://", "").replace("/dist/index.mjs", ""));
+      pdfjs.GlobalWorkerOptions.workerSrc = `file://${baseDir}/node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs`;
+    }
+
+    const doc = await (pdfjs.getDocument({ data: new Uint8Array(buffer), verbosity: 0 }) as any).promise;
     const parts: string[] = [];
-
-    for (let i = 1; i <= pdfDoc.numPages; i++) {
-      const page = await pdfDoc.getPage(i);
+    for (let i = 1; i <= doc.numPages; i++) {
+      const page = await doc.getPage(i);
       const content = await page.getTextContent();
       parts.push(content.items.map((item: any) => item.str ?? "").join(" "));
       try {
-        const annotations = await page.getAnnotations();
-        for (const ann of annotations) {
+        const anns = await page.getAnnotations();
+        for (const ann of anns) {
           if (ann.fieldValue && ann.fieldName) parts.push(`${ann.fieldName}: ${ann.fieldValue}`);
-          else if (ann.contents) parts.push(ann.contents);
         }
       } catch { /* sin annotations */ }
     }
@@ -119,19 +119,19 @@ async function pdfToText(buffer: Buffer): Promise<string> {
     console.log(`[DitraMonitor] pdfjs-dist: ${text.length} chars extraídos`);
     if (text.length > 20) return text;
   } catch (e) {
-    console.warn("[DitraMonitor] pdfjs-dist falló:", (e as Error).message?.slice(0, 100));
+    console.warn("[DitraMonitor] pdfjs-dist falló:", (e as Error).message?.slice(0, 200));
   }
 
-  // Intento 3: pdf-parse (fallback final)
+  // Intento 3: pdf-parse v2 con nueva API (PDFParse class)
   try {
-    const mod = await import("pdf-parse");
-    const pdfParse: any = mod.default ?? mod;
-    const data = await pdfParse(buffer);
-    const text = (data.text ?? "").trim();
-    console.log(`[DitraMonitor] pdf-parse: ${text.length} chars extraídos`);
-    return text;
+    const { PDFParse } = await import("pdf-parse") as any;
+    const parser = new PDFParse();
+    await parser.load(buffer);
+    const text = (await parser.getText() ?? "").trim();
+    console.log(`[DitraMonitor] pdf-parse v2: ${text.length} chars extraídos`);
+    if (text.length > 20) return text;
   } catch (e) {
-    console.warn("[DitraMonitor] pdf-parse falló:", (e as Error).message?.slice(0, 100));
+    console.warn("[DitraMonitor] pdf-parse v2 falló:", (e as Error).message?.slice(0, 100));
   }
 
   return "";
