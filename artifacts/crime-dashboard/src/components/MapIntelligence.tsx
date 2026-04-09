@@ -1343,7 +1343,8 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
           const emoji = typeEmoji[a.eventType] ?? "⚠️";
           const radius = a.severity === "alto" ? 10 : a.severity === "medio" ? 8 : 6;
           const minutesAgo = Math.round((Date.now() - new Date(a.createdAt).getTime()) / 60000);
-          const timeLabel = minutesAgo < 60 ? `hace ${minutesAgo} min` : `hace ${Math.round(minutesAgo/60)}h`;
+          const timeLabel = minutesAgo < 60 ? `hace ${minutesAgo} min` : minutesAgo < 1440 ? `hace ${Math.round(minutesAgo/60)}h` : `hace ${Math.round(minutesAgo/1440)}d`;
+          const fechaHora = new Date(a.createdAt).toLocaleString("es-CO", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit", hour12:false });
           return (
             <CircleMarker key={a.id} center={[a.lat!, a.lng!]} radius={radius}
               pathOptions={{ color:c, fillColor:c, fillOpacity:0.88, weight:2 }}>
@@ -1355,10 +1356,11 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
                   </div>
                   {a.locationText && <div style={{ marginBottom:4 }}><span style={{ color:"#94a3b8" }}>📍 </span>{a.locationText}</div>}
                   <div style={{ fontSize:11,color:"#94a3b8",marginBottom:6,lineHeight:1.5 }}>{a.rawText.slice(0,120)}{a.rawText.length>120?"…":""}</div>
-                  <div style={{ display:"flex",gap:8,alignItems:"center" }}>
+                  <div style={{ display:"flex",gap:8,alignItems:"center",marginBottom:4 }}>
                     <span style={{ background: a.severity==="alto"?"#7f1d1d":a.severity==="medio"?"#78350f":"#1a2e1a", color: a.severity==="alto"?"#fca5a5":a.severity==="medio"?"#fcd34d":"#86efac", padding:"2px 8px",borderRadius:10,fontSize:10,fontWeight:700,textTransform:"uppercase" }}>{a.severity}</span>
                     <span style={{ fontSize:11,color:"#64748b" }}>{timeLabel}</span>
                   </div>
+                  <div style={{ fontSize:11,color:"#475569",borderTop:"1px solid rgba(255,255,255,0.07)",paddingTop:4 }}>🕐 {fechaHora}</div>
                 </div>
               </Popup>
             </CircleMarker>
@@ -1368,15 +1370,21 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
         {/* Bloqueos */}
         {showBlockades && blockades.filter((b:any)=>b.lat&&b.lng).map((b:any) => {
           const c = b.source==="news_rss"?"#00d4ff":b.source==="news_import"?"#a78bfa":"#ef4444";
+          const bFechaHora = b.createdAt ? new Date(b.createdAt).toLocaleString("es-CO", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit", hour12:false }) : "—";
+          const bMinsAgo = b.createdAt ? Math.round((Date.now() - new Date(b.createdAt).getTime()) / 60000) : null;
+          const bTimeLabel = bMinsAgo === null ? "" : bMinsAgo < 60 ? `hace ${bMinsAgo} min` : bMinsAgo < 1440 ? `hace ${Math.round(bMinsAgo/60)}h` : `hace ${Math.round(bMinsAgo/1440)}d`;
           return (
             <CircleMarker key={b.id} center={[b.lat,b.lng]} radius={8} pathOptions={{ color:c, fillColor:c, fillOpacity:0.85, weight:2 }}>
               <Popup className="dark-popup">
-                <div style={{ fontFamily:"sans-serif",fontSize:13,color:"#e2e8f0",minWidth:190 }}>
+                <div style={{ fontFamily:"sans-serif",fontSize:13,color:"#e2e8f0",minWidth:210 }}>
                   <div style={{ fontWeight:700,color:c,marginBottom:6 }}>🚧 Bloqueo {b.source==="news_rss"?"RSS":b.source==="news_import"?"IA":"Manual"}</div>
                   <div><span style={{ color:"#94a3b8" }}>Dept: </span>{b.department}</div>
                   <div><span style={{ color:"#94a3b8" }}>Ubicación: </span>{b.location}</div>
                   <div><span style={{ color:"#94a3b8" }}>Causa: </span>{b.cause}</div>
                   {b.notes&&<div style={{ marginTop:4,fontSize:12,color:"#64748b" }}>{b.notes}</div>}
+                  <div style={{ marginTop:6,paddingTop:6,borderTop:"1px solid rgba(255,255,255,0.07)",fontSize:11,color:"#475569" }}>
+                    🕐 {bFechaHora}{bTimeLabel ? <span style={{ color:"#334155",marginLeft:6 }}>({bTimeLabel})</span> : null}
+                  </div>
                 </div>
               </Popup>
             </CircleMarker>
