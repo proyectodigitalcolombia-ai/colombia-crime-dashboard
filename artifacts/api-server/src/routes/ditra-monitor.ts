@@ -2,7 +2,6 @@ import { Router, type IRouter } from "express";
 import Imap from "imap-simple";
 import { simpleParser } from "mailparser";
 import { Readable } from "stream";
-import { PDFParse } from "pdf-parse";
 import Anthropic from "@anthropic-ai/sdk";
 import Groq from "groq-sdk";
 import { pool } from "@workspace/db";
@@ -180,12 +179,19 @@ async function scanInbox(): Promise<number> {
 
           // Verificar si ya procesamos este archivo (por nombre + fecha)
           const existing = await pool.query(
-            "SELECT id FROM ditra_reports WHERE email_subject = $1 AND pdf_filename = $2 AND email_date::date = $3::date",
+            "SELECT id, raw_text FROM ditra_reports WHERE email_subject = $1 AND pdf_filename = $2 AND email_date::date = $3::date",
             [subject, filename, date.toISOString()]
           );
-          if (existing.rows.length > 0) {
-            console.log(`[DitraMonitor] Ya procesado: ${filename} — omitido`);
-            continue;
+          const existingRow = existing.rows[0];
+          if (existingRow) {
+            const badPdf = !existingRow.raw_text || existingRow.raw_text.includes("No se pudo leer");
+            if (!badPdf) {
+              console.log(`[DitraMonitor] Ya procesado: ${filename} — omitido`);
+              continue;
+            }
+            // Si el PDF falló antes, eliminamos el registro para reprocesar
+            console.log(`[DitraMonitor] Reprocesando ${filename} (PDF anterior falló)`);
+            await pool.query("DELETE FROM ditra_reports WHERE id = $1", [existingRow.id]);
           }
 
           // Extraer texto del PDF
