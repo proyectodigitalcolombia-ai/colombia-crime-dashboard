@@ -1964,7 +1964,7 @@ export function MapIntelligence({ dark = true }: { dark?: boolean }) {
       </MapContainer>
 
       {/* ── BUSCADOR DE MUNICIPIO ── */}
-      <div style={{ position:"absolute",top:16,left:16,zIndex:1000,width:280 }}>
+      <div style={{ position:"absolute",top:88,left:16,zIndex:1000,width:280 }}>
         <div style={{ display:"flex",alignItems:"center",background:"rgba(7,12,21,0.93)",backdropFilter:"blur(12px)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:10,padding:"6px 12px",gap:8 }}>
           <span style={{ fontSize:16 }}>🔍</span>
           <input
