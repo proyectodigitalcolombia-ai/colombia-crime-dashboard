@@ -165,13 +165,24 @@ const JSON_SCHEMA = `{
   "pdf_legible": true
 }`;
 
-const INSTRUCCION_BASE = `Eres un analista de seguridad vial de Colombia. Extrae toda la información de movilidad y seguridad vial del siguiente reporte DITRA/RISTRA/INVIAS.
+const INSTRUCCION_BASE = `Eres un analista experto de seguridad vial y movilidad de Colombia. Extrae y CUENTA todos los eventos del reporte DITRA/RISTRA/INVIAS.
 
-IMPORTANTE:
-- Extrae TODO: accidentes, cierres, obras, derrumbes, manifestaciones, condiciones climáticas, restricciones.
-- Si el asunto tiene una fecha como "09-04-2026", úsala como fecha_reporte en formato YYYY-MM-DD.
-- El tipo_reporte se infiere del asunto: "ESTADO DE VIAS"→Estado de Vías, "MANIFESTACIONES"→Manifestaciones, etc.
-- Responde SOLO con JSON válido, sin markdown ni texto adicional.`;
+REGLAS ESTRICTAS DE EXTRACCIÓN:
+1. CUENTA cada evento individualmente. Si se mencionan 3 cierres en lugares distintos, total_cierres=3.
+2. total_cierres = número de cierres TOTALES o PARCIALES de vía (por deslizamiento, manifestación, accidente, obra, derrumbe, etc.)
+3. total_obras = número de obras o trabajos viales activos en la vía que generan restricción
+4. total_accidentes = número de accidentes de tránsito mencionados
+5. total_muertos = número de fallecidos CONFIRMADOS
+6. total_heridos = número de heridos CONFIRMADOS
+7. puntos_criticos = lista de TODOS los puntos mencionados (cierres, obras, derrumbes, manifestaciones, accidentes, restricciones)
+8. Para cada punto_critico incluye: ubicacion exacta (km, sector), departamento, vía, tipo_evento, descripcion breve
+9. departamentos_afectados = lista completa de departamentos donde hay eventos
+10. vias_afectadas = lista de vías afectadas (rutas nacionales, transversales, etc.)
+11. Si el asunto tiene fecha como "09-04-2026", úsala como fecha_reporte en formato YYYY-MM-DD
+12. tipo_reporte: "ESTADO DE VIAS"→Estado de Vías, "MANIFESTACIONES"→Manifestaciones, "CONDICION CLIMATICA"→Condición Climática
+13. Responde SOLO con JSON válido, sin markdown, sin texto adicional, sin comentarios
+
+IMPORTANTE: Si el texto menciona cierres u obras, total_cierres y total_obras DEBEN ser > 0. No uses los valores por defecto.`;
 
 /* ── Extraer datos con Claude Vision (PDF como documento nativo con OCR) ─── */
 async function extractWithClaudeVision(pdfBuffer: Buffer, subject: string, emailBodyText: string): Promise<Record<string, any> | null> {
@@ -619,6 +630,99 @@ router.get("/ditra-reports/:id", async (req, res) => {
   } catch (err) {
     console.error("GET /api/ditra-reports/:id error:", err);
     res.status(500).json({ error: "Error fetching report" });
+  }
+});
+
+/* POST /api/ditra-reports/:id/reprocess — re-extrae datos con IA del raw_text guardado */
+router.post("/ditra-reports/:id/reprocess", async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      "SELECT id, email_subject, raw_text, parsed_data FROM ditra_reports WHERE id = $1",
+      [req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: "Reporte no encontrado" });
+
+    const { id, email_subject, raw_text } = rows[0];
+    const rawText = raw_text ?? "";
+
+    if (rawText.length < 30) {
+      return res.status(422).json({ error: "raw_text insuficiente para reprocesar" });
+    }
+
+    res.json({ message: "Reprocesando en background...", id });
+
+    // Ejecutar en background
+    (async () => {
+      try {
+        const parsedData = await extractDitraData(rawText, email_subject ?? "", "");
+        await pool.query(
+          `UPDATE ditra_reports SET
+             parsed_data = $1, periodo = $2, fecha_reporte = $3, tipo_reporte = $4,
+             total_accidentes = $5, total_muertos = $6, total_heridos = $7,
+             resumen_ejecutivo = $8
+           WHERE id = $9`,
+          [
+            JSON.stringify(parsedData),
+            parsedData.periodo ?? null,
+            parsedData.fecha_reporte ?? null,
+            parsedData.tipo_reporte ?? "DITRA",
+            parsedData.total_accidentes ?? 0,
+            parsedData.total_muertos ?? 0,
+            parsedData.total_heridos ?? 0,
+            parsedData.resumen_ejecutivo ?? null,
+            id,
+          ]
+        );
+        console.log(`[DitraMonitor] ✅ Reporte ${id} reprocesado: ${parsedData.total_cierres ?? 0} cierres, ${parsedData.total_obras ?? 0} obras`);
+      } catch (err: any) {
+        console.error(`[DitraMonitor] Error reprocesando reporte ${id}:`, err?.message);
+      }
+    })();
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+/* POST /api/ditra-reports/reprocess-all — reprocesa todos los reportes con IA actualizada */
+router.post("/ditra-reports/reprocess-all", async (_req, res) => {
+  try {
+    const { rows } = await pool.query(
+      "SELECT id, email_subject, raw_text FROM ditra_reports WHERE length(raw_text) > 30 ORDER BY created_at DESC LIMIT 20"
+    );
+    res.json({ message: `Reprocesando ${rows.length} reportes en background...`, count: rows.length });
+
+    (async () => {
+      for (const report of rows) {
+        try {
+          const parsedData = await extractDitraData(report.raw_text, report.email_subject ?? "", "");
+          await pool.query(
+            `UPDATE ditra_reports SET
+               parsed_data = $1, periodo = $2, fecha_reporte = $3, tipo_reporte = $4,
+               total_accidentes = $5, total_muertos = $6, total_heridos = $7,
+               resumen_ejecutivo = $8
+             WHERE id = $9`,
+            [
+              JSON.stringify(parsedData),
+              parsedData.periodo ?? null,
+              parsedData.fecha_reporte ?? null,
+              parsedData.tipo_reporte ?? "DITRA",
+              parsedData.total_accidentes ?? 0,
+              parsedData.total_muertos ?? 0,
+              parsedData.total_heridos ?? 0,
+              parsedData.resumen_ejecutivo ?? null,
+              report.id,
+            ]
+          );
+          console.log(`[DitraMonitor] ✅ Reporte ${report.id} (${report.email_subject}) reprocesado`);
+          await new Promise(r => setTimeout(r, 1000)); // rate limit IA
+        } catch (err: any) {
+          console.error(`[DitraMonitor] Error reprocesando reporte ${report.id}:`, err?.message);
+        }
+      }
+      console.log("[DitraMonitor] ✅ Reprocesamiento masivo completado");
+    })();
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
   }
 });
 

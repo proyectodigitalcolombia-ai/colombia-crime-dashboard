@@ -169,7 +169,8 @@ export function DitraReports() {
     query: { refetchInterval: 5 * 60 * 1000 }
   });
   const { data: status } = useGetDitraStatus();
-  const [scanning, setScanning] = useState(false);
+  const [scanning, setScanning]     = useState(false);
+  const [reprocessing, setReprocessing] = useState(false);
 
   const totalAccidentes = reports.reduce((s, r) => s + (r.total_accidentes ?? 0), 0);
   const totalMuertos    = reports.reduce((s, r) => s + (r.total_muertos ?? 0), 0);
@@ -189,6 +190,19 @@ export function DitraReports() {
     } catch { setScanning(false); }
   }
 
+  async function triggerReprocess() {
+    setReprocessing(true);
+    try {
+      const base = (window as any).__API_BASE__ ?? "";
+      await fetch(`${base}/api/ditra-reports/reprocess-all`, { method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("safenode_token")}` }
+      });
+      // Esperar ~30s para que la IA procese todos los reportes y luego refetch
+      setTimeout(() => { refetch(); }, 15000);
+      setTimeout(() => { refetch(); setReprocessing(false); }, 35000);
+    } catch { setReprocessing(false); }
+  }
+
   return (
     <div style={{ background: BG, minHeight: "100%", padding: "20px 24px", color: "#e2e8f0", fontFamily: "sans-serif" }}>
 
@@ -200,14 +214,25 @@ export function DitraReports() {
             Procesamiento automático desde {status?.inbox ?? "ditra.safenode@gmail.com"}
           </p>
         </div>
-        <button
-          onClick={triggerScan}
-          disabled={scanning || status?.running}
-          style={{ display: "flex", alignItems: "center", gap: 7, background: "rgba(0,212,255,0.1)", border: `1px solid rgba(0,212,255,0.3)`, color: CYN, borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontSize: 13, fontWeight: 600, opacity: (scanning || status?.running) ? 0.6 : 1 }}
-        >
-          <RefreshCw size={14} className={(scanning || status?.running) ? "animate-spin" : ""} />
-          {scanning || status?.running ? "Revisando..." : "Revisar ahora"}
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={triggerReprocess}
+            disabled={reprocessing}
+            title="Re-extrae datos con IA del texto guardado (corrige contadores en 0)"
+            style={{ display: "flex", alignItems: "center", gap: 7, background: "rgba(245,158,11,0.1)", border: `1px solid rgba(245,158,11,0.3)`, color: AMB, borderRadius: 8, padding: "8px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, opacity: reprocessing ? 0.6 : 1 }}
+          >
+            <RefreshCw size={14} className={reprocessing ? "animate-spin" : ""} />
+            {reprocessing ? "Reprocesando..." : "Reprocesar IA"}
+          </button>
+          <button
+            onClick={triggerScan}
+            disabled={scanning || status?.running}
+            style={{ display: "flex", alignItems: "center", gap: 7, background: "rgba(0,212,255,0.1)", border: `1px solid rgba(0,212,255,0.3)`, color: CYN, borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontSize: 13, fontWeight: 600, opacity: (scanning || status?.running) ? 0.6 : 1 }}
+          >
+            <RefreshCw size={14} className={(scanning || status?.running) ? "animate-spin" : ""} />
+            {scanning || status?.running ? "Revisando..." : "Revisar ahora"}
+          </button>
+        </div>
       </div>
 
       {/* Estado del monitor */}
