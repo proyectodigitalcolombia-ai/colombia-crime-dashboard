@@ -633,6 +633,29 @@ router.get("/ditra-reports/:id", async (req, res) => {
   }
 });
 
+/* DELETE /api/ditra-reports/:id — borra un reporte (para re-procesamiento manual) */
+router.delete("/ditra-reports/:id", async (req, res) => {
+  try {
+    const { rowCount } = await pool.query("DELETE FROM ditra_reports WHERE id = $1", [req.params.id]);
+    if (!rowCount) return res.status(404).json({ error: "Reporte no encontrado" });
+    res.json({ ok: true, deleted: req.params.id });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+/* DELETE /api/ditra-reports — borra reportes con raw_text vacío (datos incompletos) */
+router.delete("/ditra-reports", async (req, res) => {
+  try {
+    const { rows, rowCount } = await pool.query(
+      "DELETE FROM ditra_reports WHERE (raw_text IS NULL OR raw_text = '') RETURNING id, email_subject"
+    );
+    res.json({ ok: true, deleted: rowCount, ids: rows.map(r => r.id), subjects: rows.map(r => r.email_subject) });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 /* POST /api/ditra-reports/:id/reprocess — re-extrae datos con IA del raw_text guardado */
 router.post("/ditra-reports/:id/reprocess", async (req, res) => {
   try {
