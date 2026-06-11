@@ -130027,7 +130027,7 @@ var XLSX = __toESM(require_xlsx(), 1);
 var router2 = (0, import_express2.Router)();
 var POLICE_BASE = "https://www.policia.gov.co/sites/default/files";
 var REGISTRO_SOURCES = [
-  { url: `${POLICE_BASE}/INFORMACI%C3%93N_DE_DELITOS_A_NIVEL_DE_REGISTRO_A%C3%91O_2026_1.xlsx`, year: 2026 }
+  { url: `${POLICE_BASE}/INFORMACI%C3%93N_DE_DELITOS_A_NIVEL_DE_REGISTRO_A%C3%91O_2026_4.xlsx`, year: 2026 }
 ];
 var EXCEL_SOURCES = [
   {
@@ -142772,7 +142772,7 @@ router15.get("/ditra-reports", async (_req, res) => {
       `SELECT id, email_subject, email_from, email_date, pdf_filename,
               periodo, fecha_reporte, tipo_reporte,
               total_accidentes, total_muertos, total_heridos,
-              resumen_ejecutivo, created_at
+              resumen_ejecutivo, parsed_data, created_at
        FROM ditra_reports
        ORDER BY created_at DESC
        LIMIT 50`

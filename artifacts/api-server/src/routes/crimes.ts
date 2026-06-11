@@ -8,8 +8,11 @@ const router: IRouter = Router();
 
 const POLICE_BASE = "https://www.policia.gov.co/sites/default/files";
 
+// La Policía actualiza el archivo con sufijo incremental (_1, _2, _3, _4...).
+// Usar _4 que contiene datos acumulados enero–abril 2026.
+// Verificar periódicamente si hay versión más reciente en policia.gov.co
 const REGISTRO_SOURCES = [
-  { url: `${POLICE_BASE}/INFORMACI%C3%93N_DE_DELITOS_A_NIVEL_DE_REGISTRO_A%C3%91O_2026_1.xlsx`, year: 2026 },
+  { url: `${POLICE_BASE}/INFORMACI%C3%93N_DE_DELITOS_A_NIVEL_DE_REGISTRO_A%C3%91O_2026_4.xlsx`, year: 2026 },
 ];
 
 const EXCEL_SOURCES = [

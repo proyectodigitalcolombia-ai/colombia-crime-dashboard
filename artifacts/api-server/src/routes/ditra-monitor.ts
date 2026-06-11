@@ -559,7 +559,7 @@ router.get("/ditra-reports", async (_req, res) => {
       `SELECT id, email_subject, email_from, email_date, pdf_filename,
               periodo, fecha_reporte, tipo_reporte,
               total_accidentes, total_muertos, total_heridos,
-              resumen_ejecutivo, created_at
+              resumen_ejecutivo, parsed_data, created_at
        FROM ditra_reports
        ORDER BY created_at DESC
        LIMIT 50`
