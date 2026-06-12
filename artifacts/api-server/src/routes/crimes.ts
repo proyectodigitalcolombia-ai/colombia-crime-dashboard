@@ -740,7 +740,7 @@ const MONTHLY_ACTUALS_2026: Record<string, Record<number, number>> = {
 };
 
 /** Último mes con datos reales disponibles para 2026 */
-const LAST_ACTUAL_MONTH_2026 = 2;
+const LAST_ACTUAL_MONTH_2026 = 4;
 
 // Participación porcentual de cada departamento por tipo de delito (suma ≈ 100%)
 const DEPT_SHARES: Record<string, Record<string, number>> = {
@@ -936,8 +936,9 @@ async function loadDemoIfEmpty() {
       .where(eq(crimeStatsTable.year, 2026));
     const maxMonth2026InDb = Number(maxMonth2026Result[0]?.maxMonth ?? 0);
     const hasStale2026 = maxMonth2026InDb > LAST_ACTUAL_MONTH_2026;
+    const hasMissingMonths2026 = maxMonth2026InDb > 0 && maxMonth2026InDb < LAST_ACTUAL_MONTH_2026;
 
-    if (isEmpty || missingCurrentYear || hasMissingTypes || hasExtraRows || hasStale2026) {
+    if (isEmpty || missingCurrentYear || hasMissingTypes || hasExtraRows || hasStale2026 || hasMissingMonths2026) {
       if (hasMissingTypes) {
         console.log(`Missing crime types detected: ${missingTypes.map(t => t.id).join(", ")} — reloading demo data`);
       }
@@ -947,6 +948,9 @@ async function loadDemoIfEmpty() {
       if (hasStale2026) {
         console.log(`Stale 2026 data detected (max month in DB: ${maxMonth2026InDb}, last actual: ${LAST_ACTUAL_MONTH_2026}) — reloading demo data`);
       }
+      if (hasMissingMonths2026) {
+        console.log(`Incomplete 2026 data (max month in DB: ${maxMonth2026InDb}, expected up to: ${LAST_ACTUAL_MONTH_2026}) — reloading demo data`);
+      }
       const demo = generateDemoData();
       await db.delete(crimeStatsTable);
       const saved = await saveRows(demo);
@@ -955,7 +959,7 @@ async function loadDemoIfEmpty() {
         lastRefreshed: new Date(),
         nextRefresh: new Date(Date.now() + 24 * 60 * 60 * 1000),
         status: "error",
-        message: `Datos reales ene-feb 2026 + histórico 2022-2025 (${saved} registros)`,
+        message: `Datos reales ene-abr 2026 + histórico 2022-2025 (${saved} registros)`,
         recordCount: saved,
       });
       console.log(`Demo data loaded: ${saved} records`);
@@ -986,7 +990,15 @@ async function ensureDataLoaded() {
     const presentTypeIds = new Set(presentTypes.map(r => r.crimeType));
     const hasMissingTypes = CRIME_TYPES.some(ct => !presentTypeIds.has(ct.id));
 
-    const needsLoad = Number(countResult[0]?.count) === 0 || yearResult.length === 0 || hasMissingTypes;
+    // Check if 2026 data is incomplete (fewer months than expected)
+    const maxMonth2026Result = await db
+      .select({ maxMonth: sql<number>`max(${crimeStatsTable.month})` })
+      .from(crimeStatsTable)
+      .where(eq(crimeStatsTable.year, currentYear));
+    const maxMonth2026 = Number(maxMonth2026Result[0]?.maxMonth ?? 0);
+    const hasIncompleteMonths = maxMonth2026 > 0 && maxMonth2026 < LAST_ACTUAL_MONTH_2026;
+
+    const needsLoad = Number(countResult[0]?.count) === 0 || yearResult.length === 0 || hasMissingTypes || hasIncompleteMonths;
     if (needsLoad) {
       // loadDemoIfEmpty manages refreshInProgress internally
       loadDemoIfEmpty().catch(err => console.error("ensureDataLoaded error:", err));
