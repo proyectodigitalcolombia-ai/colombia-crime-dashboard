@@ -226,7 +226,7 @@ export function ArmedGroupsPanel({ dark }: { dark: boolean }) {
           </button>
         ))}
         {selectedYear === "2026" && (
-          <span style={{ fontSize: "10px", color: mutedText }}>* Datos parciales (ene–mar 2026)</span>
+          <span style={{ fontSize: "10px", color: mutedText }}>* Datos parciales (ene–abr 2026)</span>
         )}
       </div>
 
@@ -520,7 +520,7 @@ export function ArmedGroupsPanel({ dark }: { dark: boolean }) {
           <div style={cardStyle}>
             <div style={{ fontSize: "12px", fontWeight: 700, marginBottom: "4px" }}>Acciones Bélicas por Grupo — Evolución Anual</div>
             <div style={{ fontSize: "11px", color: mutedText, marginBottom: "16px" }}>
-              2026 = proyección parcial (ene–mar). Fuente: {meta?.dataSource}
+              2026 = proyección parcial (ene–abr). Fuente: {meta?.dataSource}
             </div>
             <ResponsiveContainer width="100%" height={300} debounce={0}>
               <LineChart data={trendData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
