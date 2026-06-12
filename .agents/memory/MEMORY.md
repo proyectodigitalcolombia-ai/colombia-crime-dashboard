@@ -1,0 +1,1 @@
+- [Render API PATCH build command](render-api-patch.md) — envSpecificDetails nesting required; top-level serviceDetails.buildCommand is silently ignored
