@@ -130602,24 +130602,23 @@ var ANNUAL_NATIONAL_TOTALS = {
   "terrorismo": { 2022: 105, 2023: 100, 2024: 98, 2025: 95, 2026: 30 }
 };
 var MONTHLY_ACTUALS_2026 = {
-  //                                  Jan      Feb
-  "hurtos": { 1: 34441, 2: 27629 },
-  // Subcategorías hurto ene-feb 2026 (proporciones AICRI)
-  "hurtos_personas": { 1: 18943, 2: 15196 },
-  "hurtos_automotores": { 1: 4477, 2: 3592 },
-  "hurtos_motocicletas": { 1: 4822, 2: 3868 },
-  "hurtos_comercio": { 1: 3100, 2: 2487 },
-  "homicidios": { 1: 1189, 2: 1048 },
-  "homicidios_transito": { 1: 631, 2: 595 },
-  "lesiones_personales": { 1: 7313, 2: 7766 },
-  "lesiones_transito": { 1: 3720, 2: 3429 },
-  "violencia_intrafamiliar": { 1: 12018, 2: 11125 },
-  "delitos_sexuales": { 1: 1956, 2: 2021 },
-  "extorsion": { 1: 963, 2: 654 },
-  "amenazas": { 1: 3933, 2: 4320 },
-  "pirateria_terrestre": { 1: 7, 2: 2 },
-  "secuestros": { 1: 35, 2: 21 },
-  "terrorismo": { 1: 13, 2: 7 }
+  //                                  Jan      Feb      Mar      Apr
+  "hurtos": { 1: 34441, 2: 27629, 3: 29932, 4: 30878 },
+  "hurtos_personas": { 1: 18943, 2: 15196, 3: 16456, 4: 16982 },
+  "hurtos_automotores": { 1: 4477, 2: 3592, 3: 3890, 4: 4014 },
+  "hurtos_motocicletas": { 1: 4822, 2: 3868, 3: 4191, 4: 4323 },
+  "hurtos_comercio": { 1: 3100, 2: 2487, 3: 2694, 4: 2779 },
+  "homicidios": { 1: 1189, 2: 1048, 3: 1079, 4: 1113 },
+  "homicidios_transito": { 1: 631, 2: 595, 3: 591, 4: 610 },
+  "lesiones_personales": { 1: 7313, 2: 7766, 3: 7272, 4: 7501 },
+  "lesiones_transito": { 1: 3720, 2: 3429, 3: 3447, 4: 3556 },
+  "violencia_intrafamiliar": { 1: 12018, 2: 11125, 3: 11160, 4: 11512 },
+  "delitos_sexuales": { 1: 1956, 2: 2021, 3: 1917, 4: 1978 },
+  "extorsion": { 1: 963, 2: 654, 3: 779, 4: 804 },
+  "amenazas": { 1: 3933, 2: 4320, 3: 3980, 4: 4106 },
+  "pirateria_terrestre": { 1: 7, 2: 2, 3: 4, 4: 4 },
+  "secuestros": { 1: 35, 2: 21, 3: 27, 4: 28 },
+  "terrorismo": { 1: 13, 2: 7, 3: 10, 4: 10 }
 };
 var LAST_ACTUAL_MONTH_2026 = 4;
 var DEPT_SHARES = {
@@ -131008,7 +131007,11 @@ async function loadDemoIfEmpty() {
     const maxMonth2026InDb = Number(maxMonth2026Result[0]?.maxMonth ?? 0);
     const hasStale2026 = maxMonth2026InDb > LAST_ACTUAL_MONTH_2026;
     const hasMissingMonths2026 = maxMonth2026InDb > 0 && maxMonth2026InDb < LAST_ACTUAL_MONTH_2026;
-    if (isEmpty || missingCurrentYear || hasMissingTypes || hasExtraRows || hasStale2026 || hasMissingMonths2026) {
+    const zeroMonthResult = await db.select({ count: sql`count(*)` }).from(crimeStatsTable).where(
+      sql`${crimeStatsTable.year} = 2026 AND ${crimeStatsTable.month} <= ${LAST_ACTUAL_MONTH_2026} AND ${crimeStatsTable.count} = 0 AND ${crimeStatsTable.department} = 'NACIONAL'`
+    );
+    const hasZeroNationalMonths = Number(zeroMonthResult[0]?.count ?? 0) > 0;
+    if (isEmpty || missingCurrentYear || hasMissingTypes || hasExtraRows || hasStale2026 || hasMissingMonths2026 || hasZeroNationalMonths) {
       if (hasMissingTypes) {
         console.log(`Missing crime types detected: ${missingTypes.map((t) => t.id).join(", ")} \u2014 reloading demo data`);
       }
@@ -131021,6 +131024,9 @@ async function loadDemoIfEmpty() {
       if (hasMissingMonths2026) {
         console.log(`Incomplete 2026 data (max month in DB: ${maxMonth2026InDb}, expected up to: ${LAST_ACTUAL_MONTH_2026}) \u2014 reloading demo data`);
       }
+      if (hasZeroNationalMonths) {
+        console.log(`Zero-count national months detected in 2026 \u2014 reloading demo data with corrected estimates`);
+      }
       const demo = generateDemoData();
       await db.delete(crimeStatsTable);
       const saved = await saveRows(demo);
@@ -131029,7 +131035,7 @@ async function loadDemoIfEmpty() {
         lastRefreshed: /* @__PURE__ */ new Date(),
         nextRefresh: new Date(Date.now() + 24 * 60 * 60 * 1e3),
         status: "error",
-        message: `Datos reales ene-abr 2026 + hist\xF3rico 2022-2025 (${saved} registros)`,
+        message: `Datos reales ene-feb + est. mar-abr 2026 + hist\xF3rico 2022-2025 (${saved} registros)`,
         recordCount: saved
       });
       console.log(`Demo data loaded: ${saved} records`);
@@ -131052,7 +131058,11 @@ async function ensureDataLoaded() {
     const maxMonth2026Result = await db.select({ maxMonth: sql`max(${crimeStatsTable.month})` }).from(crimeStatsTable).where(eq(crimeStatsTable.year, currentYear));
     const maxMonth2026 = Number(maxMonth2026Result[0]?.maxMonth ?? 0);
     const hasIncompleteMonths = maxMonth2026 > 0 && maxMonth2026 < LAST_ACTUAL_MONTH_2026;
-    const needsLoad = Number(countResult[0]?.count) === 0 || yearResult.length === 0 || hasMissingTypes || hasIncompleteMonths;
+    const zeroMonthResult = await db.select({ count: sql`count(*)` }).from(crimeStatsTable).where(
+      sql`${crimeStatsTable.year} = 2026 AND ${crimeStatsTable.month} <= ${LAST_ACTUAL_MONTH_2026} AND ${crimeStatsTable.count} = 0 AND ${crimeStatsTable.department} = 'NACIONAL'`
+    );
+    const hasZeroNationalMonths = Number(zeroMonthResult[0]?.count ?? 0) > 0;
+    const needsLoad = Number(countResult[0]?.count) === 0 || yearResult.length === 0 || hasMissingTypes || hasIncompleteMonths || hasZeroNationalMonths;
     if (needsLoad) {
       loadDemoIfEmpty().catch((err) => console.error("ensureDataLoaded error:", err));
     }
