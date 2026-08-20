@@ -236,7 +236,7 @@ Reglas:
   try {
     const raw = await askAI(prompt);
     const match = raw.match(/\{[\s\S]*\}/);
-    if (!match) return null;
+    if (!match) return fallback;
     const parsed = JSON.parse(match[0]);
     const classified = {
       eventType:    ["accidente","cierre","trancon","manifestacion","libre","otro"].includes(parsed.eventType)
@@ -248,7 +248,7 @@ Reglas:
       severity:     ["alto","medio","bajo"].includes(parsed.severity) ? parsed.severity : "medio",
       isResolution: !!parsed.isResolution,
     };
-    return classified.eventType === \"otro\" && fallback ? fallback : classified;
+    return classified.eventType === "otro" && fallback ? fallback : classified;
   } catch { return fallback; }
 }
 
@@ -337,8 +337,8 @@ export async function runTelegramScan(): Promise<void> {
       /* Classify with AI */
       const cls = await classifyMessage(msg.text).catch(() => null);
       if (!cls) {
-        const reason = \"No se pudo clasificar el mensaje Telegram \" + msg.id + \"; se reintentará en el próximo ciclo.\";
-        console.warn(\"[TelegramMonitor] \" + reason);
+        const reason = "No se pudo clasificar el mensaje Telegram " + msg.id + "; se reintentará en el próximo ciclo.";
+        console.warn("[TelegramMonitor] " + reason);
         tgMonitorState.errors.push(reason);
         if (tgMonitorState.errors.length > 20) tgMonitorState.errors.shift();
         continue;
