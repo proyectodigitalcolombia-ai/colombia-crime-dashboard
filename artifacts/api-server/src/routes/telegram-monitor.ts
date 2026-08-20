@@ -176,7 +176,42 @@ interface Classification {
   isResolution: boolean;
 }
 
-async function classifyMessage(text: string): Promise<Classification | null> {
+function classifyByRules(text: string): Classification | null {
+    const cleaned = text.replace(/\s+/g, " ").trim();
+    if (!cleaned) return null;
+    if (isResolutionText(cleaned)) {
+      return { eventType: "libre", department: null, via: null, km: null, locationText: cleaned, severity: "bajo", isResolution: true };
+    }
+    let eventType: string | null = null;
+    let severity = "medio";
+    if (/(accidente|choque|volcad|quinta rueda|parti[oó]\s+.{0,30}(card[aá]n|tr[aá]iler)|mula\s+varad|veh[ií]culo\s+varad|enterrad|dormid)/i.test(cleaned)) {
+      eventType = "accidente";
+      severity = "alto";
+    } else if (/(no hay paso|v[ií]a\s+cerrad|cerrad[ao]|bloqueo|derrumbe|sin paso)/i.test(cleaned)) {
+      eventType = "cierre";
+      severity = "alto";
+    } else if (/(tranc[oó]n|trancon|cola\s+(?:viene|larga|de)|quietos|represamiento)/i.test(cleaned)) {
+      eventType = "trancon";
+    } else if (/(protesta|manifestaci[oó]n|paro|disturbio)/i.test(cleaned)) {
+      eventType = "manifestacion";
+      severity = "alto";
+    }
+    if (!eventType) return null;
+    const viaMatch = cleaned.match(/(?:v[ií]a|sentido|sector|peaje|km\.?|kil[oó]metro)\s+[^,.]{3,90}/i);
+    const kmMatch = cleaned.match(/\b(?:km\.?|kil[oó]metro)\s*(\d+(?:[.,]\d+)?)/i);
+    return {
+      eventType,
+      department: null,
+      via: viaMatch?.[0] ?? null,
+      km: kmMatch?.[1] ?? null,
+      locationText: cleaned.slice(0, 500),
+      severity,
+      isResolution: false,
+    };
+    }
+
+    async function classifyMessage(text: string): Promise<Classification | null> {
+  const fallback = classifyByRules(text);
   const prompt = `Eres analista de seguridad vial de Colombia. Analiza este mensaje de un canal de transporte colombiano.
 
 MENSAJE: "${text}"
@@ -203,7 +238,7 @@ Reglas:
     const match = raw.match(/\{[\s\S]*\}/);
     if (!match) return null;
     const parsed = JSON.parse(match[0]);
-    return {
+    const classified = {
       eventType:    ["accidente","cierre","trancon","manifestacion","libre","otro"].includes(parsed.eventType)
                       ? parsed.eventType : "otro",
       department:   parsed.department   || null,
@@ -213,7 +248,8 @@ Reglas:
       severity:     ["alto","medio","bajo"].includes(parsed.severity) ? parsed.severity : "medio",
       isResolution: !!parsed.isResolution,
     };
-  } catch { return null; }
+    return classified.eventType === \"otro\" && fallback ? fallback : classified;
+  } catch { return fallback; }
 }
 
 /* ── Auto-resolve related active events ──────────────────────────────────── */
@@ -300,7 +336,13 @@ export async function runTelegramScan(): Promise<void> {
 
       /* Classify with AI */
       const cls = await classifyMessage(msg.text).catch(() => null);
-      if (!cls) { seenIds.add(msg.id); continue; }
+      if (!cls) {
+        const reason = \"No se pudo clasificar el mensaje Telegram \" + msg.id + \"; se reintentará en el próximo ciclo.\";
+        console.warn(\"[TelegramMonitor] \" + reason);
+        tgMonitorState.errors.push(reason);
+        if (tgMonitorState.errors.length > 20) tgMonitorState.errors.shift();
+        continue;
+      }
 
       /* Handle resolution messages */
       if (cls.isResolution || cls.eventType === "libre") {
