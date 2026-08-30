@@ -772,7 +772,7 @@ async function refreshData(): Promise<{ success: boolean; message: string; count
 /**
  * Totales anuales nacionales de referencia (fuente: Policía Nacional de Colombia).
  * Años 2022-2025 basados en registros históricos publicados.
- * Año 2026: se usan MONTHLY_ACTUALS_2026 (datos reales del archivo AICRI ene-mayo 2026).
+ * Año 2026: se usan MONTHLY_ACTUALS_2026 (datos reales del archivo AICRI enero-julio 2026).
  */
 const ANNUAL_NATIONAL_TOTALS: Record<string, Record<number, number>> = {
   // Hurtos (todas sub-categorías): art.239 CP — hurto personas + motos + residencias + comercio + autos
@@ -824,7 +824,7 @@ const MONTHLY_ACTUALS_2026: Record<string, Record<number, number>> = {
   "amenazas":                { 1: 4107, 2: 4467, 3: 4845, 4: 4602, 5: 4769, 6: 4139, 7: 3713 },
   "pirateria_terrestre":     { 1: 9, 2: 5, 3: 9, 4: 3, 5: 3, 6: 1, 7: 3 },
   "hurtos_comercio":         { 1: 2429, 2: 2524, 3: 2467, 4: 2244, 5: 2086, 6: 1302, 7: 1026 },
-  "hurtos":                  { 1: 2297, 2: 2189, 3: 2288, 4: 2001, 5: 2145, 6: 2074, 7: 1733 },
+  "hurtos":                  { 1: 35008, 2: 31557, 3: 30816, 4: 28009, 5: 30234, 6: 28941, 7: 26797 },
   "lesiones_transito":       { 1: 4182, 2: 4094, 3: 4967, 4: 4467, 5: 4818, 6: 4250, 7: 4000 },
   "hurtos_personas":         { 1: 26291, 2: 23226, 3: 22612, 4: 20556, 5: 22669, 6: 22262, 7: 20781 },
   "terrorismo":              { 1: 25, 2: 24, 3: 23, 4: 22, 5: 19, 6: 11, 7: 20 },

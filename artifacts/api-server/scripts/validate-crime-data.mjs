@@ -4,8 +4,8 @@ import { fileURLToPath } from "node:url";
 import * as XLSX from "xlsx";
 
 const SOURCE_URL =
-  "https://www.policia.gov.co/sites/default/files/INFORMACI%C3%93N_DE_DELITOS_A_NIVEL_DE_REGISTRO_A%C3%91O_2026_4.xlsx";
-const EXPECTED_MONTHS = [1, 2, 3, 4, 5];
+  "https://www.policia.gov.co/sites/default/files/INFORMACI%C3%93N_DELITOS_A_NIVEL_DE_REGISTRO_A%C3%91O_2026_1.xlsx";
+const EXPECTED_MONTHS = [1, 2, 3, 4, 5, 6, 7];
 const CRIME_TYPES = [
   "hurtos",
   "hurtos_personas",
@@ -31,22 +31,44 @@ function removeAccents(value) {
 
 function mapCrimeType(value) {
   const crime = removeAccents(value.toUpperCase());
-  if (crime.includes("103") || (crime.includes("HOMICIDIO") && !crime.includes("CULPOSO") && !crime.includes("ACCIDENTE"))) return "homicidios";
-  if (crime.includes("109") || (crime.includes("HOMICIDIO") && (crime.includes("CULPOSO") || crime.includes("ACCIDENTE")))) return "homicidios_transito";
-  if (crime.includes("120") || (crime.includes("LESIONES") && crime.includes("CULPOSAS"))) return "lesiones_transito";
-  if (crime.includes("111") || (crime.includes("LESIONES") && crime.includes("PERSONALES"))) return "lesiones_personales";
-  if (crime.includes("205") || crime.includes("DELITOS SEXUALES") || crime.includes("SEXUAL")) return "delitos_sexuales";
-  if (crime.includes("229") || crime.includes("VIOLENCIA INTRAFAMILIAR")) return "violencia_intrafamiliar";
+  const code = crime.match(/\((\d+)\)/)?.[1];
+  const codeMap = {
+    "0101": "homicidios",
+    "10321": "homicidios_transito",
+    "02011": "lesiones_personales",
+    "02012": "amenazas",
+    "02019": "lesiones_transito",
+    "020222": "secuestros",
+    "02051": "extorsion",
+    "02089": "violencia_intrafamiliar",
+    "0301": "delitos_sexuales",
+    "05010": "hurtos",
+    "050211": "hurtos_automotores",
+    "050212": "hurtos_motocicletas",
+    "05022": "hurtos_personas",
+    "05023": "hurtos_comercio",
+    "05024": "hurtos",
+    "05030": "hurtos",
+    "05040": "pirateria_terrestre",
+    "0906": "terrorismo",
+  };
+  if (code && codeMap[code]) return codeMap[code];
+  if (crime.includes("HOMICIDIO") && (crime.includes("TRANSITO") || crime.includes("CULPOSO") || crime.includes("ACCIDENTE"))) return "homicidios_transito";
+  if (crime.includes("HOMICIDIO")) return "homicidios";
+  if (crime.includes("LESIONES") && (crime.includes("CULPOSAS") || crime.includes("ACCIDENTE"))) return "lesiones_transito";
+  if (crime.includes("LESIONES") && crime.includes("PERSONALES")) return "lesiones_personales";
+  if (crime.includes("DELITOS SEXUALES") || crime.includes("SEXUAL") || crime.includes("VIOLACION")) return "delitos_sexuales";
+  if (crime.includes("VIOLENCIA INTRAFAMILIAR")) return "violencia_intrafamiliar";
   if (crime.includes("HURTO") && (crime.includes("AUTOMOTOR") || crime.includes("VEHICULO"))) return "hurtos_automotores";
   if (crime.includes("HURTO") && (crime.includes("MOTOCICLET") || crime.includes("MOTO"))) return "hurtos_motocicletas";
   if (crime.includes("HURTO") && (crime.includes("PERSONA") || crime.includes("ATRACO"))) return "hurtos_personas";
   if (crime.includes("HURTO") && (crime.includes("COMERCIO") || crime.includes("COMERCIAL") || crime.includes("ESTABLECIMIENTO") || crime.includes("NEGOCIO"))) return "hurtos_comercio";
-  if (crime.includes("PIRATERIA TERRESTRE")) return "pirateria_terrestre";
-  if (crime.includes("239") || crime.includes("243") || crime.includes("HURTO") || crime.includes("ABIGEATO")) return "hurtos";
-  if (crime.includes("244") || crime.includes("EXTORSION")) return "extorsion";
-  if (crime.includes("347") || crime.includes("AMENAZA")) return "amenazas";
-  if (crime.includes("168") || crime.includes("SECUESTRO")) return "secuestros";
-  if (crime.includes("343") || crime.includes("TERRORISMO")) return "terrorismo";
+  if (crime.includes("PIRATERIA TERRESTRE") || crime.includes("BIENES EN TRANSITO")) return "pirateria_terrestre";
+  if (crime.includes("HURTO") || crime.includes("ABIGEATO")) return "hurtos";
+  if (crime.includes("EXTORSION")) return "extorsion";
+  if (crime.includes("AMENAZA")) return "amenazas";
+  if (crime.includes("SECUESTRO") || crime.includes("RETENCION ILEGAL")) return "secuestros";
+  if (crime.includes("TERRORISMO")) return "terrorismo";
   return null;
 }
 
@@ -83,7 +105,8 @@ function aggregateWorkbook(buffer) {
     totals[crimeType][month] = (totals[crimeType][month] ?? 0) + count;
 
     const normalizedCrime = removeAccents(crime.toUpperCase());
-    const isTheft = normalizedCrime.includes("HURTO") || normalizedCrime.includes("ABIGEATO");
+    const code = normalizedCrime.match(/\((\d+)\)/)?.[1];
+    const isTheft = code?.startsWith("05") || normalizedCrime.includes("HURTO") || normalizedCrime.includes("ABIGEATO");
     if (isTheft && crimeType !== "hurtos") {
       totals.hurtos[month] = (totals.hurtos[month] ?? 0) + count;
     }
