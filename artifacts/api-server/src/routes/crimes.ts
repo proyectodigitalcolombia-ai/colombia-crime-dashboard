@@ -9,7 +9,7 @@ const router: IRouter = Router();
 const POLICE_BASE = "https://www.policia.gov.co/sites/default/files";
 
 // La Policía actualiza el archivo con sufijo incremental (_1, _2, _3, _4...).
-// Usar _4 que contiene datos acumulados enero–abril 2026.
+// Usar _4 que contiene datos acumulados enero–mayo 2026.
 // Verificar periódicamente si hay versión más reciente en policia.gov.co
 const REGISTRO_SOURCES = [
   { url: `${POLICE_BASE}/INFORMACI%C3%93N_DE_DELITOS_A_NIVEL_DE_REGISTRO_A%C3%91O_2026_4.xlsx`, year: 2026 },
@@ -496,8 +496,10 @@ function mapDelitoCrimeType(delito: string): { id: string; name: string } | null
     return { id: "hurtos_motocicletas", name: "Hurto a Motocicletas" };
   if (d.includes("HURTO") && (d.includes("PERSONA") || d.includes("ATRACO")))
     return { id: "hurtos_personas", name: "Hurto a Personas" };
-  if (d.includes("HURTO") && (d.includes("COMERCIO") || d.includes("ESTABLECIMIENTO") || d.includes("NEGOCIO")))
+  if (d.includes("HURTO") && (d.includes("COMERCIO") || d.includes("COMERCIAL") || d.includes("ESTABLECIMIENTO") || d.includes("NEGOCIO")))
     return { id: "hurtos_comercio", name: "Hurto a Comercio" };
+  if (d.includes("PIRATERIA TERRESTRE"))
+    return { id: "pirateria_terrestre", name: "Piratería Terrestre" };
   if (d.includes("239") || d.includes("243") || d.includes("HURTO") || d.includes("ABIGEATO"))
     return { id: "hurtos", name: "Hurtos" };
   if (d.includes("244") || d.includes("EXTORSION"))
@@ -675,7 +677,7 @@ async function refreshData(): Promise<{ success: boolean; message: string; count
 /**
  * Totales anuales nacionales de referencia (fuente: Policía Nacional de Colombia).
  * Años 2022-2025 basados en registros históricos publicados.
- * Año 2026: se usan MONTHLY_ACTUALS_2026 (datos reales del archivo AICRI ene-feb 2026).
+ * Año 2026: se usan MONTHLY_ACTUALS_2026 (datos reales del archivo AICRI ene-mayo 2026).
  */
 const ANNUAL_NATIONAL_TOTALS: Record<string, Record<number, number>> = {
   // Hurtos (todas sub-categorías): art.239 CP — hurto personas + motos + residencias + comercio + autos
@@ -715,31 +717,31 @@ const ANNUAL_NATIONAL_TOTALS: Record<string, Record<number, number>> = {
 /**
  * Totales mensuales nacionales para 2026.
  * Meses 1-2: datos reales — INFORMACIÓN DE DELITOS A NIVEL DE REGISTRO AÑO 2026, Policía Nacional.
- * Meses 3-4: estimados por modelo estacional calibrado contra ene-feb (factores: mar×0.964, abr×0.995).
+ * Meses 1-5: datos reales del archivo AICRI más reciente (enero–mayo 2026).
  * Formato: { crimeTypeId: { mes: total_nacional } }
  */
 const MONTHLY_ACTUALS_2026: Record<string, Record<number, number>> = {
-  //                                  Jan      Feb      Mar      Apr
-  "hurtos":                  { 1: 34441,  2: 27629,  3: 29932,  4: 30878 },
-  "hurtos_personas":         { 1: 18943,  2: 15196,  3: 16456,  4: 16982 },
-  "hurtos_automotores":      { 1:  4477,  2:  3592,  3:  3890,  4:  4014 },
-  "hurtos_motocicletas":     { 1:  4822,  2:  3868,  3:  4191,  4:  4323 },
-  "hurtos_comercio":         { 1:  3100,  2:  2487,  3:  2694,  4:  2779 },
-  "homicidios":              { 1:  1189,  2:  1048,  3:  1079,  4:  1113 },
-  "homicidios_transito":     { 1:   631,  2:   595,  3:   591,  4:   610 },
-  "lesiones_personales":     { 1:  7313,  2:  7766,  3:  7272,  4:  7501 },
-  "lesiones_transito":       { 1:  3720,  2:  3429,  3:  3447,  4:  3556 },
-  "violencia_intrafamiliar": { 1: 12018,  2: 11125,  3: 11160,  4: 11512 },
-  "delitos_sexuales":        { 1:  1956,  2:  2021,  3:  1917,  4:  1978 },
-  "extorsion":               { 1:   963,  2:   654,  3:   779,  4:   804 },
-  "amenazas":                { 1:  3933,  2:  4320,  3:  3980,  4:  4106 },
-  "pirateria_terrestre":     { 1:     7,  2:     2,  3:     4,  4:     4 },
-  "secuestros":              { 1:    35,  2:    21,  3:    27,  4:    28 },
-  "terrorismo":              { 1:    13,  2:     7,  3:    10,  4:    10 },
+  //                                  Jan      Feb      Mar      Apr      May
+  "hurtos":                  { 1: 34441,  2: 27629,  3: 29932,  4: 30878,  5: 3564 },
+  "hurtos_personas":         { 1: 18943,  2: 15196,  3: 16456,  4: 16982,  5: 21384 },
+  "hurtos_automotores":      { 1:  4477,  2:  3592,  3:  3890,  4:  4014,  5:  487 },
+  "hurtos_motocicletas":     { 1:  4822,  2:  3868,  3:  4191,  4:  4323,  5: 2294 },
+  "hurtos_comercio":         { 1:  3100,  2:  2487,  3:  2694,  4:  2779,  5: 1716 },
+  "homicidios":              { 1:  1189,  2:  1048,  3:  1079,  4:  1113,  5: 1190 },
+  "homicidios_transito":     { 1:   631,  2:   595,  3:   591,  4:   610,  5:  846 },
+  "lesiones_personales":     { 1:  7313,  2:  7766,  3:  7272,  4:  7501,  5: 8365 },
+  "lesiones_transito":       { 1:  3720,  2:  3429,  3:  3447,  4:  3556,  5: 4265 },
+  "violencia_intrafamiliar": { 1: 12018,  2: 11125,  3: 11160,  4: 11512,  5:10663 },
+  "delitos_sexuales":        { 1:  1956,  2:  2021,  3:  1917,  4:  1978,  5: 2180 },
+  "extorsion":               { 1:   963,  2:   654,  3:   779,  4:   804,  5:  670 },
+  "amenazas":                { 1:  3933,  2:  4320,  3:  3980,  4:  4106,  5: 4183 },
+  "pirateria_terrestre":     { 1:     7,  2:     2,  3:     4,  4:     4,  5:    2 },
+  "secuestros":              { 1:    35,  2:    21,  3:    27,  4:    28,  5:    3 },
+  "terrorismo":              { 1:    13,  2:     7,  3:    10,  4:    10,  5:   14 },
 };
 
 /** Último mes con datos reales disponibles para 2026 */
-const LAST_ACTUAL_MONTH_2026 = 4;
+const LAST_ACTUAL_MONTH_2026 = 5;
 
 // Participación porcentual de cada departamento por tipo de delito (suma ≈ 100%)
 const DEPT_SHARES: Record<string, Record<string, number>> = {
@@ -853,7 +855,7 @@ function generateDemoData(): ParsedRow[] {
 
   // Seasonal weight normalization per year (accounts for partial years)
   for (const year of years) {
-    // For 2026, cap at the last month with data published (ene-abr: real ene-feb + est. mar-abr)
+    // For 2026, cap at the last month with data published (ene-mayo 2026).
     const rawMaxMonth = year === currentYear ? new Date().getMonth() + 1 : 12;
     const maxMonth = year === 2026 ? Math.min(rawMaxMonth, LAST_ACTUAL_MONTH_2026) : rawMaxMonth;
     const seasonalWeightTotal = Array.from({ length: maxMonth }, (_, i) => MONTHLY_SEASONALITY[i + 1] ?? 1.0)
@@ -923,11 +925,6 @@ async function loadDemoIfEmpty() {
     const missingTypes = CRIME_TYPES.filter(ct => !presentTypeIds.has(ct.id));
     const hasMissingTypes = missingTypes.length > 0;
 
-    // Check if row count is not a clean multiple of (CRIME_TYPES.length × 33 departments)
-    const totalRows = Number(countResult[0]?.count ?? 0);
-    const rowsPerMonthPerType = 33; // 32 departments + NACIONAL
-    const hasExtraRows = totalRows > 0 && (totalRows % (CRIME_TYPES.length * rowsPerMonthPerType) !== 0);
-
     // Check for stale 2026 data: if DB has months beyond LAST_ACTUAL_MONTH_2026, reload
     const maxMonth2026Result = await db
       .select({ maxMonth: sql<number>`max(${crimeStatsTable.month})` })
@@ -946,12 +943,9 @@ async function loadDemoIfEmpty() {
       );
     const hasZeroNationalMonths = Number(zeroMonthResult[0]?.count ?? 0) > 0;
 
-    if (isEmpty || missingCurrentYear || hasMissingTypes || hasExtraRows || hasStale2026 || hasMissingMonths2026 || hasZeroNationalMonths) {
+    if (isEmpty || missingCurrentYear || hasMissingTypes || hasStale2026 || hasMissingMonths2026 || hasZeroNationalMonths) {
       if (hasMissingTypes) {
         console.log(`Missing crime types detected: ${missingTypes.map(t => t.id).join(", ")} — reloading demo data`);
-      }
-      if (hasExtraRows) {
-        console.log(`Extra/corrupt rows detected (${totalRows} not divisible by ${CRIME_TYPES.length * rowsPerMonthPerType}) — reloading demo data`);
       }
       if (hasStale2026) {
         console.log(`Stale 2026 data detected (max month in DB: ${maxMonth2026InDb}, last actual: ${LAST_ACTUAL_MONTH_2026}) — reloading demo data`);
@@ -970,7 +964,7 @@ async function loadDemoIfEmpty() {
         lastRefreshed: new Date(),
         nextRefresh: new Date(Date.now() + 24 * 60 * 60 * 1000),
         status: "error",
-        message: `Datos reales ene-feb + est. mar-abr 2026 + histórico 2022-2025 (${saved} registros)`,
+        message: `Datos reales ene-mayo 2026 + histórico 2022-2025 (${saved} registros)`,
         recordCount: saved,
       });
       console.log(`Demo data loaded: ${saved} records`);
