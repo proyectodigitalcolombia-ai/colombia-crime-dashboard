@@ -9,7 +9,8 @@ services:
     name: colombia-crime-api
     env: node
     plan: starter
-    buildCommand: npm install -g pnpm@10.26.1 && pnpm install && pnpm --filter @workspace/api-server run build
+    # Keep pnpm aligned with package.json and the version that generated pnpm-lock.yaml.
+    buildCommand: npm install -g pnpm@10.26.1 && pnpm run check:pnpm-version && echo "Using pnpm version:" && pnpm --version && pnpm install && pnpm --filter @workspace/api-server run build
     startCommand: pnpm --filter @workspace/api-server run start
     envVars:
       - key: NODE_ENV
