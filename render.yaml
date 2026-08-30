@@ -37,4 +37,3 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
-

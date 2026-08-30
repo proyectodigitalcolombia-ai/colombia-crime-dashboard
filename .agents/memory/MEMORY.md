@@ -1,2 +1,3 @@
 - [Render API PATCH build command](render-api-patch.md) — envSpecificDetails nesting required; top-level serviceDetails.buildCommand is silently ignored
 - [Render build log verification](render-build-log-verification.md) — query logs by service resource, not deploy ID, and read forward to capture build diagnostics
+- [Crime workbook imports on Render](crime-import-memory.md) — full AICRI workbooks can exhaust service memory; preserve the verified fallback until imports are streamed
