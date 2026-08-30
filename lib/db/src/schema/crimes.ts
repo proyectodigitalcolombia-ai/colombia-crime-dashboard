@@ -22,6 +22,7 @@ export const refreshLogTable = pgTable("refresh_log", {
   lastRefreshed: timestamp("last_refreshed"),
   nextRefresh: timestamp("next_refresh"),
   status: text("status").notNull().default("idle"),
+  source: text("source").notNull().default("unknown"),
   message: text("message"),
   recordCount: integer("record_count").notNull().default(0),
 });

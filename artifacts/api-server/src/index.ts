@@ -34,9 +34,12 @@ async function ensureSchema() {
         last_refreshed TIMESTAMP,
         next_refresh TIMESTAMP,
         status TEXT NOT NULL DEFAULT 'idle',
+        source TEXT NOT NULL DEFAULT 'unknown',
         message TEXT,
         record_count INTEGER NOT NULL DEFAULT 0
       );
+      ALTER TABLE refresh_log
+        ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'unknown';
 
       CREATE TABLE IF NOT EXISTS blockades (
         id SERIAL PRIMARY KEY,

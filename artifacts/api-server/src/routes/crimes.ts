@@ -1,10 +1,27 @@
 import { Router, type IRouter } from "express";
-import { db } from "@workspace/db";
+import { db, pool } from "@workspace/db";
 import { crimeStatsTable, refreshLogTable } from "@workspace/db";
 import { eq, sql, desc, asc } from "drizzle-orm";
+import { logger } from "../lib/logger";
 import * as XLSX from "xlsx";
+import { spawn } from "node:child_process";
+import { mkdtemp, rm } from "node:fs/promises";
+import { createWriteStream } from "node:fs";
+import { Readable, Transform } from "node:stream";
+import { pipeline as pipelineCallback } from "node:stream";
+import { StringDecoder } from "node:string_decoder";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { promisify } from "node:util";
 
 const router: IRouter = Router();
+const pipeline = promisify(pipelineCallback);
+const MAX_EXCEL_DOWNLOAD_BYTES = 250 * 1024 * 1024;
+const MAX_SHARED_STRINGS_BYTES = 10 * 1024 * 1024;
+const MAX_WORKSHEET_XML_BYTES = 1024 * 1024 * 1024;
+const MAX_PENDING_ROW_XML_BYTES = 1024 * 1024;
+const CRIME_REFRESH_LOCK_ID = 2_026_083_001;
+const OFFICIAL_REGISTRO_YEAR = 2026;
 
 const POLICE_BASE = "https://www.policia.gov.co/sites/default/files";
 const POLICE_STATS_PAGE = "https://www.policia.gov.co/estadistica-delictiva";
@@ -328,14 +345,63 @@ async function discoverRegistroSourceUrl(): Promise<string> {
   return REGISTRO_FALLBACK_URL;
 }
 
+type RefreshSource = "official" | "fallback" | "preserved" | "unknown";
+
+interface DatabaseRefreshLockClient {
+  query: (
+    statement: string,
+    values?: unknown[],
+  ) => Promise<{ rows: Array<Record<string, unknown>> }>;
+  release: () => void;
+}
+
 let refreshState = {
   status: "idle" as "idle" | "refreshing" | "error",
   message: null as string | null,
+  source: "unknown" as RefreshSource,
 };
 
-async function downloadExcel(url: string): Promise<XLSX.WorkBook | null> {
+function normalizeRefreshSource(value: unknown): RefreshSource {
+  return value === "official" || value === "fallback" || value === "preserved"
+    ? value
+    : "unknown";
+}
+
+async function acquireDatabaseRefreshLock() {
+  const client = await pool.connect() as DatabaseRefreshLockClient;
+  try {
+    const result = await client.query(
+      "SELECT pg_try_advisory_lock($1) AS acquired",
+      [CRIME_REFRESH_LOCK_ID],
+    );
+    if (result.rows[0]?.["acquired"] !== true) {
+      client.release();
+      return null;
+    }
+    return client;
+  } catch (error) {
+    client.release();
+    throw error;
+  }
+}
+
+async function releaseDatabaseRefreshLock(
+  client: DatabaseRefreshLockClient | null,
+): Promise<void> {
+  if (!client) return;
+  try {
+    await client.query("SELECT pg_advisory_unlock($1)", [CRIME_REFRESH_LOCK_ID]);
+  } finally {
+    client.release();
+  }
+}
+
+async function downloadExcelToTemp(url: string): Promise<{ directory: string; filePath: string }> {
+  const directory = await mkdtemp(join(tmpdir(), "safenode-crimes-"));
+  const filePath = join(directory, "official.xlsx");
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 90_000);
+
   try {
     const response = await fetch(url, {
       signal: controller.signal,
@@ -344,14 +410,198 @@ async function downloadExcel(url: string): Promise<XLSX.WorkBook | null> {
         "Accept": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       },
     });
-    if (!response.ok) return null;
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    return XLSX.read(buffer, { type: "buffer", cellDates: true });
-  } catch {
-    return null;
+    if (!response.ok) {
+      throw new Error(`La Policía respondió ${response.status} al descargar el Excel`);
+    }
+    if (!response.body) {
+      throw new Error("La respuesta oficial no contiene un archivo descargable");
+    }
+    const declaredSize = Number(response.headers.get("content-length") ?? 0);
+    if (declaredSize > MAX_EXCEL_DOWNLOAD_BYTES) {
+      throw new Error("El Excel oficial supera el límite seguro de descarga");
+    }
+
+    let downloadedBytes = 0;
+    const sizeLimiter = new Transform({
+      transform(chunk: Buffer, _encoding, callback) {
+        downloadedBytes += chunk.length;
+        if (downloadedBytes > MAX_EXCEL_DOWNLOAD_BYTES) {
+          callback(new Error("El Excel oficial supera el límite seguro de descarga"));
+          return;
+        }
+        callback(null, chunk);
+      },
+    });
+    await pipeline(
+      Readable.fromWeb(response.body as globalThis.ReadableStream<Uint8Array>),
+      sizeLimiter,
+      createWriteStream(filePath),
+    );
+    return { directory, filePath };
+  } catch (error) {
+    await rm(directory, { recursive: true, force: true });
+    throw error;
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+async function readZipEntry(
+  filePath: string,
+  entry: string,
+  maxBytes: number,
+): Promise<Buffer> {
+  const child = spawn("unzip", ["-p", filePath, entry], {
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  const completion = new Promise<number>((resolve, reject) => {
+    child.once("error", reject);
+    child.once("close", (code) => resolve(code ?? 1));
+  });
+  const chunks: Buffer[] = [];
+  let stderr = "";
+
+  child.stderr.setEncoding("utf8");
+  child.stderr.on("data", (chunk: string) => {
+    stderr += chunk;
+  });
+  for await (const chunk of child.stdout) {
+    const buffer = Buffer.from(chunk);
+    const accumulatedBytes = chunks.reduce((total, item) => total + item.length, 0) + buffer.length;
+    if (accumulatedBytes > maxBytes) {
+      child.kill();
+      throw new Error(`${entry} supera el límite seguro de descompresión`);
+    }
+    chunks.push(buffer);
+  }
+
+  const exitCode = await completion;
+  if (exitCode !== 0) {
+    throw new Error(`No se pudo leer ${entry} del Excel${stderr ? `: ${stderr.trim()}` : ""}`);
+  }
+  return Buffer.concat(chunks);
+}
+
+function decodeXml(value: string): string {
+  return value
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, "\"")
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex: string) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, decimal: string) => String.fromCodePoint(parseInt(decimal, 10)));
+}
+
+function parseSharedStrings(xml: string): string[] {
+  const strings: string[] = [];
+  for (const match of xml.matchAll(/<si\b[^>]*>([\s\S]*?)<\/si>/g)) {
+    const text = [...(match[1] ?? "").matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/g)]
+      .map((textMatch) => decodeXml(textMatch[1] ?? ""))
+      .join("");
+    strings.push(text);
+  }
+  return strings;
+}
+
+interface StreamedExcelRow {
+  cells: Record<string, string>;
+}
+
+function parseExcelRow(xml: string, sharedStrings: string[]): StreamedExcelRow {
+  const cells: Record<string, string> = {};
+  const cellPattern = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
+
+  for (const match of xml.matchAll(cellPattern)) {
+    const attributes = match[1] ?? "";
+    const body = match[2] ?? "";
+    const reference = attributes.match(/\br="([A-Z]+)\d+"/i)?.[1]?.toUpperCase();
+    if (!reference) continue;
+
+    const type = attributes.match(/\bt="([^"]+)"/i)?.[1];
+    const rawValue = body.match(/<v\b[^>]*>([\s\S]*?)<\/v>/i)?.[1]
+      ?? body.match(/<t\b[^>]*>([\s\S]*?)<\/t>/i)?.[1]
+      ?? "";
+    const decodedValue = decodeXml(rawValue);
+    if (type === "s") {
+      const sharedIndex = Number(decodedValue);
+      cells[reference] = sharedStrings[sharedIndex] ?? "";
+    } else {
+      cells[reference] = decodedValue;
+    }
+  }
+
+  return { cells };
+}
+
+async function streamZipRows(
+  filePath: string,
+  entry: string,
+  sharedStrings: string[],
+  onRow: (row: StreamedExcelRow) => void,
+): Promise<void> {
+  const child = spawn("unzip", ["-p", filePath, entry], {
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  const completion = new Promise<number>((resolve, reject) => {
+    child.once("error", reject);
+    child.once("close", (code) => resolve(code ?? 1));
+  });
+  const decoder = new StringDecoder("utf8");
+  let pendingXml = "";
+  let stderr = "";
+  let decompressedBytes = 0;
+
+  child.stderr.setEncoding("utf8");
+  child.stderr.on("data", (chunk: string) => {
+    stderr += chunk;
+  });
+
+  const consume = (chunk: string) => {
+    pendingXml += chunk;
+    const rowPattern = /<row\b[^>]*(?:\/>|>[\s\S]*?<\/row>)/g;
+    let consumed = 0;
+    for (const match of pendingXml.matchAll(rowPattern)) {
+      onRow(parseExcelRow(match[0], sharedStrings));
+      consumed = (match.index ?? 0) + match[0].length;
+    }
+    if (consumed > 0) {
+      pendingXml = pendingXml.slice(consumed);
+    } else {
+      const possibleRowStart = pendingXml.lastIndexOf("<row");
+      if (possibleRowStart > 0) {
+        pendingXml = pendingXml.slice(possibleRowStart);
+      } else if (possibleRowStart < 0 && pendingXml.length > 16) {
+        pendingXml = pendingXml.slice(-16);
+      }
+    }
+    if (Buffer.byteLength(pendingXml, "utf8") > MAX_PENDING_ROW_XML_BYTES) {
+      throw new Error("Una fila del Excel supera el límite seguro de memoria");
+    }
+  };
+
+  try {
+    for await (const chunk of child.stdout) {
+      const buffer = Buffer.from(chunk);
+      decompressedBytes += buffer.length;
+      if (decompressedBytes > MAX_WORKSHEET_XML_BYTES) {
+        child.kill();
+        throw new Error("La hoja del Excel supera el límite seguro de descompresión");
+      }
+      consume(decoder.write(buffer));
+    }
+    consume(decoder.end());
+    if (pendingXml.includes("<row")) {
+      throw new Error("El XML del Excel terminó antes de cerrar todas sus filas");
+    }
+  } catch (error) {
+    child.kill();
+    throw error;
+  }
+
+  const exitCode = await completion;
+  if (exitCode !== 0) {
+    throw new Error(`No se pudo recorrer ${entry} del Excel${stderr ? `: ${stderr.trim()}` : ""}`);
   }
 }
 
@@ -782,6 +1032,143 @@ function mapDelitoCrimeType(delito: string): { id: string; name: string } | null
   return null;
 }
 
+interface StreamedRegistroResult {
+  rows: ParsedRow[];
+  sourceRows: number;
+  departments: Set<string>;
+  months: Set<number>;
+}
+
+export async function parseRegistroFileStreaming(
+  filePath: string,
+  year: number,
+): Promise<StreamedRegistroResult> {
+  const sharedStrings = parseSharedStrings(
+    (await readZipEntry(
+      filePath,
+      "xl/sharedStrings.xml",
+      MAX_SHARED_STRINGS_BYTES,
+    )).toString("utf8"),
+  );
+  const aggregate = new Map<string, ParsedRow>();
+  const departments = new Set<string>();
+  const months = new Set<number>();
+  const crimeTypes = new Set<string>();
+  let departmentColumn = "";
+  let crimeColumn = "";
+  let monthColumn = "";
+  let countColumn = "";
+  let headerFound = false;
+  let sourceRows = 0;
+
+  const addTotal = (
+    month: number,
+    department: string,
+    crimeType: { id: string; name: string },
+    count: number,
+  ) => {
+    const key = `${month}|${department}|${crimeType.id}`;
+    const existing = aggregate.get(key);
+    if (existing) {
+      existing.count += count;
+    } else {
+      aggregate.set(key, {
+        year,
+        month,
+        crimeTypeId: crimeType.id,
+        crimeTypeName: crimeType.name,
+        department,
+        count,
+      });
+    }
+  };
+
+  await streamZipRows(filePath, "xl/worksheets/sheet1.xml", sharedStrings, ({ cells }) => {
+    if (!headerFound) {
+      for (const [column, value] of Object.entries(cells)) {
+        const normalized = removeAccents(value.toUpperCase().trim());
+        if (normalized === "DEPARTAMENTO") departmentColumn = column;
+        if (normalized === "DELITOS") crimeColumn = column;
+        if (normalized === "MES") monthColumn = column;
+        if (normalized === "CANTIDAD") countColumn = column;
+      }
+      headerFound = Boolean(departmentColumn && crimeColumn && monthColumn && countColumn);
+      return;
+    }
+
+    sourceRows++;
+    const departmentRaw = cells[departmentColumn]?.trim() ?? "";
+    const crimeRaw = cells[crimeColumn]?.trim() ?? "";
+    const month = parseInt(cells[monthColumn] ?? "", 10);
+    const count = parseNumber(cells[countColumn]) || 1;
+    if (!departmentRaw || !crimeRaw || !month || month < 1 || month > 12) return;
+
+    const crimeType = mapDelitoCrimeType(crimeRaw);
+    if (!crimeType) return;
+
+    const department = normalizeDepartment(departmentRaw);
+    departments.add(department);
+    months.add(month);
+    crimeTypes.add(crimeType.id);
+    addTotal(month, department, crimeType, count);
+    addTotal(month, "NACIONAL", crimeType, count);
+
+    // "Hurtos" is the umbrella total used by the dashboard in addition to
+    // each specific theft category present in the official source.
+    const normalizedCrime = removeAccents(crimeRaw.toUpperCase());
+    const isHurto = normalizedCrime.includes("HURTO") || normalizedCrime.includes("ABIGEATO");
+    if (isHurto && crimeType.id !== "hurtos") {
+      const umbrella = { id: "hurtos", name: "Hurtos" };
+      crimeTypes.add(umbrella.id);
+      addTotal(month, department, umbrella, count);
+      addTotal(month, "NACIONAL", umbrella, count);
+    }
+  });
+
+  if (!headerFound) {
+    throw new Error("El Excel oficial no contiene las columnas esperadas");
+  }
+  if (aggregate.size === 0) {
+    throw new Error("El Excel oficial no produjo registros compatibles");
+  }
+
+  const missingTypes = CRIME_TYPES
+    .filter((crimeType) => !crimeTypes.has(crimeType.id))
+    .map((crimeType) => crimeType.name);
+  if (missingTypes.length > 0) {
+    throw new Error(`El Excel oficial no contiene tipos de delito: ${missingTypes.join(", ")}`);
+  }
+
+  const missingMonths = Array.from(
+    { length: LAST_ACTUAL_MONTH_2026 },
+    (_, index) => index + 1,
+  ).filter((month) => !months.has(month));
+  if (year === 2026 && missingMonths.length > 0) {
+    throw new Error(`El Excel oficial no contiene meses completos: ${missingMonths.join(", ")}`);
+  }
+
+  const missingNationalSeries = Array.from(
+    { length: LAST_ACTUAL_MONTH_2026 },
+    (_, index) => index + 1,
+  ).flatMap((month) =>
+    CRIME_TYPES
+      .filter((crimeType) => !aggregate.has(`${month}|NACIONAL|${crimeType.id}`))
+      .map((crimeType) => `${MONTH_NAMES[month]}: ${crimeType.name}`),
+  );
+  if (year === 2026 && missingNationalSeries.length > 0) {
+    throw new Error(
+      `El Excel oficial tiene series mensuales incompletas (${missingNationalSeries.join(", ")})`,
+    );
+  }
+
+  return {
+    rows: [...aggregate.values()],
+    sourceRows,
+    departments,
+    months,
+  };
+}
+
 function parseRegistroFile(wb: XLSX.WorkBook, year: number): ParsedRow[] {
   const rows: ParsedRow[] = [];
 
@@ -865,6 +1252,36 @@ async function saveRows(rows: ParsedRow[]): Promise<number> {
   return saved;
 }
 
+async function replaceRowsForYear(year: number, rows: ParsedRow[]): Promise<number> {
+  if (rows.length === 0) {
+    throw new Error(`No hay datos validados para reemplazar ${year}`);
+  }
+
+  await db.transaction(async (tx) => {
+    await tx.delete(crimeStatsTable).where(eq(crimeStatsTable.year, year));
+    const batchSize = 100;
+    for (let i = 0; i < rows.length; i += batchSize) {
+      await tx.insert(crimeStatsTable).values(rows.slice(i, i + batchSize));
+    }
+  });
+  return rows.length;
+}
+
+async function replaceAllRows(rows: ParsedRow[]): Promise<number> {
+  if (rows.length === 0) {
+    throw new Error("No hay datos validados para reemplazar las estadísticas");
+  }
+
+  await db.transaction(async (tx) => {
+    await tx.delete(crimeStatsTable);
+    const batchSize = 100;
+    for (let i = 0; i < rows.length; i += batchSize) {
+      await tx.insert(crimeStatsTable).values(rows.slice(i, i + batchSize));
+    }
+  });
+  return rows.length;
+}
+
 async function refreshData(): Promise<{ success: boolean; message: string; count: number }> {
   if (refreshInProgress) {
     return { success: false, message: "Ya hay una actualización en curso", count: 0 };
@@ -872,51 +1289,93 @@ async function refreshData(): Promise<{ success: boolean; message: string; count
 
   refreshInProgress = true;
   refreshState.status = "refreshing";
-  refreshState.message = "Conectando con SIEDCO en línea...";
+  refreshState.message = "Descargando el Excel oficial de la Policía Nacional...";
+  let temporaryDirectory: string | null = null;
+  let lockClient: DatabaseRefreshLockClient | null = null;
+  let previousSource: RefreshSource = "unknown";
 
   try {
-    const year = new Date().getFullYear();
-    const siedco = await fetchSiedcoRows(year);
-    refreshState.message = `Guardando datos agregados de SIEDCO para ${year}...`;
+    lockClient = await acquireDatabaseRefreshLock();
+    if (!lockClient) {
+      refreshState.status = "idle";
+      refreshState.message = "Otra instancia ya está actualizando los datos";
+      return { success: false, message: "Ya hay una actualización en curso", count: 0 };
+    }
 
-    await db.transaction(async (tx) => {
-      await tx.delete(crimeStatsTable).where(eq(crimeStatsTable.year, year));
-      const batchSize = 100;
-      for (let i = 0; i < siedco.rows.length; i += batchSize) {
-        await tx.insert(crimeStatsTable).values(siedco.rows.slice(i, i + batchSize));
-      }
-    });
+    const previousLogs = await db
+      .select({ source: refreshLogTable.source })
+      .from(refreshLogTable)
+      .orderBy(desc(refreshLogTable.id))
+      .limit(1);
+    previousSource = normalizeRefreshSource(previousLogs[0]?.source);
+
+    const year = OFFICIAL_REGISTRO_YEAR;
+    const sourceUrl = await discoverRegistroSourceUrl();
+    const downloaded = await downloadExcelToTemp(sourceUrl);
+    temporaryDirectory = downloaded.directory;
+    refreshState.message = `Procesando el Excel oficial ${year} con memoria limitada...`;
+
+    const parsed = await parseRegistroFileStreaming(downloaded.filePath, year);
+    refreshState.message = `Publicando datos oficiales validados de ${year}...`;
+    const inserted = await replaceRowsForYear(year, parsed.rows);
+    const latestMonth = Math.max(...parsed.months);
+    const memory = process.memoryUsage();
+    logger.info({
+      sourceRows: parsed.sourceRows,
+      aggregatedRows: inserted,
+      rssMb: Math.round(memory.rss / 1024 / 1024),
+      heapUsedMb: Math.round(memory.heapUsed / 1024 / 1024),
+    }, "Official crime workbook refresh completed");
 
     await db.delete(refreshLogTable);
     await db.insert(refreshLogTable).values({
       lastRefreshed: new Date(),
       nextRefresh: new Date(Date.now() + 24 * 60 * 60 * 1000),
       status: "idle",
-      message: `${siedco.rows.length} agregados consultados directamente en SIEDCO (recarga ${siedco.lastReloadTime || "sin fecha"})`,
-      recordCount: siedco.rows.length,
+      source: "official",
+      message: `Datos oficiales enero-${MONTH_NAMES[latestMonth] ?? latestMonth} de ${year}: ${inserted} series agregadas desde ${parsed.sourceRows} registros`,
+      recordCount: inserted,
     });
 
     refreshState.status = "idle";
     refreshState.message = null;
+    refreshState.source = "official";
     return {
       success: true,
-      message: `${siedco.rows.length} agregados actualizados desde SIEDCO`,
-      count: siedco.rows.length,
+      message: `${inserted} series actualizadas desde el Excel oficial`,
+      count: inserted,
     };
   } catch (err) {
     refreshState.status = "error";
-    refreshState.message = `Error: ${err instanceof Error ? err.message : String(err)}`;
+    refreshState.source = previousSource;
+    refreshState.message = `Error en la fuente oficial: ${err instanceof Error ? err.message : String(err)}`;
     await db.delete(refreshLogTable);
     await db.insert(refreshLogTable).values({
       lastRefreshed: new Date(),
       nextRefresh: new Date(Date.now() + 24 * 60 * 60 * 1000),
       status: "error",
-      message: `SIEDCO no disponible; se conservaron los datos existentes (${err instanceof Error ? err.message : String(err)})`,
+      source: previousSource,
+      message: `Falló el Excel oficial; se conservaron íntegros los datos vigentes (${err instanceof Error ? err.message : String(err)})`,
       recordCount: 0,
     });
-    return { success: false, message: "SIEDCO no disponible; datos anteriores conservados", count: 0 };
+    return { success: false, message: "Fuente oficial no disponible; datos anteriores conservados", count: 0 };
   } finally {
-    refreshInProgress = false;
+    try {
+      if (temporaryDirectory) {
+        await rm(temporaryDirectory, { recursive: true, force: true });
+      }
+    } catch (cleanupError) {
+      console.warn(
+        "[Crimes] No se pudo limpiar el archivo temporal:",
+        cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+      );
+    } finally {
+      try {
+        await releaseDatabaseRefreshLock(lockClient);
+      } finally {
+        refreshInProgress = false;
+      }
+    }
   }
 }
 
@@ -1094,15 +1553,11 @@ function generateDemoData(): ParsedRow[] {
     "Guainía": 0.15, "Vaupés": 0.1, "Amazonas": 0.1, "Guaviare": 0.2,
   };
 
-  const currentYear = new Date().getFullYear();
-  const years = [2022, 2023, 2024, 2025];
-  if (!years.includes(currentYear)) years.push(currentYear);
+  const years = [2022, 2023, 2024, 2025, OFFICIAL_REGISTRO_YEAR];
 
   // Seasonal weight normalization per year (accounts for partial years)
   for (const year of years) {
-    // For 2026, cap at the last month with data published (ene-mayo 2026).
-    const rawMaxMonth = year === currentYear ? new Date().getMonth() + 1 : 12;
-    const maxMonth = year === 2026 ? Math.min(rawMaxMonth, LAST_ACTUAL_MONTH_2026) : rawMaxMonth;
+    const maxMonth = year === OFFICIAL_REGISTRO_YEAR ? LAST_ACTUAL_MONTH_2026 : 12;
     const seasonalWeightTotal = Array.from({ length: maxMonth }, (_, i) => MONTHLY_SEASONALITY[i + 1] ?? 1.0)
       .reduce((s, w) => s + w, 0);
 
@@ -1158,8 +1613,12 @@ let refreshInProgress = false;
 async function loadDemoIfEmpty() {
   if (refreshInProgress) return;
   refreshInProgress = true;
+  let lockClient: DatabaseRefreshLockClient | null = null;
   try {
-    const currentYear = new Date().getFullYear();
+    lockClient = await acquireDatabaseRefreshLock();
+    if (!lockClient) return;
+
+    const currentYear = OFFICIAL_REGISTRO_YEAR;
     const countResult = await db
       .select({ count: sql<number>`count(*)` })
       .from(crimeStatsTable);
@@ -1206,29 +1665,36 @@ async function loadDemoIfEmpty() {
         console.log(`Zero-count national months detected in 2026 — reloading demo data with corrected estimates`);
       }
       const demo = generateDemoData();
-      await db.delete(crimeStatsTable);
-      const saved = await saveRows(demo);
+      const saved = await replaceAllRows(demo);
       await db.delete(refreshLogTable);
       await db.insert(refreshLogTable).values({
         lastRefreshed: new Date(),
         nextRefresh: new Date(Date.now() + 24 * 60 * 60 * 1000),
         status: "error",
+        source: "fallback",
         message: `Datos de respaldo hasta julio de 2026 + histórico 2022-2025 (${saved} registros)`,
         recordCount: saved,
       });
+      refreshState.status = "error";
+      refreshState.message = "Datos de respaldo activos hasta julio de 2026";
+      refreshState.source = "fallback";
       console.log(`Demo data loaded: ${saved} records`);
     }
   } catch (err) {
     console.error("loadDemoIfEmpty error:", err instanceof Error ? err.message : String(err));
   } finally {
-    refreshInProgress = false;
+    try {
+      await releaseDatabaseRefreshLock(lockClient);
+    } finally {
+      refreshInProgress = false;
+    }
   }
 }
 
 async function ensureDataLoaded() {
   if (refreshInProgress) return;
   try {
-    const currentYear = new Date().getFullYear();
+    const currentYear = OFFICIAL_REGISTRO_YEAR;
     const countResult = await db
       .select({ count: sql<number>`count(*)` })
       .from(crimeStatsTable);
@@ -1379,12 +1845,14 @@ router.get("/crimes/refresh-status", async (req, res) => {
       .limit(1);
 
     const log = logs[0];
+    const persistedSource = normalizeRefreshSource(log?.source);
     res.json({
       lastRefreshed: log?.lastRefreshed?.toISOString() ?? null,
       nextRefresh: log?.nextRefresh?.toISOString() ?? null,
       status: refreshState.status,
       message: refreshState.message ?? log?.message ?? null,
       recordCount: log?.recordCount ?? 0,
+      source: refreshState.source === "unknown" ? persistedSource : refreshState.source,
     });
   } catch {
     res.json({
@@ -1393,6 +1861,7 @@ router.get("/crimes/refresh-status", async (req, res) => {
       status: refreshState.status,
       message: refreshState.message,
       recordCount: 0,
+      source: refreshState.source,
     });
   }
 });
@@ -1407,6 +1876,7 @@ router.post("/crimes/refresh", async (req, res) => {
       status: "refreshing",
       message: "Actualización en progreso...",
       recordCount: log?.recordCount ?? 0,
+      source: normalizeRefreshSource(log?.source),
     });
   }
 
@@ -1418,11 +1888,12 @@ router.post("/crimes/refresh", async (req, res) => {
     status: "refreshing",
     message: "Actualización iniciada",
     recordCount: 0,
+    source: refreshState.source,
   });
 });
 
 async function checkAndAutoRefresh(): Promise<void> {
-  console.log("[AutoRefresh] Consultando agregados actuales directamente en SIEDCO…");
+  console.log("[AutoRefresh] Revisando el Excel oficial de la Policía Nacional…");
 
   if (refreshState.status === "refreshing" || refreshInProgress) {
     console.log("[AutoRefresh] Ya hay una actualización en curso, se omite.");
@@ -1447,7 +1918,7 @@ export function startDailyAutoRefresh(): void {
     setInterval(checkAndAutoRefresh, INTERVAL_MS);
   }, 5 * 60 * 1000);
 
-  console.log("[AutoRefresh] Programado: sincronización diaria directa con SIEDCO (primera revisión en 5 min).");
+  console.log("[AutoRefresh] Programado: revisión diaria del Excel oficial (primera revisión en 5 min).");
 }
 
 export { ensureDataLoaded, loadDemoIfEmpty };
