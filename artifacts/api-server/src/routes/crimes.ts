@@ -10,6 +10,8 @@ const POLICE_BASE = "https://www.policia.gov.co/sites/default/files";
 const POLICE_STATS_PAGE = "https://www.policia.gov.co/estadistica-delictiva";
 const REGISTRO_FALLBACK_URL =
   `${POLICE_BASE}/INFORMACI%C3%93N_DELITOS_A_NIVEL_DE_REGISTRO_A%C3%91O_2026_1.xlsx`;
+const SIEDCO_APP_ID = "28c459f0-6242-4362-8447-2ce291446abb";
+const SIEDCO_WEBSOCKET_BASE = "wss://portalsiedco.policia.gov.co:4443";
 
 const EXCEL_SOURCES = [
   {
@@ -81,6 +83,205 @@ function normalizeDepartment(name: string): string {
     if (upper.includes(removeAccents(key))) return value;
   }
   return name.trim();
+}
+
+type QlikRpcResult = Record<string, any>;
+
+interface QlikPendingRequest {
+  resolve: (value: QlikRpcResult) => void;
+  reject: (reason: Error) => void;
+  timer: ReturnType<typeof setTimeout>;
+}
+
+function mapSiedcoCrimeType(delito: string): { id: string; name: string } | null {
+  const normalized = removeAccents(delito.trim().toUpperCase());
+  const exact: Record<string, { id: string; name: string }> = {
+    "HOMICIDIOS": { id: "homicidios", name: "Homicidios" },
+    "HOMICIDIOS EN ACCIDENTES DE TRANSITO": { id: "homicidios_transito", name: "Homicidios en Tránsito" },
+    "LESIONES PERSONALES": { id: "lesiones_personales", name: "Lesiones Personales" },
+    "LESIONES EN ACCIDENTES DE TRANSITO": { id: "lesiones_transito", name: "Lesiones en Tránsito" },
+    "VIOLENCIA INTRAFAMILIAR": { id: "violencia_intrafamiliar", name: "Violencia Intrafamiliar" },
+    "DELITOS SEXUALES": { id: "delitos_sexuales", name: "Delitos Sexuales" },
+    "EXTORSION": { id: "extorsion", name: "Extorsión" },
+    "AMENAZAS": { id: "amenazas", name: "Amenazas" },
+    "HURTO A PERSONAS": { id: "hurtos_personas", name: "Hurto a Personas" },
+    "HURTO A AUTOMOTORES": { id: "hurtos_automotores", name: "Hurto a Automotores" },
+    "HURTO A MOTOCICLETAS": { id: "hurtos_motocicletas", name: "Hurto a Motocicletas" },
+    "HURTO A COMERCIO": { id: "hurtos_comercio", name: "Hurto a Comercio" },
+    "PIRATERIA TERRESTRE": { id: "pirateria_terrestre", name: "Piratería Terrestre" },
+    "SECUESTRO SIMPLE": { id: "secuestros", name: "Secuestros" },
+    "SECUESTRO EXTORSIVO": { id: "secuestros", name: "Secuestros" },
+    "TERRORISMO": { id: "terrorismo", name: "Terrorismo" },
+    "ABIGEATO": { id: "hurtos", name: "Hurtos" },
+    "HURTO A RESIDENCIAS": { id: "hurtos", name: "Hurtos" },
+    "HURTO A ENTIDADES FINANCIERAS": { id: "hurtos", name: "Hurtos" },
+  };
+  return exact[normalized] ?? null;
+}
+
+async function fetchSiedcoRows(year: number): Promise<{ rows: ParsedRow[]; lastReloadTime: string }> {
+  const socketUrl =
+    `${SIEDCO_WEBSOCKET_BASE}/app/${SIEDCO_APP_ID}/identity/${crypto.randomUUID()}`;
+
+  return new Promise((resolve, reject) => {
+    const socket = new WebSocket(socketUrl);
+    const pending = new Map<number, QlikPendingRequest>();
+    let sequence = 0;
+    let settled = false;
+
+    const finish = (
+      error: Error | null,
+      value?: { rows: ParsedRow[]; lastReloadTime: string },
+    ) => {
+      if (settled) return;
+      settled = true;
+      for (const request of pending.values()) {
+        clearTimeout(request.timer);
+        request.reject(error ?? new Error("La sesión SIEDCO finalizó"));
+      }
+      pending.clear();
+      if (socket.readyState === WebSocket.OPEN) socket.close();
+      if (error) reject(error);
+      else resolve(value!);
+    };
+
+    const rpc = (handle: number, method: string, params: Record<string, any>) =>
+      new Promise<QlikRpcResult>((rpcResolve, rpcReject) => {
+        const id = ++sequence;
+        const timer = setTimeout(() => {
+          pending.delete(id);
+          rpcReject(new Error(`SIEDCO no respondió a ${method}`));
+        }, 45_000);
+        pending.set(id, { resolve: rpcResolve, reject: rpcReject, timer });
+        socket.send(JSON.stringify({ jsonrpc: "2.0", id, handle, method, params }));
+      });
+
+    socket.addEventListener("message", (event) => {
+      try {
+        const message = JSON.parse(String(event.data));
+        if (!message.id) return;
+        const request = pending.get(message.id);
+        if (!request) return;
+        clearTimeout(request.timer);
+        pending.delete(message.id);
+        if (message.error) {
+          request.reject(new Error(message.error.message ?? "Error del motor SIEDCO"));
+        } else {
+          request.resolve(message.result ?? {});
+        }
+      } catch (error) {
+        finish(error instanceof Error ? error : new Error(String(error)));
+      }
+    });
+
+    socket.addEventListener("error", () => {
+      finish(new Error("No se pudo conectar con SIEDCO"));
+    });
+
+    socket.addEventListener("close", () => {
+      if (!settled) finish(new Error("SIEDCO cerró la conexión antes de responder"));
+    });
+
+    socket.addEventListener("open", async () => {
+      try {
+        const opened = await rpc(-1, "OpenDoc", {
+          qDocName: SIEDCO_APP_ID,
+          qUserName: "",
+          qPassword: "",
+          qSerial: "",
+          qNoData: false,
+        });
+        const documentHandle = opened.qReturn?.qHandle;
+        if (!documentHandle) throw new Error("SIEDCO no abrió la aplicación pública");
+
+        const appLayout = await rpc(documentHandle, "GetAppLayout", {});
+        const lastReloadTime = String(appLayout.qLayout?.qLastReloadTime ?? "");
+
+        const sessionObject = await rpc(documentHandle, "CreateSessionObject", {
+          qProp: {
+            qInfo: { qType: "safenode-crime-summary" },
+            qHyperCubeDef: {
+              qDimensions: ["Mes_#", "Departamento", "Delito"].map((field) => ({
+                qDef: {
+                  qFieldDefs: [field],
+                  qSortCriterias: [{ qSortByNumeric: 1, qSortByAscii: 1 }],
+                },
+              })),
+              qMeasures: [{
+                qDef: {
+                  qDef: `Sum({<Año={${year}}>} Cantidad)`,
+                  qLabel: "Cantidad",
+                },
+              }],
+              qSuppressZero: true,
+              qSuppressMissing: true,
+              qInitialDataFetch: [],
+            },
+          },
+        });
+        const objectHandle = sessionObject.qReturn?.qHandle;
+        if (!objectHandle) throw new Error("SIEDCO no creó la consulta agregada");
+
+        const objectLayout = await rpc(objectHandle, "GetLayout", {});
+        const rowCount = Number(objectLayout.qLayout?.qHyperCube?.qSize?.qcy ?? 0);
+        if (rowCount === 0) throw new Error(`SIEDCO no devolvió datos para ${year}`);
+
+        const aggregate = new Map<string, ParsedRow>();
+        const pageSize = 2_000;
+        for (let top = 0; top < rowCount; top += pageSize) {
+          const pageResult = await rpc(objectHandle, "GetHyperCubeData", {
+            qPath: "/qHyperCubeDef",
+            qPages: [{
+              qTop: top,
+              qLeft: 0,
+              qWidth: 4,
+              qHeight: Math.min(pageSize, rowCount - top),
+            }],
+          });
+          const matrix = pageResult.qDataPages?.[0]?.qMatrix ?? [];
+          for (const cells of matrix) {
+            const month = Number(cells[0]?.qNum);
+            const department = normalizeDepartment(String(cells[1]?.qText ?? ""));
+            const crimeType = mapSiedcoCrimeType(String(cells[2]?.qText ?? ""));
+            const count = Math.round(Number(cells[3]?.qNum ?? 0));
+            if (!crimeType || month < 1 || month > 12 || !department || count <= 0) continue;
+
+            const key = `${month}|${department}|${crimeType.id}`;
+            const existing = aggregate.get(key);
+            if (existing) {
+              existing.count += count;
+            } else {
+              aggregate.set(key, {
+                year,
+                month,
+                crimeTypeId: crimeType.id,
+                crimeTypeName: crimeType.name,
+                department,
+                count,
+              });
+            }
+          }
+        }
+
+        const national = new Map<string, ParsedRow>();
+        for (const row of aggregate.values()) {
+          const key = `${row.month}|${row.crimeTypeId}`;
+          const existing = national.get(key);
+          if (existing) {
+            existing.count += row.count;
+          } else {
+            national.set(key, { ...row, department: "NACIONAL" });
+          }
+        }
+
+        const rows = [...aggregate.values(), ...national.values()];
+        if (rows.length === 0) throw new Error("SIEDCO no produjo filas compatibles");
+        finish(null, { rows, lastReloadTime });
+      } catch (error) {
+        finish(error instanceof Error ? error : new Error(String(error)));
+      }
+    });
+  });
 }
 
 async function discoverRegistroSourceUrl(): Promise<string> {
@@ -671,99 +872,49 @@ async function refreshData(): Promise<{ success: boolean; message: string; count
 
   refreshInProgress = true;
   refreshState.status = "refreshing";
-  refreshState.message = "Descargando datos de la Policía Nacional...";
-
-  let totalInserted = 0;
-  let registroSuccessCount = 0;
-  const yearsLoaded = new Set<number>();
+  refreshState.message = "Conectando con SIEDCO en línea...";
 
   try {
-    await db.delete(crimeStatsTable);
+    const year = new Date().getFullYear();
+    const siedco = await fetchSiedcoRows(year);
+    refreshState.message = `Guardando datos agregados de SIEDCO para ${year}...`;
 
-    refreshState.message = "Descargando datos de registro individual 2026...";
-    const registroSources = [
-      { url: await discoverRegistroSourceUrl(), year: 2026 },
-    ];
-    for (const source of registroSources) {
-      refreshState.message = `Procesando registros individuales ${source.year}...`;
-      try {
-        const wb = await downloadExcel(source.url);
-        if (!wb) continue;
-        const parsed = parseRegistroFile(wb, source.year);
-        if (parsed.length > 0) {
-          totalInserted += await saveRows(parsed);
-          yearsLoaded.add(source.year);
-          registroSuccessCount++;
-        }
-      } catch (srcErr) {
-        // continue with next source on error
+    await db.transaction(async (tx) => {
+      await tx.delete(crimeStatsTable).where(eq(crimeStatsTable.year, year));
+      const batchSize = 100;
+      for (let i = 0; i < siedco.rows.length; i += batchSize) {
+        await tx.insert(crimeStatsTable).values(siedco.rows.slice(i, i + batchSize));
       }
-    }
-
-    refreshState.message = "Descargando datos históricos 2020-2025...";
-    for (const source of EXCEL_SOURCES) {
-      try {
-        const wb = await downloadExcel(source.url);
-        if (!wb) continue;
-        let rows: ParsedRow[] = [];
-        if (wb.SheetNames.includes("Cuadro 1") && isHistoricalFormat(wb)) {
-          rows = parseHistoricalCuadros(wb).filter(r => !yearsLoaded.has(r.year));
-        } else if (wb.SheetNames.includes("Cuadro 1")) {
-          rows = parse2026Excel(wb).filter(r => !yearsLoaded.has(r.year));
-        } else {
-          for (const sheetName of wb.SheetNames) {
-            const sheet = wb.Sheets[sheetName];
-            if (sheet) rows = rows.concat(parseMonthlySheet(sheet));
-          }
-        }
-        if (rows.length > 0) totalInserted += await saveRows(rows);
-      } catch (srcErr) {
-        // continue with next source on error
-      }
-    }
-
-    if (totalInserted === 0) {
-      refreshState.message = "Sin datos reales, cargando datos de demostración...";
-      const demo = generateDemoData();
-      totalInserted = await saveRows(demo);
-    }
+    });
 
     await db.delete(refreshLogTable);
     await db.insert(refreshLogTable).values({
       lastRefreshed: new Date(),
       nextRefresh: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      status: registroSuccessCount > 0 ? "idle" : "error",
-      message: registroSuccessCount > 0
-        ? `${totalInserted} registros cargados de ${registroSuccessCount} archivos`
-        : `Datos de demostración cargados (${totalInserted} registros)`,
-      recordCount: totalInserted,
+      status: "idle",
+      message: `${siedco.rows.length} agregados consultados directamente en SIEDCO (recarga ${siedco.lastReloadTime || "sin fecha"})`,
+      recordCount: siedco.rows.length,
     });
 
     refreshState.status = "idle";
     refreshState.message = null;
-    return { success: true, message: `${totalInserted} registros actualizados`, count: totalInserted };
+    return {
+      success: true,
+      message: `${siedco.rows.length} agregados actualizados desde SIEDCO`,
+      count: siedco.rows.length,
+    };
   } catch (err) {
     refreshState.status = "error";
     refreshState.message = `Error: ${err instanceof Error ? err.message : String(err)}`;
-
-    try {
-      const demo = generateDemoData();
-      await db.delete(crimeStatsTable);
-      const demoInserted = await saveRows(demo);
-      await db.delete(refreshLogTable);
-      await db.insert(refreshLogTable).values({
-        lastRefreshed: new Date(),
-        nextRefresh: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        status: "error",
-        message: `Datos de demostración cargados tras error (${demoInserted} registros)`,
-        recordCount: demoInserted,
-      });
-      refreshState.status = "idle";
-      refreshState.message = null;
-      return { success: false, message: "Datos de demostración cargados", count: demoInserted };
-    } catch (fallbackErr) {
-      return { success: false, message: "Sin datos disponibles", count: 0 };
-    }
+    await db.delete(refreshLogTable);
+    await db.insert(refreshLogTable).values({
+      lastRefreshed: new Date(),
+      nextRefresh: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      status: "error",
+      message: `SIEDCO no disponible; se conservaron los datos existentes (${err instanceof Error ? err.message : String(err)})`,
+      recordCount: 0,
+    });
+    return { success: false, message: "SIEDCO no disponible; datos anteriores conservados", count: 0 };
   } finally {
     refreshInProgress = false;
   }
@@ -1270,81 +1421,10 @@ router.post("/crimes/refresh", async (req, res) => {
   });
 });
 
-/* ══════════════════════════════════════════════════════════════════
-   AUTO-REFRESH DIARIO — AICRI 2026
-   Verifica diariamente si la Policía publicó un nuevo archivo Excel.
-   Usa solo HEAD request (sin descargar el archivo completo) para
-   comparar tamaño y fecha de modificación. Solo descarga si cambió.
-   ══════════════════════════════════════════════════════════════════ */
-
-interface FileFingerprint {
-  contentLength: string | null;
-  lastModified:  string | null;
-  etag:          string | null;
-}
-
-let lastFingerprint: FileFingerprint | null = null;
-let lastSourceUrl: string | null = null;
-
-async function getFileFingerprint(url: string): Promise<FileFingerprint | null> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
-    const res = await fetch(url, {
-      method: "HEAD",
-      signal: controller.signal,
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; SafeNodeBot/1.0)" },
-    });
-    clearTimeout(timeout);
-    if (!res.ok) return null;
-    return {
-      contentLength: res.headers.get("content-length"),
-      lastModified:  res.headers.get("last-modified"),
-      etag:          res.headers.get("etag"),
-    };
-  } catch {
-    return null;
-  }
-}
-
-function fingerprintsMatch(a: FileFingerprint, b: FileFingerprint): boolean {
-  /* ETag is most reliable; fall back to size + date */
-  if (a.etag && b.etag) return a.etag === b.etag;
-  return a.contentLength === b.contentLength && a.lastModified === b.lastModified;
-}
-
 async function checkAndAutoRefresh(): Promise<void> {
-  const sourceUrl = await discoverRegistroSourceUrl();
+  console.log("[AutoRefresh] Consultando agregados actuales directamente en SIEDCO…");
 
-  console.log("[AutoRefresh] Verificando si hay nuevo archivo AICRI en policia.gov.co…");
-
-  const current = await getFileFingerprint(sourceUrl);
-  if (!current) {
-    console.log("[AutoRefresh] No se pudo consultar el servidor de la Policía. Se reintentará mañana.");
-    return;
-  }
-
-  if (!lastFingerprint) {
-    /* Primera vez tras arrancar: sincroniza para cubrir cambios ocurridos mientras estuvo apagado. */
-    lastFingerprint = current;
-    lastSourceUrl = sourceUrl;
-    console.log(`[AutoRefresh] Huella inicial guardada — tamaño: ${current.contentLength ?? "desconocido"}, fecha: ${current.lastModified ?? "N/A"}`);
-    const result = await refreshData();
-    console.log(`[AutoRefresh] Sincronización inicial completada: ${result.message}`);
-    return;
-  }
-
-  if (lastSourceUrl === sourceUrl && fingerprintsMatch(lastFingerprint, current)) {
-    console.log("[AutoRefresh] Sin cambios detectados. Próxima verificación en 24h.");
-    return;
-  }
-
-  /* Archivo cambió → descargar y actualizar */
-  console.log("[AutoRefresh] ¡Nuevo archivo AICRI detectado! Actualizando datos automáticamente…");
-  lastFingerprint = current;
-  lastSourceUrl = sourceUrl;
-
-  if (refreshState.status === "refreshing") {
+  if (refreshState.status === "refreshing" || refreshInProgress) {
     console.log("[AutoRefresh] Ya hay una actualización en curso, se omite.");
     return;
   }
@@ -1367,7 +1447,7 @@ export function startDailyAutoRefresh(): void {
     setInterval(checkAndAutoRefresh, INTERVAL_MS);
   }, 5 * 60 * 1000);
 
-  console.log("[AutoRefresh] Programado: revisión diaria del archivo AICRI activada (primera revisión en 5 min).");
+  console.log("[AutoRefresh] Programado: sincronización diaria directa con SIEDCO (primera revisión en 5 min).");
 }
 
 export { ensureDataLoaded, loadDemoIfEmpty };
