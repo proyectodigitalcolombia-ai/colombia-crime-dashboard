@@ -549,6 +549,23 @@ function parseRegistroFile(wb: XLSX.WorkBook, year: number): ParsedRow[] {
       const nKey = `${month}|${ct.id}`;
       if (!nationalAgg[nKey]) nationalAgg[nKey] = { id: ct.id, name: ct.name, count: 0 };
       nationalAgg[nKey].count += cantidad;
+
+      // "Hurtos" is the umbrella total: keep it in addition to each
+      // specific theft category so the chart and department map use the
+      // same definition as the official workbook totals.
+      const delitoNormalized = removeAccents(delito.toUpperCase());
+      const isHurto = delitoNormalized.includes("HURTO") || delitoNormalized.includes("ABIGEATO");
+      if (isHurto && ct.id !== "hurtos") {
+        const umbrellaDeptKey = `${month}|${dept}|hurtos`;
+        if (!agg[umbrellaDeptKey]) agg[umbrellaDeptKey] = { id: "hurtos", name: "Hurtos", count: 0 };
+        agg[umbrellaDeptKey].count += cantidad;
+
+        const umbrellaNationalKey = `${month}|hurtos`;
+        if (!nationalAgg[umbrellaNationalKey]) {
+          nationalAgg[umbrellaNationalKey] = { id: "hurtos", name: "Hurtos", count: 0 };
+        }
+        nationalAgg[umbrellaNationalKey].count += cantidad;
+      }
     }
 
     for (const [key, { id, name, count }] of Object.entries(agg)) {
@@ -717,27 +734,28 @@ const ANNUAL_NATIONAL_TOTALS: Record<string, Record<number, number>> = {
 /**
  * Totales mensuales nacionales para 2026.
  * Meses 1-2: datos reales — INFORMACIÓN DE DELITOS A NIVEL DE REGISTRO AÑO 2026, Policía Nacional.
- * Meses 1-5: datos reales del archivo AICRI más reciente (enero–mayo 2026).
+ * Meses 1-5: datos reales del archivo AICRI más reciente (enero–mayo 2026),
+ * recalculados con el mismo mapeo que parseRegistroFile.
  * Formato: { crimeTypeId: { mes: total_nacional } }
  */
 const MONTHLY_ACTUALS_2026: Record<string, Record<number, number>> = {
   //                                  Jan      Feb      Mar      Apr      May
-  "hurtos":                  { 1: 34441,  2: 27629,  3: 29932,  4: 30878,  5: 3564 },
-  "hurtos_personas":         { 1: 18943,  2: 15196,  3: 16456,  4: 16982,  5: 21384 },
-  "hurtos_automotores":      { 1:  4477,  2:  3592,  3:  3890,  4:  4014,  5:  487 },
-  "hurtos_motocicletas":     { 1:  4822,  2:  3868,  3:  4191,  4:  4323,  5: 2294 },
-  "hurtos_comercio":         { 1:  3100,  2:  2487,  3:  2694,  4:  2779,  5: 1716 },
-  "homicidios":              { 1:  1189,  2:  1048,  3:  1079,  4:  1113,  5: 1190 },
-  "homicidios_transito":     { 1:   631,  2:   595,  3:   591,  4:   610,  5:  846 },
-  "lesiones_personales":     { 1:  7313,  2:  7766,  3:  7272,  4:  7501,  5: 8365 },
-  "lesiones_transito":       { 1:  3720,  2:  3429,  3:  3447,  4:  3556,  5: 4265 },
-  "violencia_intrafamiliar": { 1: 12018,  2: 11125,  3: 11160,  4: 11512,  5:10663 },
-  "delitos_sexuales":        { 1:  1956,  2:  2021,  3:  1917,  4:  1978,  5: 2180 },
-  "extorsion":               { 1:   963,  2:   654,  3:   779,  4:   804,  5:  670 },
-  "amenazas":                { 1:  3933,  2:  4320,  3:  3980,  4:  4106,  5: 4183 },
-  "pirateria_terrestre":     { 1:     7,  2:     2,  3:     4,  4:     4,  5:    2 },
-  "secuestros":              { 1:    35,  2:    21,  3:    27,  4:    28,  5:    3 },
-  "terrorismo":              { 1:    13,  2:     7,  3:    10,  4:    10,  5:   14 },
+  "hurtos":                  { 1: 34714,  2: 31057,  3: 30118,  4: 27064,  5: 27729 },
+  "hurtos_personas":         { 1: 26083,  2: 22900,  3: 22186,  4: 20066,  5: 21384 },
+  "hurtos_automotores":      { 1:   806,  2:   773,  3:   726,  4:   665,  5:   487 },
+  "hurtos_motocicletas":     { 1:  3130,  2:  2755,  3:  2538,  4:  2295,  5:  2294 },
+  "hurtos_comercio":         { 1:  2415,  2:  2473,  3:  2427,  4:  2123,  5:  1716 },
+  "homicidios":              { 1:  1203,  2:  1083,  3:  1170,  4:  1156,  5:  1190 },
+  "homicidios_transito":     { 1:   625,  2:   594,  3:   752,  4:   796,  5:   846 },
+  "lesiones_personales":     { 1:  7205,  2:  7618,  3:  8265,  4:  7400,  5:  8365 },
+  "lesiones_transito":       { 1:  3970,  2:  3897,  3:  4693,  4:  4156,  5:  4265 },
+  "violencia_intrafamiliar": { 1: 12631,  2: 13424,  3: 14496,  4: 12153,  5: 10663 },
+  "delitos_sexuales":        { 1:  2259,  2:  2622,  3:  2802,  4:  2470,  5:  2180 },
+  "extorsion":               { 1:  1146,  2:  1139,  3:  1194,  4:  1077,  5:   670 },
+  "amenazas":                { 1:  4034,  2:  4373,  3:  4686,  4:  4311,  5:  4183 },
+  "pirateria_terrestre":     { 1:     8,  2:     3,  3:     4,  4:     1,  5:     2 },
+  "secuestros":              { 1:    40,  2:    48,  3:    40,  4:    25,  5:     3 },
+  "terrorismo":              { 1:    25,  2:    24,  3:    22,  4:    20,  5:    14 },
 };
 
 /** Último mes con datos reales disponibles para 2026 */
