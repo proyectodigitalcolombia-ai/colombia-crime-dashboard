@@ -1,0 +1,103 @@
+'use strict';
+
+/****************************************************************************************************************************************
+Obtener el host de la extensi�n, por ejemplo, en localhost:4848/extensions/NombreExtension/Pagina.html
+se obtiene /extensions/NombreExtension/
+/***************************************************************************************************************************************/
+var href = window.location.pathname;
+var dir = href.substring(0, href.lastIndexOf('/')) + "/";
+
+var prefix = window.location.pathname.substr(0, window.location.pathname.toLowerCase().lastIndexOf("/extensions") + 1);
+var root =              dir;
+var extRoot = 			root + 'js';
+var extIncludeRoot = root + 'include';
+
+var config = {
+	host: window.location.hostname,
+    prefix: prefix,
+	port: window.location.port,
+    isSecure: window.location.protocol === "https:"
+};
+
+require.config({
+
+    baseUrl: (config.isSecure ? "https://" : "http://") + config.host + (config.port ? ":" + config.port : "") + config.prefix + "resources",
+
+    paths: {
+
+        'extJs': extRoot,
+        'extView': root + 'views',
+        'extComponent': root + 'js/Component',
+        'extControllers': root + 'js/Controllers',
+        'extDirectives': root + 'js/Directives',
+        'extServices': root + 'js/Services',
+
+        'app': extRoot + '/app',
+        'jquery': extIncludeRoot + '/jquery-3.3.1.min',
+        'jqueryui': extIncludeRoot + '/jquery-ui-1.12.1/jquery-ui.min',
+        'jquerytoast': extIncludeRoot + '/jquery-toast/jquery.toast.min',   
+        
+        "TouchPunch": extIncludeRoot + '/jquery.ui.touch-punch.min',       
+        'popper': extIncludeRoot + '/bootstrap/js/popper',        
+        'bootstrap': extIncludeRoot + '/bootstrap/js/bootstrap.bundle.min',
+        'uiRouter': extIncludeRoot + '/angular-ui-router.min',
+        'Modernizr': extIncludeRoot + '/modernizr.min',
+        'moment': extIncludeRoot+'/moment/moment',
+        'moment-timezone': extIncludeRoot + '/moment/moment-timezone-with-data.min'
+    },
+    waitSeconds: 0,
+    shim: {
+        'uiRouter': {
+            'deps': ['angular']
+        },
+        'Modernizr': {
+            'exports': 'Modernizr'
+        },
+        'jquery': {
+            exports: 'jQuery'
+        },
+        'jqueryui': {
+            deps: ['jquery']
+        },
+        'jquerytoast': {
+            deps: ['jquery']
+        },
+        "TouchPunch": {
+            deps: ["jquery", "jqueryui"]
+        },
+        'bootstrap': {
+            'deps': ['jquery', 'popper']
+        }
+    },
+    packages: [{
+        name: 'moment',
+        location: extIncludeRoot,
+        main: 'moment-with-locales'
+    }]
+        
+});
+require([
+    'js/qlik',    
+    'extJs/main',
+    'jquery',
+    'jqueryui',
+    'jquerytoast',
+    'TouchPunch',
+    'bootstrap'
+], function () {				
+		angular.element(document).ready(function() {
+            angular.bootstrap(document, ['qlik-angular', 'qlik-mashup']);
+        });        
+	}
+);
+require(['popper'], function (popper) {
+    window.Popper = popper;
+    require(["bootstrap"]);
+});
+
+
+
+
+
+
+	

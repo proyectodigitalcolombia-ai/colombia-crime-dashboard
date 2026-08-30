@@ -130026,9 +130026,8 @@ var db = drizzle(pool, { schema: schema_exports });
 var XLSX = __toESM(require_xlsx(), 1);
 var router2 = (0, import_express2.Router)();
 var POLICE_BASE = "https://www.policia.gov.co/sites/default/files";
-var REGISTRO_SOURCES = [
-  { url: `${POLICE_BASE}/INFORMACI%C3%93N_DE_DELITOS_A_NIVEL_DE_REGISTRO_A%C3%91O_2026_4.xlsx`, year: 2026 }
-];
+var POLICE_STATS_PAGE = "https://www.policia.gov.co/estadistica-delictiva";
+var REGISTRO_FALLBACK_URL = `${POLICE_BASE}/INFORMACI%C3%93N_DELITOS_A_NIVEL_DE_REGISTRO_A%C3%91O_2026_1.xlsx`;
 var EXCEL_SOURCES = [
   {
     url: `${POLICE_BASE}/CUADRO_DE_SALIDA_DELICTIVO_HISTORICO_MENSUALIZADO_20_25_1.xlsx`,
@@ -130154,13 +130153,50 @@ function normalizeDepartment(name) {
   }
   return name.trim();
 }
+async function discoverRegistroSourceUrl() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15e3);
+  try {
+    const response = await fetch(POLICE_STATS_PAGE, {
+      signal: controller.signal,
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; SafeNodeBot/1.0)" }
+    });
+    if (!response.ok) return REGISTRO_FALLBACK_URL;
+    const html = await response.text();
+    const links = html.matchAll(/href=["']([^"']+\.xlsx(?:\?[^"']*)?)["']/gi);
+    for (const match of links) {
+      const href = match[1]?.replaceAll("&amp;", "&");
+      if (!href) continue;
+      let decoded = href;
+      try {
+        decoded = decodeURIComponent(href);
+      } catch {
+      }
+      const normalized = removeAccents(decoded).toLowerCase();
+      if (normalized.includes("informacion_delitos_a_nivel_de_registro_ano_2026") || normalized.includes("informacion_de_delitos_a_nivel_de_registro_ano_2026")) {
+        return new URL(href, POLICE_STATS_PAGE).toString();
+      }
+    }
+  } catch (err) {
+    console.warn(
+      "[Crimes] No se pudo detectar el enlace oficial 2026; se usar\xE1 el enlace de respaldo:",
+      err instanceof Error ? err.message : String(err)
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
+  return REGISTRO_FALLBACK_URL;
+}
 var refreshState = {
   status: "idle",
   message: null
 };
 async function downloadExcel(url2) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 9e4);
   try {
     const response = await fetch(url2, {
+      signal: controller.signal,
       headers: {
         "User-Agent": "Mozilla/5.0 (compatible; StatsCrawler/1.0)",
         "Accept": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -130172,6 +130208,8 @@ async function downloadExcel(url2) {
     return XLSX.read(buffer, { type: "buffer", cellDates: true });
   } catch {
     return null;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 function parseNumber(val) {
@@ -130400,17 +130438,39 @@ function parse2026Excel(wb) {
 }
 function mapDelitoCrimeType(delito) {
   const d = removeAccents(delito.toUpperCase());
-  if (d.includes("103") || d.includes("HOMICIDIO") && !d.includes("CULPOSO") && !d.includes("ACCIDENTE"))
-    return { id: "homicidios", name: "Homicidios" };
-  if (d.includes("109") || d.includes("HOMICIDIO") && (d.includes("CULPOSO") || d.includes("ACCIDENTE")))
+  const code = d.match(/\((\d+)\)/)?.[1];
+  const currentCodeMap = {
+    "0101": { id: "homicidios", name: "Homicidios" },
+    "10321": { id: "homicidios_transito", name: "Homicidios en Tr\xE1nsito" },
+    "02011": { id: "lesiones_personales", name: "Lesiones Personales" },
+    "02012": { id: "amenazas", name: "Amenazas" },
+    "02019": { id: "lesiones_transito", name: "Lesiones en Tr\xE1nsito" },
+    "020222": { id: "secuestros", name: "Secuestros" },
+    "02051": { id: "extorsion", name: "Extorsi\xF3n" },
+    "02089": { id: "violencia_intrafamiliar", name: "Violencia Intrafamiliar" },
+    "0301": { id: "delitos_sexuales", name: "Delitos Sexuales" },
+    "05010": { id: "hurtos", name: "Hurtos" },
+    "050211": { id: "hurtos_automotores", name: "Hurto a Automotores" },
+    "050212": { id: "hurtos_motocicletas", name: "Hurto a Motocicletas" },
+    "05022": { id: "hurtos_personas", name: "Hurto a Personas" },
+    "05023": { id: "hurtos_comercio", name: "Hurto a Comercio" },
+    "05024": { id: "hurtos", name: "Hurtos" },
+    "05030": { id: "hurtos", name: "Hurtos" },
+    "05040": { id: "pirateria_terrestre", name: "Pirater\xEDa Terrestre" },
+    "0906": { id: "terrorismo", name: "Terrorismo" }
+  };
+  if (code && currentCodeMap[code]) return currentCodeMap[code];
+  if (d.includes("HOMICIDIO") && (d.includes("TRANSITO") || d.includes("CULPOSO") || d.includes("ACCIDENTE")))
     return { id: "homicidios_transito", name: "Homicidios en Tr\xE1nsito" };
-  if (d.includes("120") || d.includes("LESIONES") && d.includes("CULPOSAS"))
+  if (d.includes("HOMICIDIO"))
+    return { id: "homicidios", name: "Homicidios" };
+  if (d.includes("LESIONES") && (d.includes("CULPOSAS") || d.includes("ACCIDENTE")))
     return { id: "lesiones_transito", name: "Lesiones en Tr\xE1nsito" };
-  if (d.includes("111") || d.includes("LESIONES") && d.includes("PERSONALES"))
+  if (d.includes("LESIONES") && d.includes("PERSONALES"))
     return { id: "lesiones_personales", name: "Lesiones Personales" };
-  if (d.includes("205") || d.includes("DELITOS SEXUALES") || d.includes("SEXUAL"))
+  if (d.includes("DELITOS SEXUALES") || d.includes("SEXUAL") || d.includes("VIOLACION"))
     return { id: "delitos_sexuales", name: "Delitos Sexuales" };
-  if (d.includes("229") || d.includes("VIOLENCIA INTRAFAMILIAR"))
+  if (d.includes("VIOLENCIA INTRAFAMILIAR"))
     return { id: "violencia_intrafamiliar", name: "Violencia Intrafamiliar" };
   if (d.includes("HURTO") && (d.includes("AUTOMOTOR") || d.includes("VEHICULO") || d.includes("VEH\xCDCULO")))
     return { id: "hurtos_automotores", name: "Hurto a Automotores" };
@@ -130418,17 +130478,19 @@ function mapDelitoCrimeType(delito) {
     return { id: "hurtos_motocicletas", name: "Hurto a Motocicletas" };
   if (d.includes("HURTO") && (d.includes("PERSONA") || d.includes("ATRACO")))
     return { id: "hurtos_personas", name: "Hurto a Personas" };
-  if (d.includes("HURTO") && (d.includes("COMERCIO") || d.includes("ESTABLECIMIENTO") || d.includes("NEGOCIO")))
+  if (d.includes("HURTO") && (d.includes("COMERCIO") || d.includes("COMERCIAL") || d.includes("ESTABLECIMIENTO") || d.includes("NEGOCIO")))
     return { id: "hurtos_comercio", name: "Hurto a Comercio" };
-  if (d.includes("239") || d.includes("243") || d.includes("HURTO") || d.includes("ABIGEATO"))
+  if (d.includes("PIRATERIA TERRESTRE") || d.includes("BIENES EN TRANSITO"))
+    return { id: "pirateria_terrestre", name: "Pirater\xEDa Terrestre" };
+  if (d.includes("HURTO") || d.includes("ABIGEATO"))
     return { id: "hurtos", name: "Hurtos" };
-  if (d.includes("244") || d.includes("EXTORSION"))
+  if (d.includes("EXTORSION"))
     return { id: "extorsion", name: "Extorsi\xF3n" };
-  if (d.includes("347") || d.includes("AMENAZA"))
+  if (d.includes("AMENAZA"))
     return { id: "amenazas", name: "Amenazas" };
-  if (d.includes("168") || d.includes("SECUESTRO"))
+  if (d.includes("SECUESTRO") || d.includes("RETENCION ILEGAL"))
     return { id: "secuestros", name: "Secuestros" };
-  if (d.includes("343") || d.includes("TERRORISMO"))
+  if (d.includes("TERRORISMO"))
     return { id: "terrorismo", name: "Terrorismo" };
   return null;
 }
@@ -130459,6 +130521,18 @@ function parseRegistroFile(wb, year) {
       const nKey = `${month}|${ct.id}`;
       if (!nationalAgg[nKey]) nationalAgg[nKey] = { id: ct.id, name: ct.name, count: 0 };
       nationalAgg[nKey].count += cantidad;
+      const delitoNormalized = removeAccents(delito.toUpperCase());
+      const isHurto = delitoNormalized.includes("HURTO") || delitoNormalized.includes("ABIGEATO");
+      if (isHurto && ct.id !== "hurtos") {
+        const umbrellaDeptKey = `${month}|${dept}|hurtos`;
+        if (!agg[umbrellaDeptKey]) agg[umbrellaDeptKey] = { id: "hurtos", name: "Hurtos", count: 0 };
+        agg[umbrellaDeptKey].count += cantidad;
+        const umbrellaNationalKey = `${month}|hurtos`;
+        if (!nationalAgg[umbrellaNationalKey]) {
+          nationalAgg[umbrellaNationalKey] = { id: "hurtos", name: "Hurtos", count: 0 };
+        }
+        nationalAgg[umbrellaNationalKey].count += cantidad;
+      }
     }
     for (const [key, { id, name, count }] of Object.entries(agg)) {
       const [mo, dept] = key.split("|");
@@ -130486,6 +130560,10 @@ async function saveRows(rows) {
   return saved;
 }
 async function refreshData() {
+  if (refreshInProgress) {
+    return { success: false, message: "Ya hay una actualizaci\xF3n en curso", count: 0 };
+  }
+  refreshInProgress = true;
   refreshState.status = "refreshing";
   refreshState.message = "Descargando datos de la Polic\xEDa Nacional...";
   let totalInserted = 0;
@@ -130494,7 +130572,10 @@ async function refreshData() {
   try {
     await db.delete(crimeStatsTable);
     refreshState.message = "Descargando datos de registro individual 2026...";
-    for (const source of REGISTRO_SOURCES) {
+    const registroSources = [
+      { url: await discoverRegistroSourceUrl(), year: 2026 }
+    ];
+    for (const source of registroSources) {
       refreshState.message = `Procesando registros individuales ${source.year}...`;
       try {
         const wb = await downloadExcel(source.url);
@@ -130565,6 +130646,8 @@ async function refreshData() {
     } catch (fallbackErr) {
       return { success: false, message: "Sin datos disponibles", count: 0 };
     }
+  } finally {
+    refreshInProgress = false;
   }
 }
 var ANNUAL_NATIONAL_TOTALS = {
@@ -130602,25 +130685,24 @@ var ANNUAL_NATIONAL_TOTALS = {
   "terrorismo": { 2022: 105, 2023: 100, 2024: 98, 2025: 95, 2026: 30 }
 };
 var MONTHLY_ACTUALS_2026 = {
-  //                                  Jan      Feb      Mar      Apr
-  "hurtos": { 1: 34441, 2: 27629, 3: 29932, 4: 30878 },
-  "hurtos_personas": { 1: 18943, 2: 15196, 3: 16456, 4: 16982 },
-  "hurtos_automotores": { 1: 4477, 2: 3592, 3: 3890, 4: 4014 },
-  "hurtos_motocicletas": { 1: 4822, 2: 3868, 3: 4191, 4: 4323 },
-  "hurtos_comercio": { 1: 3100, 2: 2487, 3: 2694, 4: 2779 },
-  "homicidios": { 1: 1189, 2: 1048, 3: 1079, 4: 1113 },
-  "homicidios_transito": { 1: 631, 2: 595, 3: 591, 4: 610 },
-  "lesiones_personales": { 1: 7313, 2: 7766, 3: 7272, 4: 7501 },
-  "lesiones_transito": { 1: 3720, 2: 3429, 3: 3447, 4: 3556 },
-  "violencia_intrafamiliar": { 1: 12018, 2: 11125, 3: 11160, 4: 11512 },
-  "delitos_sexuales": { 1: 1956, 2: 2021, 3: 1917, 4: 1978 },
-  "extorsion": { 1: 963, 2: 654, 3: 779, 4: 804 },
-  "amenazas": { 1: 3933, 2: 4320, 3: 3980, 4: 4106 },
-  "pirateria_terrestre": { 1: 7, 2: 2, 3: 4, 4: 4 },
-  "secuestros": { 1: 35, 2: 21, 3: 27, 4: 28 },
-  "terrorismo": { 1: 13, 2: 7, 3: 10, 4: 10 }
+  "homicidios": { 1: 1207, 2: 1091, 3: 1184, 4: 1162, 5: 1218, 6: 1132, 7: 1224 },
+  "delitos_sexuales": { 1: 2403, 2: 2800, 3: 3021, 4: 2847, 5: 2943, 6: 2307, 7: 2021 },
+  "violencia_intrafamiliar": { 1: 12835, 2: 13741, 3: 14975, 4: 13194, 5: 14762, 6: 12230, 7: 10344 },
+  "hurtos_automotores": { 1: 811, 2: 790, 3: 776, 4: 712, 5: 644, 6: 647, 7: 739 },
+  "extorsion": { 1: 1126, 2: 1114, 3: 1258, 4: 1266, 5: 1258, 6: 1208, 7: 591 },
+  "amenazas": { 1: 4107, 2: 4467, 3: 4845, 4: 4602, 5: 4769, 6: 4139, 7: 3713 },
+  "pirateria_terrestre": { 1: 9, 2: 5, 3: 9, 4: 3, 5: 3, 6: 1, 7: 3 },
+  "hurtos_comercio": { 1: 2429, 2: 2524, 3: 2467, 4: 2244, 5: 2086, 6: 1302, 7: 1026 },
+  "hurtos": { 1: 2297, 2: 2189, 3: 2288, 4: 2001, 5: 2145, 6: 2074, 7: 1733 },
+  "lesiones_transito": { 1: 4182, 2: 4094, 3: 4967, 4: 4467, 5: 4818, 6: 4250, 7: 4e3 },
+  "hurtos_personas": { 1: 26291, 2: 23226, 3: 22612, 4: 20556, 5: 22669, 6: 22262, 7: 20781 },
+  "terrorismo": { 1: 25, 2: 24, 3: 23, 4: 22, 5: 19, 6: 11, 7: 20 },
+  "secuestros": { 1: 43, 2: 50, 3: 43, 4: 32, 5: 16, 6: 14, 7: 19 },
+  "homicidios_transito": { 1: 625, 2: 599, 3: 755, 4: 790, 5: 858, 6: 760, 7: 751 },
+  "lesiones_personales": { 1: 7124, 2: 7539, 3: 8253, 4: 7400, 5: 8927, 6: 8340, 7: 7608 },
+  "hurtos_motocicletas": { 1: 3171, 2: 2823, 3: 2664, 4: 2493, 5: 2687, 6: 2655, 7: 2515 }
 };
-var LAST_ACTUAL_MONTH_2026 = 4;
+var LAST_ACTUAL_MONTH_2026 = 7;
 var DEPT_SHARES = {
   "hurtos": {
     "Bogot\xE1 D.C.": 27.5,
@@ -130959,6 +131041,11 @@ function generateDemoData() {
     for (const ct of CRIME_TYPES) {
       const shares = DEPT_SHARES[ct.id] ?? defaultShares;
       const useActuals = year === 2026 && MONTHLY_ACTUALS_2026[ct.id] != null;
+      const actuals = MONTHLY_ACTUALS_2026[ct.id] ?? {};
+      const seasonalBaseline = Object.entries(actuals).length > 0 ? Object.entries(actuals).reduce(
+        (sum, [month, value]) => sum + value / (MONTHLY_SEASONALITY[Number(month)] ?? 1),
+        0
+      ) / Object.keys(actuals).length : 0;
       let annualTotal = 0;
       if (!useActuals) {
         annualTotal = ANNUAL_NATIONAL_TOTALS[ct.id]?.[year] ?? 1e3;
@@ -130966,7 +131053,7 @@ function generateDemoData() {
       for (let month = 1; month <= maxMonth; month++) {
         let monthlyNational;
         if (useActuals) {
-          monthlyNational = MONTHLY_ACTUALS_2026[ct.id][month] ?? 0;
+          monthlyNational = actuals[month] ?? Math.max(1, Math.round(seasonalBaseline * (MONTHLY_SEASONALITY[month] ?? 1)));
         } else {
           const seasonalWeight = MONTHLY_SEASONALITY[month] ?? 1;
           monthlyNational = Math.round(annualTotal * seasonalWeight / seasonalWeightTotal);
@@ -131000,26 +131087,16 @@ async function loadDemoIfEmpty() {
     const presentTypeIds = new Set(presentTypes.map((r) => r.crimeType));
     const missingTypes = CRIME_TYPES.filter((ct) => !presentTypeIds.has(ct.id));
     const hasMissingTypes = missingTypes.length > 0;
-    const totalRows = Number(countResult[0]?.count ?? 0);
-    const rowsPerMonthPerType = 33;
-    const hasExtraRows = totalRows > 0 && totalRows % (CRIME_TYPES.length * rowsPerMonthPerType) !== 0;
     const maxMonth2026Result = await db.select({ maxMonth: sql`max(${crimeStatsTable.month})` }).from(crimeStatsTable).where(eq(crimeStatsTable.year, 2026));
     const maxMonth2026InDb = Number(maxMonth2026Result[0]?.maxMonth ?? 0);
-    const hasStale2026 = maxMonth2026InDb > LAST_ACTUAL_MONTH_2026;
     const hasMissingMonths2026 = maxMonth2026InDb > 0 && maxMonth2026InDb < LAST_ACTUAL_MONTH_2026;
     const zeroMonthResult = await db.select({ count: sql`count(*)` }).from(crimeStatsTable).where(
       sql`${crimeStatsTable.year} = 2026 AND ${crimeStatsTable.month} <= ${LAST_ACTUAL_MONTH_2026} AND ${crimeStatsTable.count} = 0 AND ${crimeStatsTable.department} = 'NACIONAL'`
     );
     const hasZeroNationalMonths = Number(zeroMonthResult[0]?.count ?? 0) > 0;
-    if (isEmpty || missingCurrentYear || hasMissingTypes || hasExtraRows || hasStale2026 || hasMissingMonths2026 || hasZeroNationalMonths) {
+    if (isEmpty || missingCurrentYear || hasMissingTypes || hasMissingMonths2026 || hasZeroNationalMonths) {
       if (hasMissingTypes) {
         console.log(`Missing crime types detected: ${missingTypes.map((t) => t.id).join(", ")} \u2014 reloading demo data`);
-      }
-      if (hasExtraRows) {
-        console.log(`Extra/corrupt rows detected (${totalRows} not divisible by ${CRIME_TYPES.length * rowsPerMonthPerType}) \u2014 reloading demo data`);
-      }
-      if (hasStale2026) {
-        console.log(`Stale 2026 data detected (max month in DB: ${maxMonth2026InDb}, last actual: ${LAST_ACTUAL_MONTH_2026}) \u2014 reloading demo data`);
       }
       if (hasMissingMonths2026) {
         console.log(`Incomplete 2026 data (max month in DB: ${maxMonth2026InDb}, expected up to: ${LAST_ACTUAL_MONTH_2026}) \u2014 reloading demo data`);
@@ -131035,7 +131112,7 @@ async function loadDemoIfEmpty() {
         lastRefreshed: /* @__PURE__ */ new Date(),
         nextRefresh: new Date(Date.now() + 24 * 60 * 60 * 1e3),
         status: "error",
-        message: `Datos reales ene-feb + est. mar-abr 2026 + hist\xF3rico 2022-2025 (${saved} registros)`,
+        message: `Datos de respaldo hasta julio de 2026 + hist\xF3rico 2022-2025 (${saved} registros)`,
         recordCount: saved
       });
       console.log(`Demo data loaded: ${saved} records`);
@@ -131163,7 +131240,7 @@ router2.get("/crimes/refresh-status", async (req, res) => {
   }
 });
 router2.post("/crimes/refresh", async (req, res) => {
-  if (refreshState.status === "refreshing") {
+  if (refreshState.status === "refreshing" || refreshInProgress) {
     const logs = await db.select().from(refreshLogTable).orderBy(desc(refreshLogTable.id)).limit(1);
     const log = logs[0];
     return res.json({
@@ -131184,6 +131261,7 @@ router2.post("/crimes/refresh", async (req, res) => {
   });
 });
 var lastFingerprint = null;
+var lastSourceUrl = null;
 async function getFileFingerprint(url2) {
   try {
     const controller = new AbortController();
@@ -131209,8 +131287,7 @@ function fingerprintsMatch(a, b) {
   return a.contentLength === b.contentLength && a.lastModified === b.lastModified;
 }
 async function checkAndAutoRefresh() {
-  const sourceUrl = REGISTRO_SOURCES[0]?.url;
-  if (!sourceUrl) return;
+  const sourceUrl = await discoverRegistroSourceUrl();
   console.log("[AutoRefresh] Verificando si hay nuevo archivo AICRI en policia.gov.co\u2026");
   const current = await getFileFingerprint(sourceUrl);
   if (!current) {
@@ -131219,15 +131296,19 @@ async function checkAndAutoRefresh() {
   }
   if (!lastFingerprint) {
     lastFingerprint = current;
+    lastSourceUrl = sourceUrl;
     console.log(`[AutoRefresh] Huella inicial guardada \u2014 tama\xF1o: ${current.contentLength ?? "desconocido"}, fecha: ${current.lastModified ?? "N/A"}`);
+    const result = await refreshData();
+    console.log(`[AutoRefresh] Sincronizaci\xF3n inicial completada: ${result.message}`);
     return;
   }
-  if (fingerprintsMatch(lastFingerprint, current)) {
+  if (lastSourceUrl === sourceUrl && fingerprintsMatch(lastFingerprint, current)) {
     console.log("[AutoRefresh] Sin cambios detectados. Pr\xF3xima verificaci\xF3n en 24h.");
     return;
   }
   console.log("[AutoRefresh] \xA1Nuevo archivo AICRI detectado! Actualizando datos autom\xE1ticamente\u2026");
   lastFingerprint = current;
+  lastSourceUrl = sourceUrl;
   if (refreshState.status === "refreshing") {
     console.log("[AutoRefresh] Ya hay una actualizaci\xF3n en curso, se omite.");
     return;
@@ -142121,7 +142202,41 @@ async function fetchTelegramMessages(channel) {
   return messages;
 }
 var seenIds = /* @__PURE__ */ new Set();
+function classifyByRules(text2) {
+  const cleaned = text2.replace(/\s+/g, " ").trim();
+  if (!cleaned) return null;
+  if (isResolutionText(cleaned)) {
+    return { eventType: "libre", department: null, via: null, km: null, locationText: cleaned, severity: "bajo", isResolution: true };
+  }
+  let eventType = null;
+  let severity = "medio";
+  if (/(accidente|choque|volcad|quinta rueda|parti[oó]\s+.{0,30}(card[aá]n|tr[aá]iler)|mula\s+varad|veh[ií]culo\s+varad|enterrad|dormid)/i.test(cleaned)) {
+    eventType = "accidente";
+    severity = "alto";
+  } else if (/(no hay paso|v[ií]a\s+cerrad|cerrad[ao]|bloqueo|derrumbe|sin paso)/i.test(cleaned)) {
+    eventType = "cierre";
+    severity = "alto";
+  } else if (/(tranc[oó]n|trancon|cola\s+(?:viene|larga|de)|quietos|represamiento)/i.test(cleaned)) {
+    eventType = "trancon";
+  } else if (/(protesta|manifestaci[oó]n|paro|disturbio)/i.test(cleaned)) {
+    eventType = "manifestacion";
+    severity = "alto";
+  }
+  if (!eventType) return null;
+  const viaMatch = cleaned.match(/(?:v[ií]a|sentido|sector|peaje|km\.?|kil[oó]metro)\s+[^,.]{3,90}/i);
+  const kmMatch = cleaned.match(/\b(?:km\.?|kil[oó]metro)\s*(\d+(?:[.,]\d+)?)/i);
+  return {
+    eventType,
+    department: null,
+    via: viaMatch?.[0] ?? null,
+    km: kmMatch?.[1] ?? null,
+    locationText: cleaned.slice(0, 500),
+    severity,
+    isResolution: false
+  };
+}
 async function classifyMessage(text2) {
+  const fallback = classifyByRules(text2);
   const prompt = `Eres analista de seguridad vial de Colombia. Analiza este mensaje de un canal de transporte colombiano.
 
 MENSAJE: "${text2}"
@@ -142145,9 +142260,9 @@ Reglas:
   try {
     const raw = await askAI3(prompt);
     const match = raw.match(/\{[\s\S]*\}/);
-    if (!match) return null;
+    if (!match) return fallback;
     const parsed = JSON.parse(match[0]);
-    return {
+    const classified = {
       eventType: ["accidente", "cierre", "trancon", "manifestacion", "libre", "otro"].includes(parsed.eventType) ? parsed.eventType : "otro",
       department: parsed.department || null,
       via: parsed.via || null,
@@ -142156,8 +142271,9 @@ Reglas:
       severity: ["alto", "medio", "bajo"].includes(parsed.severity) ? parsed.severity : "medio",
       isResolution: !!parsed.isResolution
     };
+    return classified.eventType === "otro" && fallback ? fallback : classified;
   } catch {
-    return null;
+    return fallback;
   }
 }
 async function autoResolveRelated(locationText) {
@@ -142219,7 +142335,10 @@ async function runTelegramScan() {
       }
       const cls = await classifyMessage(msg.text).catch(() => null);
       if (!cls) {
-        seenIds.add(msg.id);
+        const reason = "No se pudo clasificar el mensaje Telegram " + msg.id + "; se reintentar\xE1 en el pr\xF3ximo ciclo.";
+        console.warn("[TelegramMonitor] " + reason);
+        tgMonitorState.errors.push(reason);
+        if (tgMonitorState.errors.length > 20) tgMonitorState.errors.shift();
         continue;
       }
       if (cls.isResolution || cls.eventType === "libre") {
